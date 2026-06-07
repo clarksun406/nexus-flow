@@ -1,0 +1,37 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+*.versionsBackup
+dependency-reduced-pom.xml
+
+# Build output
+*.class
+*.jar
+*.war
+*.ear
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.project
+.classpath
+nbproject/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Local Claude settings (personal, machine-specific)
+.claude/settings.local.json
+
+# Secrets / local env overrides
+.env
+*.local.yml
+application-local.yml

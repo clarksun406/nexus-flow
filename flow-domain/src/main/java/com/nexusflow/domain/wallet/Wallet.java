@@ -1,0 +1,53 @@
+package com.nexusflow.domain.wallet;
+
+import com.nexusflow.domain.shared.Chain;
+import lombok.Builder;
+import lombok.Getter;
+
+import java.time.Instant;
+
+/**
+ * Wallet aggregate root.
+ *
+ * Represents a hot or cold wallet for a specific blockchain.
+ * Private keys are stored encrypted; never exposed in plaintext.
+ */
+@Getter
+public class Wallet {
+
+    private String id;
+    private String name;
+    private Chain chain;
+    private WalletType type;
+    private String address;
+    private String encryptedPrivateKey; // AES-256-GCM encrypted
+    private String kmsKeyId;            // external KMS reference (optional)
+    private boolean active;
+    private Instant createdAt;
+    private Instant updatedAt;
+
+    @Builder
+    public Wallet(String id, String name, Chain chain, WalletType type,
+                  String address, String encryptedPrivateKey, String kmsKeyId) {
+        this.id = id;
+        this.name = name;
+        this.chain = chain;
+        this.type = type;
+        this.address = address;
+        this.encryptedPrivateKey = encryptedPrivateKey;
+        this.kmsKeyId = kmsKeyId;
+        this.active = true;
+        this.createdAt = Instant.now();
+        this.updatedAt = Instant.now();
+    }
+
+    public void deactivate() {
+        this.active = false;
+        this.updatedAt = Instant.now();
+    }
+
+    public void activate() {
+        this.active = true;
+        this.updatedAt = Instant.now();
+    }
+}

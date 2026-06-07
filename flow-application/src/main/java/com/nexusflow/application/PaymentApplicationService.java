@@ -1,0 +1,191 @@
+package com.nexusflow.application;
+
+import com.nexusflow.application.dto.CreatePaymentCommand;
+import com.nexusflow.application.dto.PaymentResponse;
+import com.nexusflow.common.IdempotencyViolationException;
+import com.nexusflow.common.PaymentNotFoundException;
+import com.nexusflow.domain.event.DomainEvent;
+import com.nexusflow.domain.event.DomainEventPublisher;
+import com.nexusflow.domain.payment.CryptoPayment;
+import com.nexusflow.domain.payment.PaymentRepository;
+import com.nexusflow.domain.payment.PaymentStatus;
+import com.nexusflow.domain.shared.Money;
+import com.nexusflow.domain.wallet.Wallet;
+import com.nexusflow.domain.wallet.WalletRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.UUID;
+
+/**
+ * Application service orchestrating payment use cases.
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class PaymentApplicationService {
+
+    private final PaymentRepository paymentRepository;
+    private final WalletRepository walletRepository;
+    private final DomainEventPublisher eventPublisher;
+
+    /**
+     * Create a new payment and assign a receiving address.
+     */
+    @Transactional
+    public PaymentResponse createPayment(CreatePaymentCommand command) {
+        // Idempotency check
+        if (paymentRepository.existsByOrderId(command.getOrderId())) {
+            throw new IdempotencyViolationException(command.getOrderId());
+        }
+
+        // Resolve wallet for the currency/chain
+        Wallet wallet = resolveWallet(command.getCurrency());
+
+        CryptoPayment payment = CryptoPayment.builder()
+                .id(UUID.randomUUID().toString())
+                .orderId(command.getOrderId())
+                .expected(Money.of(command.getCurrency(), new BigDecimal(command.getAmount())))
+                .receivingAddress(wallet.getAddress())
+                .callbackUrl(command.getCallbackUrl())
+                .build();
+
+        payment.markPending();
+        paymentRepository.save(payment);
+
+        // Publish domain events
+        publishEvents(payment.collectEvents());
+
+        log.info("Payment created: orderId={}, paymentId={}, address={}",
+                command.getOrderId(), payment.getId(), wallet.getAddress());
+
+        return toResponse(payment);
+    }
+
+    /**
+     * Handle payment detection from blockchain listener.
+     * Matches an incoming on-chain transaction to a PENDING payment by receiving address,
+     * validates currency, and transitions the payment to DETECTED.
+     */
+    @Transactional
+    public void onPaymentDetected(String txHash, String toAddress, String amount, String currency) {
+        // Idempotency: skip transactions already linked to a payment
+        if (paymentRepository.findByTxHash(txHash).isPresent()) {
+            log.warn("Transaction already processed: txHash={}", txHash);
+            return;
+        }
+
+        // Match the incoming tx to a payment awaiting funds at this address
+        CryptoPayment payment = paymentRepository.findPendingByReceivingAddress(toAddress).orElse(null);
+        if (payment == null) {
+            log.warn("No PENDING payment found for incoming tx: toAddress={}, txHash={}", toAddress, txHash);
+            return;
+        }
+
+        // Validate currency matches what the payment expects
+        String expectedCurrency = payment.getExpected() != null ? payment.getExpected().getCurrency() : null;
+        if (expectedCurrency != null && !expectedCurrency.equalsIgnoreCase(currency)) {
+            log.warn("Currency mismatch for payment {}: expected={}, received={} (txHash={})",
+                    payment.getId(), expectedCurrency, currency, txHash);
+            return;
+        }
+
+        Money received = Money.of(currency, new BigDecimal(amount));
+        if (payment.getExpected() != null
+                && received.getAmount().compareTo(payment.getExpected().getAmount()) < 0) {
+            log.warn("Underpayment detected for payment {}: expected={}, received={} (txHash={})",
+                    payment.getId(), payment.getExpected().getAmount().toPlainString(),
+                    received.getAmount().toPlainString(), txHash);
+        }
+
+        payment.markDetected(txHash, received);
+        paymentRepository.save(payment);
+        publishEvents(payment.collectEvents());
+
+        log.info("Payment detected: paymentId={}, orderId={}, txHash={}, address={}",
+                payment.getId(), payment.getOrderId(), txHash, toAddress);
+    }
+
+    /**
+     * Confirm a payment by updating confirmation count.
+     */
+    @Transactional
+    public void confirmPayment(String paymentId, int confirmations) {
+        CryptoPayment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+
+        boolean confirmed = payment.updateConfirmations(confirmations);
+        paymentRepository.save(payment);
+
+        publishEvents(payment.collectEvents());
+
+        if (confirmed) {
+            log.info("Payment confirmed: paymentId={}, confirmations={}", paymentId, confirmations);
+        }
+    }
+
+    /**
+     * Mark payment as failed.
+     */
+    @Transactional
+    public void failPayment(String paymentId, String reason) {
+        CryptoPayment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+
+        payment.markFailed(reason);
+        paymentRepository.save(payment);
+
+        publishEvents(payment.collectEvents());
+        log.info("Payment failed: paymentId={}, reason={}", paymentId, reason);
+    }
+
+    /**
+     * Query payment by ID.
+     */
+    @Transactional(readOnly = true)
+    public PaymentResponse getPayment(String paymentId) {
+        CryptoPayment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+        return toResponse(payment);
+    }
+
+    private Wallet resolveWallet(String currency) {
+        // Parse chain from currency (e.g. "USDT_TRC20" → TRON)
+        String chainStr = currency.contains("_") ? currency.substring(currency.indexOf('_') + 1) : currency;
+        var chain = com.nexusflow.domain.shared.Chain.fromString(
+                switch (chainStr.toUpperCase()) {
+                    case "TRC20" -> "TRON";
+                    case "ERC20" -> "ETH";
+                    default -> chainStr;
+                });
+
+        return walletRepository.findActiveByChain(chain)
+                .orElseThrow(() -> new com.nexusflow.common.NexusFlowException(
+                        com.nexusflow.common.ErrorCode.WALLET_NOT_FOUND,
+                        "No active wallet for chain: " + chain));
+    }
+
+    private void publishEvents(List<DomainEvent> events) {
+        events.forEach(eventPublisher::publish);
+    }
+
+    private PaymentResponse toResponse(CryptoPayment p) {
+        return PaymentResponse.builder()
+                .paymentId(p.getId())
+                .orderId(p.getOrderId())
+                .currency(p.getExpected() != null ? p.getExpected().getCurrency() : null)
+                .expectedAmount(p.getExpected() != null ? p.getExpected().getAmount().toPlainString() : null)
+                .receivingAddress(p.getReceivingAddress())
+                .status(p.getStatus().name())
+                .txHash(p.getTxHash())
+                .confirmations(p.getConfirmations())
+                .createdAt(p.getCreatedAt() != null ? p.getCreatedAt().toEpochMilli() : null)
+                .detectedAt(p.getDetectedAt() != null ? p.getDetectedAt().toEpochMilli() : null)
+                .confirmedAt(p.getConfirmedAt() != null ? p.getConfirmedAt().toEpochMilli() : null)
+                .build();
+    }
+}

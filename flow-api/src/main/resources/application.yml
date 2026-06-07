@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: nexus-flow
+  datasource:
+    url: jdbc:postgresql://localhost:5432/nexusflow
+    username: nexusflow
+    password: ${DB_PASSWORD:nexusflow}
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  redis:
+    host: localhost
+    port: 6379
+  jackson:
+    serialization:
+      write-dates-as-timestamps: true
+    default-property-inclusion: non_null
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+nexusflow:
+  encryption:
+    key: ${ENCRYPTION_KEY:}
+  tron:
+    node-url: ${TRON_NODE_URL:https://api.trongrid.io}
+    usdt-contract: ${TRON_USDT_CONTRACT:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t}
+  scanner:
+    interval-ms: 15000
+
+logging:
+  level:
+    com.nexusflow: DEBUG
+  pattern:
+    console: '{"timestamp":"%d{ISO8601}","level":"%level","logger":"%logger","message":"%msg"}%n'
