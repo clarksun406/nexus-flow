@@ -1,5 +1,7 @@
 package com.nexusflow.domain.payment;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -20,6 +22,12 @@ public interface PaymentRepository {
      * Used to match incoming on-chain transactions to expected payments.
      */
     Optional<CryptoPayment> findPendingByReceivingAddress(String receivingAddress);
+
+    /**
+     * Find all payments currently in any of the given statuses.
+     * Used by reconciliation (DETECTED/CONFIRMING) and expiry (PENDING) jobs.
+     */
+    List<CryptoPayment> findByStatusIn(Collection<PaymentStatus> statuses);
 
     boolean existsByOrderId(String orderId);
 }

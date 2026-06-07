@@ -129,6 +129,22 @@ public class PaymentApplicationService {
     }
 
     /**
+     * Mark an overdue payment as expired. Only valid while the payment is still PENDING;
+     * the aggregate's state machine rejects expiry once funds have been detected.
+     */
+    @Transactional
+    public void expirePayment(String paymentId) {
+        CryptoPayment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+
+        payment.markExpired();
+        paymentRepository.save(payment);
+
+        publishEvents(payment.collectEvents());
+        log.info("Payment expired: paymentId={}", paymentId);
+    }
+
+    /**
      * Mark payment as failed.
      */
     @Transactional
@@ -154,15 +170,7 @@ public class PaymentApplicationService {
     }
 
     private Wallet resolveWallet(String currency) {
-        // Parse chain from currency (e.g. "USDT_TRC20" → TRON)
-        String chainStr = currency.contains("_") ? currency.substring(currency.indexOf('_') + 1) : currency;
-        var chain = com.nexusflow.domain.shared.Chain.fromString(
-                switch (chainStr.toUpperCase()) {
-                    case "TRC20" -> "TRON";
-                    case "ERC20" -> "ETH";
-                    default -> chainStr;
-                });
-
+        var chain = com.nexusflow.domain.shared.Chain.fromCurrency(currency);
         return walletRepository.findActiveByChain(chain)
                 .orElseThrow(() -> new com.nexusflow.common.NexusFlowException(
                         com.nexusflow.common.ErrorCode.WALLET_NOT_FOUND,

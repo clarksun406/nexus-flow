@@ -517,38 +517,42 @@ Ensure blockchain truth matches system state
 
 ---
 
-#### P0-1: TronAdapter — TRC20 Block Scanning
+#### P0-1: TronAdapter — TRC20 Block Scanning — 🟡 PARTIAL
 
-**File:** `flow-infra/.../blockchain/TronAdapter.java`
+**File:** `flow-infra/.../blockchain/TronAdapter.java` (now backed by `TronGridClient` / `HttpTronGridClient`)
 
-| Method | Status | What to do |
-|--------|--------|-------------|
-| `scanNewBlocks()` (L30) | Returns `Collections.emptyList()` | Call TronGrid `/v1/blocks?limit=N`, parse transactions, filter by `usdtContractAddress`, return `List<ScannedTransaction>` |
-| `getCurrentBlockHeight()` (L40) | Returns `0` | Call `/wallet/getnowblock`, extract block number |
-| `getConfirmations()` (L46) | Returns `0` | `currentBlockHeight - txBlockNumber` |
-| `isHealthy()` (L52) | Returns `true` always | Ping node endpoint, timeout-based health check |
+| Method | Status | Notes |
+|--------|--------|-------|
+| `scanNewBlocks()` | ⬜ explicit stub | TronGrid's TRC20 transfer API is account/timestamp-scoped and doesn't map onto the block-range abstraction; needs the event-info endpoint or full-node log decoding. Left documented rather than faked. |
+| `getCurrentBlockHeight()` | ✅ done | `POST /wallet/getnowblock` → `block_header.raw_data.number` |
+| `getConfirmations()` | ✅ done | `gettransactioninfobyid` → `blockNumber`, then `currentHeight - txBlock` |
+| `isHealthy()` | ✅ done | healthy when block height > 0 |
 
-**Dependencies:** HTTP client (RestTemplate / WebClient / OkHttp) to call TronGrid API.
-
----
-
-#### P0-2: KeyGenerator — Address Derivation
-
-**File:** `flow-wallet/.../wallet/KeyGenerator.java`
-
-| Method | Status | What to do |
-|--------|--------|-------------|
-| `deriveAddress()` (L35-42) | Placeholder: returns `"0x" + key[0:40]` | Implement chain-specific EC key→address derivation: **Tron** = ECKey → SHA3 → base58check; **ETH** = ECKey → pubkey → keccak256 → last 20 bytes → hex; **BTC** = ECKey → pubkey → SHA256+RIPEMD160 → base58check |
-
-**Dependencies:** BouncyCastle or web3j crypto utilities.
+Response parsing covered by `TronAdapterTest` (HTTP transport stubbed — not live-verified).
+Remaining: implement real `scanNewBlocks` and verify all calls against a live TronGrid endpoint.
 
 ---
 
-#### P0-3: PaymentApplicationService — onPaymentDetected (Payment Matching)
+#### P0-2: KeyGenerator — Address Derivation — ✅ DONE (ETH/TRON)
 
-**File:** `flow-application/.../application/PaymentApplicationService.java` (L72-87)
+**File:** `flow-wallet/.../wallet/KeyGenerator.java` (+ self-contained `Base58` util)
 
-**Problem:** The method only logs incoming transactions; it never matches them to specific payments or transitions state.
+> Implemented with web3j EC/keccak: **ETH** = keccak256(pubkey)[12:] → EIP-55 checksummed hex;
+> **TRON** = 0x41 ‖ keccak256(pubkey)[12:] → Base58Check. Verified against the secp256k1 private-key=1
+> test vector (`KeyGeneratorTest`, `Base58Test`). **BTC/SOLANA** throw `UnsupportedOperationException`
+> (BTC needs RIPEMD160 / bitcoinj, currently excluded from the build — do under P1).
+
+---
+
+#### P0-3: PaymentApplicationService — onPaymentDetected (Payment Matching) — ✅ DONE
+
+> Implemented: `onPaymentDetected` now dedups by `txHash`, matches a PENDING payment via
+> `PaymentRepository.findPendingByReceivingAddress`, validates currency, transitions to DETECTED,
+> saves, and publishes events. Covered by `PaymentApplicationServiceTest`.
+
+**File:** `flow-application/.../application/PaymentApplicationService.java`
+
+**Problem (original):** The method only logged incoming transactions; it never matched them to specific payments or transitioned state.
 
 **What to do:**
 1. Query `paymentRepository` for payments in `PENDING` status at `toAddress`
@@ -578,36 +582,52 @@ Ensure blockchain truth matches system state
 
 **Problem:** No code reads/writes the `idempotency_keys` table. Currently only `existsByOrderId` on in-memory repo provides idempotency.
 
-**What to do:**
-1. Create `IdempotencyStore` interface in `flow-domain`
-2. Implement in `flow-infra` using Redis (TTL-based) or PostgreSQL
-3. Wrap `createPayment` with: check key → if exists return cached response → if not, execute and store
+> 🟡 Partial: channel-callback idempotency is handled by `ProcessedEventStore` (port in `flow-domain`),
+> with TWO impls — `InMemoryProcessedEventStore` (default) and `RedisProcessedEventStore`
+> (`SET NX EX`, multi-instance safe), selected via `nexusflow.idempotency.store=memory|redis`
+> (`RedisIdempotencyConfig`). Redis logic unit-tested with a mocked Jedis (`RedisProcessedEventStoreTest`);
+> not yet verified against a live Redis. Still does NOT cover `createPayment` response caching or the
+> `idempotency_keys` table.
+
+**Remaining:**
+1. ✅ Persistent, multi-instance dedup store (Redis) behind the existing `ProcessedEventStore` port
+2. ⬜ Wrap `createPayment` with: check key → if exists return cached response → if not, execute and store
+3. ⬜ Use the `idempotency_keys` table (or Redis) for full request/response idempotency, not just callbacks
 
 ---
 
-#### P0-6: Payment Expiry Scheduler
+#### P0-6: Payment Expiry Scheduler — ✅ DONE
 
-**File:** `flow-domain/.../domain/payment/CryptoPayment.java` (`markExpired()` at L93)
+> Implemented as `PaymentReconciliationJob.expireOverduePayments()` (`flow-application`,
+> `@Scheduled`, TTL via `nexusflow.payment.expiry-minutes`, default 30 min). Queries PENDING
+> payments past TTL and calls the new `PaymentApplicationService.expirePayment()` (own transaction
+> per payment). Covered by `PaymentReconciliationJobTest`.
+> Not yet done: firing the merchant webhook on expiry (see P0-4).
 
-**Problem:** `EXPIRED` state and `markExpired()` exist, but nothing ever triggers them.
+**File:** `flow-domain/.../domain/payment/CryptoPayment.java` (`markExpired()`)
 
-**What to do:**
-1. Create `PaymentExpiryJob` in `flow-listener` with `@Scheduled`
-2. Query payments in `PENDING` status older than configurable TTL (e.g. 30 min)
-3. Call `payment.markExpired()`, save, publish events, fire webhook
+**Problem (original):** `EXPIRED` state and `markExpired()` existed, but nothing ever triggered them.
 
 ---
 
-#### P0-7: Reconciliation Job
+#### P0-7: Reconciliation Job — 🟡 PARTIAL
 
-Per init.md (L493-504): "Blockchain is source of truth, system is derived state."
+Per init.md: "Blockchain is source of truth, system is derived state."
 
-**What to do:**
-1. Create `ReconciliationJob` in `flow-listener`
-2. Periodically scan unconfirmed payments (DETECTED, CONFIRMING)
-3. Re-query blockchain for latest confirmations via `BlockchainAdapter.getConfirmations()`
-4. Update payment confirmations, transition to CONFIRMED/FAILED as appropriate
-5. Detect missing events (tx seen on-chain but no payment record) and create catch-up payments
+> Implemented: `PaymentReconciliationJob.reconcileConfirmations()` (`flow-application`, `@Scheduled`,
+> interval via `nexusflow.reconciliation.interval-ms`). Scans DETECTED/CONFIRMING payments, resolves
+> the chain adapter, re-queries `BlockchainAdapter.getConfirmations()`, and drives confirmation via
+> `confirmPayment()` (own transaction per payment; one failure does not abort the batch). Backed by
+> `PaymentRepository.findByStatusIn()`. Covered by `PaymentReconciliationJobTest`.
+> NOTE: only produces real progress once a real `BlockchainAdapter` is wired (TronAdapter still
+> returns 0 confirmations — see P0-1).
+
+**Still to do (items 4–5 below):**
+1. ✅ Periodically scan unconfirmed payments (DETECTED, CONFIRMING)
+2. ✅ Re-query blockchain for latest confirmations via `BlockchainAdapter.getConfirmations()`
+3. ✅ Update payment confirmations, transition to CONFIRMED as appropriate
+4. ⬜ Transition to FAILED on reorg / failure detection
+5. ⬜ Detect missing events (tx seen on-chain but no payment record) and create catch-up payments
 
 ---
 
@@ -736,9 +756,15 @@ Entire class is a stub. **What to do:**
 
 ---
 
-#### P3-1: Unit Tests
+#### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-No tests exist. **Priority test targets:**
+> Added (27 tests, all passing): `CryptoPaymentTest` (state machine), `PaymentApplicationServiceTest`
+> (detection matching + expiry), `PaymentOrchestratorTest` (channel address resolution + callback
+> dedup), `PaymentReconciliationJobTest` (reconcile/expire), `InMemoryPaymentRepositoryTest`,
+> `InMemoryProcessedEventStoreTest`. Surefire pinned to 3.2.5 so JUnit 5 actually runs.
+> Still missing: `flow-common` (`AesGcmEncryption`, `ApiResponse`), orchestration JPA repos, `Money`.
+
+**Remaining priority test targets:**
 
 | Module | What to test |
 |--------|-------------|
@@ -760,10 +786,18 @@ No tests exist. **Priority test targets:**
 
 ### 📊 Summary
 
-| Priority | Count | Items |
-|----------|-------|-------|
-| P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation |
-| P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg |
-| P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp |
-| P3 (Testing) | 2 | Unit tests, Integration tests |
-| **Total** | **19** | |
+| Priority | Count | Items | Status |
+|----------|-------|-------|--------|
+| P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Expiry · 🟡 TronAdapter, Reconciliation, Idempotency · ⬜ Webhook |
+| P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ⬜ all |
+| P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ⬜ all |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (48, all green) · ⬜ Integration (needs Testcontainers/Docker) |
+| **Total** | **19** | | |
+
+> 进度更新 2026-06-07：
+> - 修复编排层两处问题——`PaymentOrchestrator.submitPayment` 改为真正调用
+>   `ChannelAdapter.createDepositAddress`（原为硬编码地址），`handlePaymentCallback` 增加 `eventId` 去重。
+> - 新增确认对账 + 过期调度（`PaymentReconciliationJob`），KeyGenerator 真实派生（ETH/TRON），
+>   TronAdapter 真实的 height/confirmations/health 查询，Redis 幂等存储（可选）。
+> - 工程化：GitHub Actions CI（`.github/workflows/ci.yml`，`mvn verify`）；测试 48 个全绿。
+> 详见 git 历史与 `README.md` / `CLAUDE.md`。

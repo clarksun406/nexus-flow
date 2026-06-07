@@ -186,9 +186,9 @@ public interface ChannelRouter {
 | P1-1 | BinancePayAdapter | ⬜ |
 | P1-2 | 动态路由策略（费率/汇率/权重） | ⬜ |
 | P1-3 | Redis 币种+汇率缓存 | ⬜ |
-| P1-4 | 过期调度 + 对账 Job | ⬜ |
+| P1-4 | 过期调度 + 对账 Job | 🟡 执行层已完成（`PaymentReconciliationJob`：确认对账 + 过期）；编排层 `PaymentOrder` 过期/对账待做 |
 | P1-5 | 安全加固（限频/UUID/HTTPS） | ⬜ |
-| P1-6 | 单元测试 + 集成测试 | ⬜ |
+| P1-6 | 单元测试 + 集成测试 | 🟡 单元测试 48 个全绿（含 KeyGenerator/Base58/TronAdapter 解析/Redis 幂等）；集成测试（Testcontainers/Docker）待做 |
 
 ### ═══════════════════════════════════════════
 ### 🟢 P2 — 扩展 (0/4)
@@ -206,6 +206,25 @@ public interface ChannelRouter {
 | 阶段 | 任务数 | 完成 | 进度 |
 |------|--------|------|------|
 | P0 | 10 | 10 | 100% |
-| P1 | 6 | 0 | 0% |
+| P1 | 6 | 0（2 项部分完成） | ~15% |
 | P2 | 4 | 0 | 0% |
-| **合计** | **20** | **10** | **50%** |
+| **合计** | **20** | **10** | **~50%** |
+
+---
+
+## 六、修复 / 进度记录（2026-06-07）
+
+P0 编排骨架完成后，对照实际代码做了缺陷修复、生命周期补全与测试：
+
+- **Bug 修复**
+  - `PaymentOrchestrator.submitPayment`：原返回硬编码充值地址，改为按 `channelId` 解析适配器并真正调用 `ChannelAdapter.createDepositAddress`。
+  - `PaymentOrchestrator.handlePaymentCallback`：新增 `eventId` 去重（`ProcessedEventStore` 端口 + 内存实现），且置于订单查询之后，避免「订单暂不存在」的重试被误吞。
+  - `PaymentApplicationService.onPaymentDetected`（执行层）：原为死代码，改为真正按收款地址匹配 PENDING 支付并转 DETECTED。
+- **生命周期补全**：`PaymentReconciliationJob`（确认对账 + 过期调度），对应 P1-4 的执行层部分。
+- **链上能力（Tier 2）**：
+  - `KeyGenerator` 真实地址派生（ETH = keccak→EIP-55；TRON = 0x41‖keccak→Base58Check；自带 `Base58` 工具），用私钥=1 测试向量验证。BTC/SOLANA 暂抛异常。
+  - `TronAdapter` 真实 `getCurrentBlockHeight`/`getConfirmations`/`isHealthy`（经 `TronGridClient`，解析有单测）；`scanNewBlocks` 仍为带说明的显式 stub（TronGrid TRC20 接口与按块扫描抽象不匹配）。
+  - Redis 幂等存储 `RedisProcessedEventStore`（`SET NX EX`，多实例安全），`nexusflow.idempotency.store=memory|redis` 切换，默认内存。
+- **工程化（Tier 3）**：GitHub Actions CI（`mvn verify`）；单元测试增至 48 个全绿；父 POM 固定 `maven-surefire-plugin` 3.2.5（否则 JUnit 5 静默不执行）；新增 `README.md`、`CLAUDE.md`、`.gitignore`。
+
+> 仍未做：编排层 `PaymentOrder` 的过期/对账、商户 Webhook 实际投递、TronAdapter 真实扫块（`scanNewBlocks`）、`createPayment` 全量幂等、执行层支付/钱包的持久化、钱包播种、集成测试（需 Docker）。以上「真实链上/Redis」改动均未经真实环境端到端验证。

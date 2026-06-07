@@ -39,6 +39,18 @@ nexusflow:
     usdt-contract: ${TRON_USDT_CONTRACT:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t}
   scanner:
     interval-ms: 15000
+  payment:
+    expiry-minutes: 30        # PENDING payments older than this are marked EXPIRED
+  reconciliation:
+    interval-ms: 30000        # how often to re-check confirmations for DETECTED/CONFIRMING
+  expiry:
+    interval-ms: 60000        # how often to scan for overdue PENDING payments
+  idempotency:
+    store: memory             # memory (default) | redis — dedup backend for channel callbacks
+    ttl-seconds: 86400        # redis only: how long a processed eventId is remembered
+  redis:
+    host: ${REDIS_HOST:localhost}
+    port: ${REDIS_PORT:6379}
 
 logging:
   level:

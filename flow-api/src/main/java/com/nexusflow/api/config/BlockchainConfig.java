@@ -3,6 +3,7 @@ package com.nexusflow.api.config;
 import com.nexusflow.domain.blockchain.BlockchainAdapter;
 import com.nexusflow.domain.channel.ChannelAdapter;
 import com.nexusflow.infra.adapter.bitmart.BitMartAdapter;
+import com.nexusflow.infra.blockchain.HttpTronGridClient;
 import com.nexusflow.infra.blockchain.TronAdapter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -19,7 +20,7 @@ public class BlockchainConfig {
 
     @Bean
     public BlockchainAdapter tronAdapter() {
-        return new TronAdapter(tronNodeUrl, tronUsdtContract);
+        return new TronAdapter(new HttpTronGridClient(tronNodeUrl), tronUsdtContract);
     }
 
     @Bean

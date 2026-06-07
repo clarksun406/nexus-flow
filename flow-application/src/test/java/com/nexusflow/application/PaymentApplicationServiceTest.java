@@ -85,6 +85,19 @@ class PaymentApplicationServiceTest {
     }
 
     @Test
+    void expirePaymentTransitionsPendingToExpired() {
+        CryptoPayment payment = pendingPaymentAt("TADDR");
+        when(paymentRepository.findById("pay-1")).thenReturn(Optional.of(payment));
+
+        service.expirePayment("pay-1");
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.EXPIRED);
+        assertThat(payment.getExpiredAt()).isNotNull();
+        verify(paymentRepository).save(payment);
+        verify(eventPublisher).publish(any());
+    }
+
+    @Test
     void skipsOnCurrencyMismatch() {
         CryptoPayment payment = pendingPaymentAt("TADDR"); // expects USDT_TRC20
         when(paymentRepository.findByTxHash("tx-1")).thenReturn(Optional.empty());

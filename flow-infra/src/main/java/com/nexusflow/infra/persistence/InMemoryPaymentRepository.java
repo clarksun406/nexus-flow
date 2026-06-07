@@ -5,9 +5,12 @@ import com.nexusflow.domain.payment.PaymentRepository;
 import com.nexusflow.domain.payment.PaymentStatus;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 /**
  * In-memory payment repository for Phase 1 MVP.
@@ -53,6 +56,16 @@ public class InMemoryPaymentRepository implements PaymentRepository {
                 .filter(p -> p.getStatus() == PaymentStatus.PENDING)
                 .filter(p -> receivingAddress.equals(p.getReceivingAddress()))
                 .findFirst();
+    }
+
+    @Override
+    public List<CryptoPayment> findByStatusIn(Collection<PaymentStatus> statuses) {
+        if (statuses == null || statuses.isEmpty()) {
+            return List.of();
+        }
+        return byId.values().stream()
+                .filter(p -> statuses.contains(p.getStatus()))
+                .collect(Collectors.toList());
     }
 
     @Override

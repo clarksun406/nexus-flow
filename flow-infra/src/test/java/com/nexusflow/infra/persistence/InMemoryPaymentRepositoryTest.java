@@ -1,12 +1,15 @@
 package com.nexusflow.infra.persistence;
 
 import com.nexusflow.domain.payment.CryptoPayment;
+import com.nexusflow.domain.payment.PaymentStatus;
 import com.nexusflow.domain.shared.Money;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -61,5 +64,34 @@ class InMemoryPaymentRepositoryTest {
     @Test
     void nullAddressReturnsEmpty() {
         assertFalse(repo.findPendingByReceivingAddress(null).isPresent());
+    }
+
+    @Test
+    void findByStatusInReturnsOnlyMatchingStatuses() {
+        CryptoPayment pending = payment("1", "A");
+        pending.markPending();
+        repo.save(pending);
+
+        CryptoPayment created = payment("2", "B"); // stays CREATED
+        repo.save(created);
+
+        CryptoPayment detected = payment("3", "C");
+        detected.markPending();
+        detected.markDetected("tx", Money.of("USDT_TRC20", BigDecimal.ONE));
+        repo.save(detected);
+
+        List<String> ids = repo.findByStatusIn(List.of(PaymentStatus.PENDING, PaymentStatus.DETECTED))
+                .stream().map(CryptoPayment::getId).sorted().collect(Collectors.toList());
+
+        assertEquals(List.of("1", "3"), ids);
+    }
+
+    @Test
+    void findByStatusInEmptyReturnsEmpty() {
+        CryptoPayment pending = payment("1", "A");
+        pending.markPending();
+        repo.save(pending);
+
+        assertTrue(repo.findByStatusIn(List.of()).isEmpty());
     }
 }
