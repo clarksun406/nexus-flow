@@ -84,8 +84,7 @@ public class CryptoPayment {
         this.confirmations = count;
         if (status == PaymentStatus.DETECTED && count > 0) {
             transitionTo(PaymentStatus.CONFIRMING, txHash, count);
-        }
-        if (status == PaymentStatus.CONFIRMING && count >= requiredConfirmations) {
+        } else if (status == PaymentStatus.CONFIRMING && count >= requiredConfirmations) {
             this.confirmedAt = Instant.now();
             transitionTo(PaymentStatus.CONFIRMED, txHash, count);
             return true;

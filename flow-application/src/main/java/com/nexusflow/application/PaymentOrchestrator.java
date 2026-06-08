@@ -90,7 +90,7 @@ public class PaymentOrchestrator {
                 .build();
 
         orderRepository.save(order);
-        eventPublisher.publish(order.collectEvents().get(0));
+        order.collectEvents().forEach(eventPublisher::publish);
 
         String payUrl = "https://cashier.nexusflow.com/checkout?payment_id=" + order.getPaymentId();
         log.info("Order created: paymentId={}, channel={}", order.getPaymentId(), channel.channelId());
@@ -132,7 +132,7 @@ public class PaymentOrchestrator {
 
         // Create flow
         PaymentFlow flow = PaymentFlow.builder()
-                .flowNo("FLW" + System.currentTimeMillis())
+                .flowNo("FLW" + UUID.randomUUID().toString().replace("-", "").substring(0, 16))
                 .paymentId(order.getPaymentId())
                 .channelId(channelId)
                 .token(req.getToken()).network(req.getNetwork())
@@ -181,8 +181,22 @@ public class PaymentOrchestrator {
             return;
         }
 
-        BigDecimal cryptoAmt = new BigDecimal(paidCrypto);
-        BigDecimal fiatAmt = paidFiat != null ? new BigDecimal(paidFiat) : cryptoAmt.divide(order.getExchangeRate(), 2, RoundingMode.HALF_UP);
+        BigDecimal cryptoAmt;
+        try {
+            cryptoAmt = new BigDecimal(paidCrypto);
+        } catch (NumberFormatException e) {
+            throw new NexusFlowException(ErrorCode.INVALID_REQUEST, "Invalid paidCrypto value: " + paidCrypto);
+        }
+        BigDecimal fiatAmt;
+        if (paidFiat != null) {
+            try {
+                fiatAmt = new BigDecimal(paidFiat);
+            } catch (NumberFormatException e) {
+                throw new NexusFlowException(ErrorCode.INVALID_REQUEST, "Invalid paidFiat value: " + paidFiat);
+            }
+        } else {
+            fiatAmt = cryptoAmt.divide(order.getExchangeRate(), 2, RoundingMode.HALF_UP);
+        }
 
         if (cryptoAmt.compareTo(order.getAmountCrypto()) >= 0) {
             order.markConfirmed(txHash, cryptoAmt, fiatAmt);

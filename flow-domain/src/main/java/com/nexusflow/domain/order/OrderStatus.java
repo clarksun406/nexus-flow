@@ -35,7 +35,8 @@ public enum OrderStatus {
             t(PARTIALLY_PAID, FAILED),
             t(CONFIRMED, REFUND_PROCESSING),
             t(REFUND_PROCESSING, REFUNDED),
-            t(REFUND_PROCESSING, REFUND_FAILED)
+            t(REFUND_PROCESSING, REFUND_FAILED),
+            t(REFUND_FAILED, REFUND_PROCESSING)  // retry failed refunds
     );
 
     public boolean canTransitionTo(OrderStatus target) {
@@ -50,8 +51,7 @@ public enum OrderStatus {
     }
 
     public boolean isTerminal() {
-        return this == CONFIRMED || this == EXPIRED || this == REFUNDED
-                || this == REFUND_FAILED || this == FAILED;
+        return this == EXPIRED || this == REFUNDED || this == FAILED;
     }
 
     private static Transition t(OrderStatus from, OrderStatus to) {

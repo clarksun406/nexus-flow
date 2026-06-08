@@ -95,11 +95,22 @@ public class PaymentApplicationService {
         }
 
         Money received = Money.of(currency, new BigDecimal(amount));
-        if (payment.getExpected() != null
-                && received.getAmount().compareTo(payment.getExpected().getAmount()) < 0) {
-            log.warn("Underpayment detected for payment {}: expected={}, received={} (txHash={})",
-                    payment.getId(), payment.getExpected().getAmount().toPlainString(),
-                    received.getAmount().toPlainString(), txHash);
+        if (payment.getExpected() != null) {
+            int cmp = received.getAmount().compareTo(payment.getExpected().getAmount());
+            if (cmp < 0) {
+                // Reject dust payments (less than 10% of expected) to prevent address blocking
+                BigDecimal minAcceptable = payment.getExpected().getAmount()
+                        .multiply(new BigDecimal("0.1"));
+                if (received.getAmount().compareTo(minAcceptable) < 0) {
+                    log.warn("Dust payment rejected for {}: expected={}, received={}, txHash={} (below 10% minimum)",
+                            payment.getId(), payment.getExpected().getAmount().toPlainString(),
+                            received.getAmount().toPlainString(), txHash);
+                    return;
+                }
+                log.warn("Underpayment detected for payment {}: expected={}, received={} (txHash={})",
+                        payment.getId(), payment.getExpected().getAmount().toPlainString(),
+                        received.getAmount().toPlainString(), txHash);
+            }
         }
 
         payment.markDetected(txHash, received);

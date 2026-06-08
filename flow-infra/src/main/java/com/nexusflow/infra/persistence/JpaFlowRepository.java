@@ -46,11 +46,15 @@ public interface JpaFlowRepository extends FlowRepository, JpaRepository<Payment
     }
 
     default PaymentFlow toDomain(PaymentFlowEntity e) {
-        return PaymentFlow.builder()
+        return PaymentFlow.reconstitute()
                 .flowNo(e.getFlowNo()).paymentId(e.getPaymentId()).channelId(e.getChannelId())
                 .token(e.getToken()).network(e.getNetwork()).cryptoAmount(e.getCryptoAmount())
                 .fiatAmount(e.getFiatAmount()).fiatCurrency(e.getFiatCurrency())
                 .exchangeRate(e.getExchangeRate()).payAddress(e.getPayAddress())
-                .memo(e.getMemo()).payerAddress(e.getPayerAddress()).build();
+                .memo(e.getMemo()).payerAddress(e.getPayerAddress())
+                .status(e.getStatus() != null ? FlowStatus.valueOf(e.getStatus()) : null)
+                .txHash(e.getTxHash()).paidAmount(e.getPaidAmount())
+                .createTime(e.getCreateTime()).updateTime(e.getUpdateTime())
+                .build();
     }
 }

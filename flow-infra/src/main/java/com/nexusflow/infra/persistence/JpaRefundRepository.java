@@ -2,7 +2,10 @@ package com.nexusflow.infra.persistence;
 
 import com.nexusflow.domain.refund.RefundOrder;
 import com.nexusflow.domain.refund.RefundRepository;
+import com.nexusflow.domain.refund.RefundStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -20,10 +23,11 @@ public interface JpaRefundRepository extends RefundRepository, JpaRepository<Ref
 
     @Override
     default Optional<RefundOrder> findByChannelRefundId(String channelRefundId) {
-        return findByChannelRefundIdCustom(channelRefundId).map(this::toDomain);
+        return findEntityByChannelRefundId(channelRefundId).map(this::toDomain);
     }
 
-    Optional<RefundOrderEntity> findByChannelRefundIdCustom(String channelRefundId);
+    @Query("SELECT r FROM RefundOrderEntity r WHERE r.channelRefundId = :id")
+    Optional<RefundOrderEntity> findEntityByChannelRefundId(@Param("id") String channelRefundId);
 
     default RefundOrderEntity toEntity(RefundOrder r) {
         RefundOrderEntity e = new RefundOrderEntity();
@@ -38,10 +42,15 @@ public interface JpaRefundRepository extends RefundRepository, JpaRepository<Ref
     }
 
     default RefundOrder toDomain(RefundOrderEntity e) {
-        return RefundOrder.builder()
+        return RefundOrder.reconstitute()
                 .refundOrderNo(e.getRefundOrderNo()).paymentId(e.getPaymentId())
+                .channelRefundId(e.getChannelRefundId())
                 .refundAmountFiat(e.getRefundAmountFiat()).refundAmountCrypto(e.getRefundAmountCrypto())
                 .exchangeRate(e.getExchangeRate()).token(e.getToken()).network(e.getNetwork())
-                .toAddress(e.getToAddress()).notifyUrl(e.getNotifyUrl()).build();
+                .toAddress(e.getToAddress()).txHash(e.getTxHash()).notifyUrl(e.getNotifyUrl())
+                .status(e.getStatus() != null ? RefundStatus.valueOf(e.getStatus()) : null)
+                .createTime(e.getCreateTime()).confirmTime(e.getConfirmTime())
+                .updateTime(e.getUpdateTime())
+                .build();
     }
 }

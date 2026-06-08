@@ -1,0 +1,1171 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>支付系统 - 交互演示</title>
+  <link rel="stylesheet" href="assets/styles.css" />
+  <style>
+    /* 页面切换动画 */
+    .page{display:none;animation:fadeIn .25s ease}
+    .page.active{display:block}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+    
+    /* 整体布局 - 居中卡片式 */
+    .app-container{
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:40px 20px;
+      background:linear-gradient(135deg,#f0f4f8 0%,#e8eef3 100%);
+    }
+    .app-card{
+      width:100%;
+      max-width:920px;
+      background:#fff;
+      border-radius:24px;
+      box-shadow:0 20px 60px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.04);
+      overflow:hidden;
+    }
+    
+    /* 顶部进度条 */
+    .app-header{
+      padding:24px 32px 20px;
+      background:linear-gradient(135deg,#1a1f2e 0%,#2d3548 100%);
+    }
+    .progress-bar{
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap:12px;
+    }
+    .progress-step{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:13px;
+      color:rgba(255,255,255,.5);
+      transition:all .3s;
+    }
+    .progress-step.active{color:#fff;font-weight:600}
+    .progress-step.done{color:#4ade80}
+    .progress-dot{
+      width:28px;height:28px;
+      border-radius:999px;
+      border:2px solid rgba(255,255,255,.2);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:12px;
+      font-weight:700;
+      transition:all .3s;
+    }
+    .progress-step.active .progress-dot{
+      border-color:#fff;
+      background:#fff;
+      color:#1a1f2e;
+    }
+    .progress-step.done .progress-dot{
+      border-color:#4ade80;
+      background:#4ade80;
+      color:#fff;
+    }
+    .progress-line{
+      width:48px;
+      height:2px;
+      background:rgba(255,255,255,.15);
+      transition:all .3s;
+    }
+    .progress-line.done{background:#4ade80}
+    
+    /* 主内容区 */
+    .app-body{
+      display:grid;
+      grid-template-columns:320px 1fr;
+      min-height:560px;
+    }
+    
+    /* 左侧订单区 */
+    .order-side{
+      padding:28px 24px;
+      background:#fafbfc;
+      border-right:1px solid #eee;
+      display:flex;
+      flex-direction:column;
+    }
+    .order-title{
+      font-size:13px;
+      font-weight:600;
+      color:#9ca3af;
+      text-transform:uppercase;
+      letter-spacing:.5px;
+      margin-bottom:20px;
+    }
+    .order-product{
+      display:flex;
+      align-items:center;
+      gap:14px;
+      padding:16px;
+      background:#fff;
+      border-radius:14px;
+      border:1px solid #eee;
+      margin-bottom:20px;
+    }
+    .order-product .thumb{
+      width:52px;height:52px;
+      border-radius:12px;
+      background:linear-gradient(135deg,#e0e7ff,#f0f4ff);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:20px;
+    }
+    .order-product .name{
+      font-weight:700;
+      color:#111;
+    }
+    .order-product .desc{
+      font-size:12px;
+      color:#9ca3af;
+      margin-top:2px;
+    }
+    
+    .order-info{margin-bottom:20px}
+    .order-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:10px 0;
+      border-bottom:1px solid #f0f0f0;
+    }
+    .order-row:last-child{border-bottom:none}
+    .order-row .label{font-size:13px;color:#9ca3af}
+    .order-row .value{
+      font-size:13px;
+      font-weight:600;
+      color:#374151;
+      display:flex;
+      align-items:center;
+      gap:6px;
+    }
+    .order-row .copy-btn{
+      width:20px;height:20px;
+      border-radius:6px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#9ca3af;
+      font-size:10px;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition:all .15s;
+    }
+    .order-row .copy-btn:hover{
+      background:#f3f4f6;
+      color:#6b7280;
+    }
+    
+    .order-total{
+      margin-top:auto;
+      padding:20px;
+      background:linear-gradient(135deg,#1a1f2e,#2d3548);
+      border-radius:16px;
+      color:#fff;
+    }
+    .order-total .label{
+      font-size:12px;
+      color:rgba(255,255,255,.6);
+      margin-bottom:6px;
+    }
+    .order-total .amount{
+      display:flex;
+      align-items:baseline;
+      gap:8px;
+    }
+    .order-total .num{
+      font-size:32px;
+      font-weight:800;
+      letter-spacing:-1px;
+    }
+    .order-total .unit{
+      font-size:14px;
+      color:rgba(255,255,255,.7);
+      font-weight:600;
+    }
+    
+    /* 右侧操作区 */
+    .action-side{
+      padding:28px 32px;
+      overflow-y:auto;
+    }
+    .section-title{
+      font-size:20px;
+      font-weight:800;
+      color:#111;
+      margin-bottom:20px;
+    }
+    .back-btn{
+      width:32px;height:32px;
+      border-radius:10px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#9ca3af;
+      font-size:14px;
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition:all .15s;
+      margin-right:12px;
+    }
+    .back-btn:hover{
+      background:#f3f4f6;
+      color:#374151;
+    }
+    .header-row{
+      display:flex;
+      align-items:center;
+      margin-bottom:20px;
+    }
+    
+    /* 选项卡片 */
+    .option-card{
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      background:#fff;
+      transition:all .2s;
+      cursor:pointer;
+      margin-bottom:10px;
+    }
+    .option-card:hover{
+      border-color:#d1d5db;
+      box-shadow:0 4px 12px rgba(0,0,0,.04);
+    }
+    .option-card.selected{
+      border-color:#3b82f6;
+      background:#f0f7ff;
+    }
+    .option-item{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:16px 18px;
+    }
+    .option-item:not(:last-child){
+      border-bottom:1px solid #f0f0f0;
+    }
+    .opt-left{
+      display:flex;
+      align-items:center;
+      gap:14px;
+    }
+    .opt-icon{
+      width:44px;height:44px;
+      border-radius:12px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:18px;
+      font-weight:800;
+    }
+    .opt-icon.btc{background:linear-gradient(135deg,#f7931a20,#f7931a10);color:#f7931a}
+    .opt-icon.wallet{background:linear-gradient(135deg,#8b5cf620,#8b5cf610);color:#8b5cf6}
+    .opt-icon.tron{background:linear-gradient(135deg,#ff465420,#ff465410);color:#ff4654}
+    .opt-icon.eth{background:linear-gradient(135deg,#627ee020,#627ee010);color:#627ee0}
+    .opt-icon.poly{background:linear-gradient(135deg,#8247e520,#8247e510);color:#8247e5}
+    .opt-icon.bnb{background:linear-gradient(135deg,#f6851b20,#f6851b10);color:#f6851b}
+    .opt-icon.avax{background:linear-gradient(135deg,#e8414220,#e8414210);color:#e84142}
+    .opt-text .title{font-weight:700;color:#111}
+    .opt-text .sub{font-size:12px;color:#9ca3af;margin-top:2px}
+    .opt-radio{
+      width:20px;height:20px;
+      border-radius:999px;
+      border:2px solid #d1d5db;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition:all .2s;
+    }
+    .opt-radio.on{
+      border-color:#111;
+      background:#111;
+    }
+    .opt-radio.on::after{
+      content:"";
+      width:7px;height:7px;
+      border-radius:999px;
+      background:#fff;
+    }
+    
+    /* 币种标签 */
+    .coin-badge{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:10px 14px;
+      background:#f8fafc;
+      border-radius:10px;
+      font-size:13px;
+      color:#6b7280;
+    }
+    .coin-dot{
+      width:18px;height:18px;
+      border-radius:999px;
+      background:linear-gradient(135deg,#00d395,#00ff9d);
+    }
+    
+    /* 网络入口 */
+    .network-entry{
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      background:#fff;
+      margin-top:16px;
+    }
+    .network-entry .option-item:hover{
+      background:#fafbfc;
+    }
+    .arrow-icon{
+      color:#9ca3af;
+      font-size:18px;
+      font-weight:700;
+    }
+    
+    /* 主按钮 */
+    .primary-btn{
+      width:100%;
+      height:52px;
+      border-radius:12px;
+      border:none;
+      background:linear-gradient(135deg,#1a1f2e,#2d3548);
+      color:#fff;
+      font-size:15px;
+      font-weight:700;
+      cursor:pointer;
+      margin-top:20px;
+      transition:all .2s;
+    }
+    .primary-btn:hover{
+      transform:translateY(-1px);
+      box-shadow:0 8px 20px rgba(26,31,46,.25);
+    }
+    .primary-btn:disabled{
+      opacity:.5;
+      cursor:not-allowed;
+      transform:none;
+      box-shadow:none;
+    }
+    
+    /* 支付卡片 */
+    .pay-card{
+      border:1px solid #e5e7eb;
+      border-radius:16px;
+      background:#fff;
+      padding:20px;
+      margin-bottom:16px;
+    }
+    .pay-card-top{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-start;
+    }
+    .pay-amount{
+      display:flex;
+      align-items:center;
+      gap:12px;
+    }
+    .coin-icon{
+      width:40px;height:40px;
+      border-radius:999px;
+      background:linear-gradient(135deg,#22c55e,#16a34a);
+    }
+    .pay-amount .num{
+      font-size:28px;
+      font-weight:850;
+      color:#111;
+    }
+    .pay-amount .unit{
+      font-size:14px;
+      font-weight:600;
+      color:#6b7280;
+    }
+    .pay-amount .paid{
+      font-size:12px;
+      color:#9ca3af;
+      margin-top:2px;
+    }
+    .chain-info{
+      display:flex;
+      align-items:center;
+      gap:8px;
+      font-size:13px;
+      font-weight:600;
+      color:#111;
+    }
+    .chain-mini{
+      width:22px;height:22px;
+      border-radius:999px;
+      background:#ff4654;
+    }
+    .chain-info .arrow{color:#9ca3af}
+    
+    .pay-meta{
+      display:flex;
+      align-items:center;
+      gap:16px;
+      margin-top:16px;
+      padding-top:16px;
+      border-top:1px solid #f0f0f0;
+      font-size:12px;
+      color:#6b7280;
+    }
+    .pay-meta strong{color:#111}
+    .trace-btn{
+      margin-left:auto;
+      padding:8px 16px;
+      border-radius:8px;
+      border:none;
+      background:#f3f4f6;
+      color:#374151;
+      font-size:12px;
+      font-weight:600;
+      cursor:pointer;
+      transition:all .15s;
+    }
+    .trace-btn:hover{
+      background:#e5e7eb;
+    }
+    
+    /* Tabs */
+    .tabs{
+      display:flex;
+      gap:8px;
+      margin-bottom:16px;
+    }
+    .tab{
+      flex:1;
+      padding:12px 16px;
+      border:1px solid #e5e7eb;
+      border-radius:10px;
+      background:#fff;
+      text-align:center;
+      font-size:13px;
+      font-weight:600;
+      color:#9ca3af;
+      cursor:pointer;
+      transition:all .15s;
+    }
+    .tab:hover{background:#f8fafc}
+    .tab.active{
+      border-color:#1a1f2e;
+      color:#111;
+      background:#fff;
+      box-shadow:0 2px 8px rgba(0,0,0,.04);
+    }
+    
+    /* 地址行 */
+    .address-row{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:14px 16px;
+      border:1px solid #e5e7eb;
+      border-radius:12px;
+      background:#f8fafc;
+      margin-bottom:12px;
+      font-size:13px;
+      color:#6b7280;
+    }
+    .address-row strong{color:#111;font-weight:700}
+    
+    /* 二维码区 */
+    .qr-section{
+      display:grid;
+      grid-template-columns:160px 1fr;
+      gap:20px;
+      padding:20px;
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      background:#fff;
+    }
+    .qr-placeholder{
+      width:140px;height:140px;
+      border-radius:12px;
+      background:repeating-linear-gradient(45deg,#111 0 4px,#fff 4px 8px);
+      filter:contrast(.9) brightness(1.05);
+    }
+    .qr-tips{
+      font-size:12px;
+      color:#6b7280;
+      line-height:1.8;
+    }
+    .qr-tips .warn{color:#ef4444;font-weight:700}
+    
+    /* 双二维码 */
+    .qr-dual{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:16px;
+      padding:20px;
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      background:#fff;
+      text-align:center;
+    }
+    .qr-dual .qr-placeholder{margin:0 auto}
+    .qr-dual .label{font-size:12px;color:#9ca3af;margin-top:8px}
+    
+    /* 钱包图标 */
+    .wallet-list{
+      display:flex;
+      justify-content:center;
+      gap:10px;
+      margin-top:16px;
+    }
+    .wallet-icon{
+      width:28px;height:28px;
+      border-radius:999px;
+      border:1px solid #e5e7eb;
+    }
+    .wallet-note{
+      text-align:center;
+      font-size:12px;
+      color:#9ca3af;
+      margin-top:8px;
+    }
+    
+    /* Toast */
+    .toast{
+      position:fixed;
+      bottom:24px;
+      left:50%;
+      transform:translateX(-50%);
+      padding:14px 28px;
+      background:#1a1f2e;
+      color:#fff;
+      border-radius:12px;
+      font-size:14px;
+      font-weight:500;
+      opacity:0;
+      transition:opacity .3s;
+      z-index:1000;
+      box-shadow:0 8px 24px rgba(0,0,0,.15);
+    }
+    .toast.show{opacity:1}
+    
+    /* 支付成功页面 */
+    .success-wrap{
+      text-align:center;
+      padding:40px 20px;
+    }
+    .success-icon{
+      width:80px;height:80px;
+      margin:0 auto 24px;
+      border-radius:999px;
+      background:linear-gradient(135deg,#22c55e,#16a34a);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      animation:successPop .4s ease;
+    }
+    @keyframes successPop{
+      0%{transform:scale(0);opacity:0}
+      50%{transform:scale(1.1)}
+      100%{transform:scale(1);opacity:1}
+    }
+    .success-icon svg{
+      width:40px;height:40px;
+      color:#fff;
+    }
+    .success-title{
+      font-size:28px;
+      font-weight:800;
+      color:#111;
+      margin:0 0 8px;
+    }
+    .success-desc{
+      font-size:14px;
+      color:#6b7280;
+      margin:0 0 32px;
+    }
+    .success-card{
+      background:#f8fafc;
+      border:1px solid #e5e7eb;
+      border-radius:14px;
+      padding:20px;
+      text-align:left;
+      margin-bottom:24px;
+    }
+    .success-row{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:12px 0;
+      border-bottom:1px solid #eee;
+    }
+    .success-row:last-child{border-bottom:none}
+    .success-row .label{font-size:13px;color:#9ca3af}
+    .success-row .value{
+      font-size:13px;
+      color:#374151;
+      display:flex;
+      align-items:center;
+      gap:8px;
+    }
+    .success-row .value strong{
+      font-size:18px;
+      font-weight:800;
+      color:#111;
+    }
+    .success-row .hash{
+      font-family:monospace;
+      background:#fff;
+      padding:4px 8px;
+      border-radius:6px;
+      font-size:12px;
+    }
+    .success-actions{
+      display:flex;
+      gap:12px;
+      margin-bottom:24px;
+    }
+    .success-btn{
+      flex:1;
+    }
+    .secondary-btn{
+      flex:1;
+      height:52px;
+      border-radius:12px;
+      border:1px solid #e5e7eb;
+      background:#fff;
+      color:#374151;
+      font-size:15px;
+      font-weight:700;
+      cursor:pointer;
+      transition:all .15s;
+    }
+    .secondary-btn:hover{
+      background:#f8fafc;
+      border-color:#d1d5db;
+    }
+    .success-tips{
+      font-size:12px;
+      color:#9ca3af;
+      line-height:1.8;
+    }
+
+    /* 响应式 */
+    @media(max-width:800px){
+      .app-body{grid-template-columns:1fr}
+      .order-side{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="app-card">
+      <!-- 顶部进度条 -->
+      <div class="app-header">
+        <div class="progress-bar" id="progressBar">
+          <div class="progress-step active" data-step="1">
+            <div class="progress-dot">1</div>
+            <span>选择方式</span>
+          </div>
+          <div class="progress-line"></div>
+          <div class="progress-step" data-step="2">
+            <div class="progress-dot">2</div>
+            <span>选择网络</span>
+          </div>
+          <div class="progress-line"></div>
+          <div class="progress-step" data-step="3">
+            <div class="progress-dot">3</div>
+            <span>完成支付</span>
+          </div>
+          <div class="progress-line"></div>
+          <div class="progress-step" data-step="4">
+            <div class="progress-dot">4</div>
+            <span>支付成功</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="app-body">
+        <!-- 左侧订单信息 -->
+        <div class="order-side">
+          <div class="order-title">订单详情</div>
+          
+          <div class="order-product">
+            <div class="thumb">📦</div>
+            <div>
+              <div class="name">iPad Pro</div>
+              <div class="desc">电子产品</div>
+            </div>
+          </div>
+          
+          <div class="order-info">
+            <div class="order-row">
+              <span class="label">商户订单号</span>
+              <span class="value">
+                4fcbfd9f...7ef04684
+                <span class="copy-btn" onclick="copyText('4fcbfd9f...7ef04684')">⧉</span>
+              </span>
+            </div>
+            <div class="order-row">
+              <span class="label">支付订单号</span>
+              <span class="value">
+                131772709113001187
+                <span class="copy-btn" onclick="copyText('131772709113001187')">⧉</span>
+              </span>
+            </div>
+            <div class="order-row">
+              <span class="label">法币参考金额</span>
+              <span class="value">10.01 HKD</span>
+            </div>
+          </div>
+          
+          <div class="order-total">
+            <div class="label">共计支付</div>
+            <div class="amount">
+              <span class="num" id="coinAmount">1.29</span>
+              <span class="unit" id="coinUnit">USDT</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧动态内容 -->
+        <div class="action-side" id="rightContent">
+          
+          <!-- 页面1: 支付方式选择 -->
+          <div class="page active" id="page1">
+            <div class="header-row">
+              <div class="back-btn" style="visibility:hidden">←</div>
+              <div class="section-title">支付方式选择</div>
+            </div>
+
+            <div class="option-card">
+              <div class="option-item" data-method="address" onclick="selectMethod('address')">
+                <div class="opt-left">
+                  <div class="opt-icon btc">₿</div>
+                  <div class="opt-text">
+                    <div class="title">地址转账</div>
+                    <div class="sub">转账到钱包地址完成支付</div>
+                  </div>
+                </div>
+                <div class="opt-radio" id="radio-address"></div>
+              </div>
+              
+              <div class="option-item" data-method="wallet" onclick="selectMethod('wallet')">
+                <div class="opt-left">
+                  <div class="opt-icon wallet">⬡</div>
+                  <div class="opt-text">
+                    <div class="title">链接钱包</div>
+                    <div class="sub">连接到浏览器插件完成支付</div>
+                  </div>
+                </div>
+                <div class="opt-radio" id="radio-wallet"></div>
+              </div>
+              
+              <div class="option-item" style="cursor:default">
+                <div class="coin-badge">
+                  <div class="coin-dot"></div>
+                  <span><strong style="color:#111">USDT</strong> (TRC20)</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="network-entry">
+              <div class="option-item" onclick="goToPage(2)">
+                <div class="opt-left">
+                  <div class="opt-icon tron">T</div>
+                  <div class="opt-text">
+                    <div class="title">处理网络选择</div>
+                    <div class="sub" id="selectedNetworkText">Tron (TRC20) · 预计到账: 16秒</div>
+                  </div>
+                </div>
+                <div class="arrow-icon">›</div>
+              </div>
+            </div>
+
+            <button class="primary-btn" onclick="confirmMethod()">确认支付方式</button>
+          </div>
+
+          <!-- 页面2: 网络选择 -->
+          <div class="page" id="page2">
+            <div class="header-row">
+              <div class="back-btn" onclick="goToPage(1)">←</div>
+              <div class="section-title">选择处理网络</div>
+            </div>
+
+            <div class="option-card">
+              <div class="option-item" data-network="tron" onclick="selectNetwork('tron')">
+                <div class="opt-left">
+                  <div class="opt-icon tron">T</div>
+                  <div class="opt-text">
+                    <div class="title">Tron (TRC20)</div>
+                    <div class="sub">预计到账: 16秒</div>
+                  </div>
+                </div>
+                <div class="opt-radio" id="radio-tron"></div>
+              </div>
+              
+              <div class="option-item" data-network="ethereum" onclick="selectNetwork('ethereum')">
+                <div class="opt-left">
+                  <div class="opt-icon eth">Ξ</div>
+                  <div class="opt-text">
+                    <div class="title">Ethereum (ERC20)</div>
+                    <div class="sub">预计到账: 32秒</div>
+                  </div>
+                </div>
+                <div class="opt-radio" id="radio-ethereum"></div>
+              </div>
+              
+              <div class="option-item" data-network="polygon" onclick="selectNetwork('polygon')">
+                <div class="opt-left">
+                  <div class="opt-icon poly">⬡</div>
+                  <div class="opt-text">
+                    <div class="title">Polygon POS</div>
+                    <div class="sub">预计到账: 125秒</div>
+                  </div>
+                </div>
+                <div class="opt-radio" id="radio-polygon"></div>
+              </div>
+              
+              <div class="option-item" data-network="bnb" onclick="selectNetwork('bnb')">
+                <div class="opt-left">
+                  <div class="opt-icon bnb">B</div>
+                  <div class="opt-text">
+                    <div class="title">BNB Chain (BEP20)</div>
+                    <div class="sub">预计到账: 4秒</div>
+                  </div>
+                </div>
+                <div class="opt-radio" id="radio-bnb"></div>
+              </div>
+              
+              <div class="option-item" data-network="avalanche" onclick="selectNetwork('avalanche')">
+                <div class="opt-left">
+                  <div class="opt-icon avax">A</div>
+                  <div class="opt-text">
+                    <div class="title">Avalanche C-Chain</div>
+                    <div class="sub">预计到账: 25秒</div>
+                  </div>
+                </div>
+                <div class="opt-radio" id="radio-avalanche"></div>
+              </div>
+            </div>
+
+            <button class="primary-btn" onclick="confirmNetwork()">确认网络</button>
+          </div>
+
+          <!-- 页面3: 支付详情 -->
+          <div class="page" id="page3">
+            <div class="header-row">
+              <div class="back-btn" onclick="goToPage(1)">←</div>
+              <div class="section-title">支付详情</div>
+            </div>
+
+            <div class="pay-card">
+              <div class="pay-card-top">
+                <div class="pay-amount">
+                  <div class="coin-icon" id="coinIcon"></div>
+                  <div>
+                    <div style="display:flex;align-items:baseline;gap:8px">
+                      <span class="num" id="payAmount">1.29</span>
+                      <span class="unit" id="payCoin">USDT</span>
+                    </div>
+                    <div class="paid">已支付 0.00</div>
+                  </div>
+                </div>
+                <div class="chain-info">
+                  <div class="chain-mini" id="chainIcon"></div>
+                  <span id="chainName">Tron</span>
+                  <span style="color:#9ca3af" id="chainType">(TRC20)</span>
+                  <span class="arrow">›</span>
+                </div>
+              </div>
+              <div class="pay-meta">
+                <span>失效时间: <strong id="expireTime">23:47:29</strong></span>
+                <span>预计到账: <strong id="arrivalTime">16秒</strong></span>
+                <button class="trace-btn">追踪</button>
+              </div>
+            </div>
+
+            <div class="tabs">
+              <div class="tab active" data-tab="address" onclick="selectTab('address')">地址转账</div>
+              <div class="tab" data-tab="plugin" onclick="selectTab('plugin')">浏览器插件</div>
+              <div class="tab" data-tab="scan" onclick="selectTab('scan')">钱包扫码</div>
+            </div>
+
+            <!-- Tab内容: 地址转账 -->
+            <div id="tab-address" class="tab-content">
+              <div class="address-row">
+                <span>订单付款地址</span>
+                <strong id="payAddress">TEYq...hG7FJY</strong>
+                <span class="copy-btn" onclick="copyText('TEYq...hG7FJY')">⧉</span>
+              </div>
+
+              <div class="qr-section">
+                <div class="qr-placeholder"></div>
+                <div class="qr-tips">
+                  <p>1. 请确认向此付款地址转出准确金额 <span class="warn">1.29 USDT</span>（不含 gas 费），否则可能导致订单失败。</p>
+                  <p>2. 请勿转入 <span class="warn">任何非 USDT</span> 资金，否则支付将直接失败。</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab内容: 浏览器插件 -->
+            <div id="tab-plugin" class="tab-content" style="display:none">
+              <div class="qr-section" style="grid-template-columns:1fr;text-align:center">
+                <div class="qr-placeholder" style="margin:0 auto"></div>
+                <div class="qr-tips" style="margin-top:16px">
+                  <p>点击下方按钮连接您的浏览器钱包插件</p>
+                  <button class="primary-btn" style="margin-top:12px;max-width:280px" onclick="connectWallet()">连接钱包</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab内容: 钱包扫码 -->
+            <div id="tab-scan" class="tab-content" style="display:none">
+              <div class="qr-dual">
+                <div>
+                  <div class="qr-placeholder"></div>
+                  <div class="label">收款码</div>
+                </div>
+                <div>
+                  <div class="qr-placeholder"></div>
+                  <div class="label">支付码</div>
+                </div>
+              </div>
+              <div class="wallet-list">
+                <div class="wallet-icon" style="background:linear-gradient(135deg,#f6851b,#e2761b)"></div>
+                <div class="wallet-icon" style="background:linear-gradient(135deg,#627ee0,#8c9eff)"></div>
+                <div class="wallet-icon" style="background:linear-gradient(135deg,#ff4654,#ff6b6b)"></div>
+                <div class="wallet-icon" style="background:linear-gradient(135deg,#00d395,#00ff9d)"></div>
+              </div>
+              <div class="wallet-note">支持 MetaMask、imToken、TokenPocket 等主流钱包</div>
+            </div>
+
+            <button class="primary-btn" onclick="confirmPayment()">我已完成支付</button>
+          </div>
+
+          <!-- 页面4: 支付成功 -->
+          <div class="page" id="page4">
+            <div class="success-wrap">
+              <div class="success-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+              </div>
+              <h2 class="success-title">支付成功</h2>
+              <p class="success-desc">您的订单已支付完成，感谢您的购买！</p>
+              
+              <div class="success-card">
+                <div class="success-row">
+                  <span class="label">订单金额</span>
+                  <span class="value"><strong>1.29</strong> USDT</span>
+                </div>
+                <div class="success-row">
+                  <span class="label">支付网络</span>
+                  <span class="value" id="successNetwork">Tron (TRC20)</span>
+                </div>
+                <div class="success-row">
+                  <span class="label">交易哈希</span>
+                  <span class="value">
+                    <span class="hash">0x7f3a...8b2c</span>
+                    <span class="copy-btn" onclick="copyText('0x7f3a8b2c...')">⧉</span>
+                  </span>
+                </div>
+                <div class="success-row">
+                  <span class="label">完成时间</span>
+                  <span class="value" id="successTime">2024-03-05 21:30:45</span>
+                </div>
+              </div>
+
+              <div class="success-actions">
+                <button class="primary-btn success-btn" onclick="showToast('正在跳转...')">查看订单</button>
+              </div>
+
+              <div class="success-tips">
+                <p>订单确认邮件已发送至您的邮箱</p>
+                <p>如有问题请联系客服支持</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // 状态管理
+    const state = {
+      currentPage: 1,
+      selectedMethod: null,
+      selectedNetwork: 'tron',
+      coin: 'USDT',
+      amount: '1.29'
+    };
+
+    // 网络配置
+    const networks = {
+      tron: { name: 'Tron', type: 'TRC20', time: '16秒', color: '#ff4654' },
+      ethereum: { name: 'Ethereum', type: 'ERC20', time: '32秒', color: '#627ee0' },
+      polygon: { name: 'Polygon', type: 'POS', time: '125秒', color: '#8247e5' },
+      bnb: { name: 'BNB Chain', type: 'BEP20', time: '4秒', color: '#f6851b' },
+      avalanche: { name: 'Avalanche', type: 'C-Chain', time: '25秒', color: '#e84142' }
+    };
+
+    // 页面切换
+    function goToPage(pageNum) {
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page' + pageNum).classList.add('active');
+      state.currentPage = pageNum;
+      updateProgress();
+    }
+
+    // 更新进度条
+    function updateProgress() {
+      const steps = document.querySelectorAll('.progress-step');
+      const lines = document.querySelectorAll('.progress-line');
+      
+      steps.forEach((step, i) => {
+        const stepNum = i + 1;
+        step.classList.remove('active', 'done');
+        if (stepNum < state.currentPage) {
+          step.classList.add('done');
+        } else if (stepNum === state.currentPage) {
+          step.classList.add('active');
+        }
+      });
+
+      lines.forEach((line, i) => {
+        line.classList.toggle('done', i + 1 < state.currentPage);
+      });
+    }
+
+    // 选择支付方式
+    function selectMethod(method) {
+      state.selectedMethod = method;
+      document.querySelectorAll('[data-method]').forEach(el => {
+        el.classList.remove('selected');
+        el.querySelector('.opt-radio').classList.remove('on');
+      });
+      document.querySelector('[data-method="' + method + '"]').classList.add('selected');
+      document.getElementById('radio-' + method).classList.add('on');
+    }
+
+    // 确认支付方式
+    function confirmMethod() {
+      if (!state.selectedMethod) {
+        showToast('请选择支付方式');
+        return;
+      }
+      goToPage(3);
+    }
+
+    // 选择网络
+    function selectNetwork(network) {
+      state.selectedNetwork = network;
+      document.querySelectorAll('[data-network]').forEach(el => {
+        el.classList.remove('selected');
+        el.querySelector('.opt-radio').classList.remove('on');
+      });
+      document.querySelector('[data-network="' + network + '"]').classList.add('selected');
+      document.getElementById('radio-' + network).classList.add('on');
+      
+      const config = networks[network];
+      document.getElementById('selectedNetworkText').textContent = 
+        config.name + ' (' + config.type + ') · 预计到账: ' + config.time;
+    }
+
+    // 确认网络
+    function confirmNetwork() {
+      updatePayDetail();
+      goToPage(1);
+      showToast('网络已更新');
+    }
+
+    // 更新支付详情
+    function updatePayDetail() {
+      const config = networks[state.selectedNetwork];
+      document.getElementById('chainName').textContent = config.name;
+      document.getElementById('chainType').textContent = '(' + config.type + ')';
+      document.getElementById('arrivalTime').textContent = config.time;
+      document.getElementById('chainIcon').style.background = config.color;
+    }
+
+    // Tab切换
+    function selectTab(tab) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelector('[data-tab="' + tab + '"]').classList.add('active');
+      
+      document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
+      document.getElementById('tab-' + tab).style.display = 'block';
+    }
+
+    // 连接钱包
+    function connectWallet() {
+      showToast('正在连接钱包...');
+      setTimeout(() => showToast('钱包连接成功'), 1500);
+    }
+
+    // 复制文本
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast('已复制到剪贴板');
+      });
+    }
+
+    // 显示提示
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      toast.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2000);
+    }
+
+    // 初始化
+    selectNetwork('tron');
+    
+    // 确认支付
+    function confirmPayment() {
+      showToast('正在确认支付...');
+      setTimeout(() => {
+        // 更新成功页面信息
+        const config = networks[state.selectedNetwork];
+        document.getElementById('successNetwork').textContent = config.name + ' (' + config.type + ')';
+        
+        const now = new Date();
+        const timeStr = now.getFullYear() + '-' + 
+          String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+          String(now.getDate()).padStart(2, '0') + ' ' + 
+          String(now.getHours()).padStart(2, '0') + ':' + 
+          String(now.getMinutes()).padStart(2, '0') + ':' + 
+          String(now.getSeconds()).padStart(2, '0');
+        document.getElementById('successTime').textContent = timeStr;
+        
+        goToPage(4);
+        showToast('支付成功！');
+      }, 1500);
+    }
+
+    // 倒计时
+    let seconds = 86249;
+    setInterval(() => {
+      seconds--;
+      if (seconds < 0) seconds = 86400;
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      const el = document.getElementById('expireTime');
+      if (el) {
+        el.textContent = String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

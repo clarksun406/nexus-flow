@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>07 - 支付详情（USDT / Tron）</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="frame">
+      <div class="two-col">
+        <!-- 左侧订单信息 -->
+        <div class="left">
+          <h2 class="left-title">订单详情预览</h2>
+          <div class="split-line"></div>
+
+          <div class="product">
+            <div class="product-thumb"><div class="bag"></div></div>
+            <div>
+              <div class="product-name">ipad</div>
+            </div>
+          </div>
+
+          <div class="split-line"></div>
+          <div class="kv">
+            <span class="k">商户订单流水号</span>
+            <span class="v"><strong>4fcbfd9f...7ef04684</strong><span class="copy">⧉</span></span>
+          </div>
+          <div class="kv">
+            <span class="k">支付订单流水号</span>
+            <span class="v"><strong>131772709113001187</strong><span class="copy">⧉</span></span>
+          </div>
+          <div class="kv">
+            <span class="k">法币参考金额</span>
+            <span class="v"><strong>10.01 HKD</strong></span>
+          </div>
+
+          <div class="split-line"></div>
+          <div class="total">
+            <span class="label">共计支付</span>
+            <div class="amount">
+              <span class="unit">USDT</span>
+              <span class="num">1.29</span>
+            </div>
+          </div>
+
+          <div class="bottom-links">
+            <span>Privacy</span>
+            <span>Disclosure</span>
+            <span class="lang">中 ▾</span>
+          </div>
+        </div>
+
+        <!-- 右侧支付详情（Tron） -->
+        <div class="right">
+          <div class="right-header">
+            <div class="back">←</div>
+            <h2 class="right-title">支付详情</h2>
+          </div>
+
+          <div class="paycard">
+            <div class="paycard-top">
+              <div class="pay-amount">
+                <div class="coin-big" style="background:linear-gradient(135deg,#22c55e,#16a34a)"></div>
+                <div>
+                  <div style="display:flex;align-items:baseline;gap:8px">
+                    <span class="num">1.29</span>
+                    <span class="unit">USDT</span>
+                  </div>
+                  <div class="paid">已支付 0.00</div>
+                </div>
+              </div>
+              <div class="chain">
+                <div class="mini" style="background:linear-gradient(135deg,#ff4654,#ff7a7a)"></div>
+                <span>Tron</span>
+                <span style="color:var(--muted)">(TRC20)</span>
+                <span class="arrow">›</span>
+              </div>
+            </div>
+            <div class="meta" style="gap:18px">
+              <span>订单失效时间： <strong style="color:var(--text)">23:47:29</strong></span>
+              <span>预计到账时间： <strong style="color:var(--text)">16秒</strong></span>
+              <button class="trace-btn">追踪</button>
+            </div>
+          </div>
+
+          <div class="tabs">
+            <div class="tab active">地址转账</div>
+            <div class="tab">浏览器插件</div>
+            <div class="tab">钱包扫码</div>
+          </div>
+
+          <div class="address-row">
+            <span>订单付款地址</span>
+            <strong>TEYq...hG7FJY</strong>
+            <span class="copy">⧉</span>
+          </div>
+
+          <div class="qr-box">
+            <div class="qr"></div>
+            <div class="qr-note">
+              <p>1.请确认您已经向此付款地址转出准确的金额 <span class="amt">1.29 USDT</span>（gas 油费不包括在内），否则可能导致该笔订单失败关闭。</p>
+              <p>2.请不要转 <b>任何非USDT</b> 资金到此付款地址，否则当笔支付将会直接转为失败。</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

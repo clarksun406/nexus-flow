@@ -1,10 +1,15 @@
 package com.nexusflow.infra.persistence;
 
 import com.nexusflow.domain.order.OrderRepository;
+import com.nexusflow.domain.order.OrderStatus;
 import com.nexusflow.domain.order.PaymentOrder;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -35,6 +40,15 @@ public interface JpaOrderRepository extends OrderRepository, JpaRepository<Payme
         return existsByMerchantIdAndMerchantOrderNo(merchantId, merchantOrderNo);
     }
 
+    @Override
+    default List<PaymentOrder> findByStatusIn(Collection<OrderStatus> statuses) {
+        List<String> names = statuses.stream().map(OrderStatus::name).toList();
+        return findEntitiesByStatusIn(names).stream().map(this::toDomain).toList();
+    }
+
+    @Query("SELECT o FROM PaymentOrderEntity o WHERE o.status IN :statuses")
+    List<PaymentOrderEntity> findEntitiesByStatusIn(@Param("statuses") Collection<String> statuses);
+
     Optional<PaymentOrderEntity> findByMerchantIdAndMerchantOrderNo(String merchantId, String merchantOrderNo);
     Optional<PaymentOrderEntity> findByChannelIdAndChannelOrderId(String channelId, String channelOrderId);
     boolean existsByMerchantIdAndMerchantOrderNo(String merchantId, String merchantOrderNo);
@@ -57,14 +71,20 @@ public interface JpaOrderRepository extends OrderRepository, JpaRepository<Payme
     }
 
     default PaymentOrder toDomain(PaymentOrderEntity e) {
-        return PaymentOrder.builder()
+        return PaymentOrder.reconstitute()
                 .paymentId(e.getPaymentId()).merchantId(e.getMerchantId())
                 .merchantOrderNo(e.getMerchantOrderNo()).amountFiat(e.getAmountFiat())
                 .currencyFiat(e.getCurrencyFiat()).amountCrypto(e.getAmountCrypto())
                 .currencyCrypto(e.getCurrencyCrypto()).network(e.getNetwork())
                 .exchangeRate(e.getExchangeRate()).channelId(e.getChannelId())
-                .channelUserId(e.getChannelUserId()).notifyUrl(e.getNotifyUrl())
-                .returnUrl(e.getReturnUrl()).extendData(e.getExtendData())
-                .expireTime(e.getExpireTime()).build();
+                .channelUserId(e.getChannelUserId()).channelOrderId(e.getChannelOrderId())
+                .status(e.getStatus() != null ? OrderStatus.valueOf(e.getStatus()) : null)
+                .payAddress(e.getPayAddress()).memo(e.getMemo())
+                .paidAmountCrypto(e.getPaidAmountCrypto()).paidAmountFiat(e.getPaidAmountFiat())
+                .txHash(e.getTxHash()).notifyUrl(e.getNotifyUrl()).returnUrl(e.getReturnUrl())
+                .extendData(e.getExtendData()).expireTime(e.getExpireTime())
+                .payTime(e.getPayTime()).confirmTime(e.getConfirmTime())
+                .createTime(e.getCreateTime()).updateTime(e.getUpdateTime())
+                .build();
     }
 }

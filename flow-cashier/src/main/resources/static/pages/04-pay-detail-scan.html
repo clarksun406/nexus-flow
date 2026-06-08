@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>04 - 支付详情（钱包扫码）</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="frame">
+      <div class="two-col">
+        <!-- 左侧订单信息 -->
+        <div class="left">
+          <h2 class="left-title">订单信息</h2>
+          <div class="split-line"></div>
+          
+          <div class="product">
+            <div class="product-thumb">
+              <div class="bag"></div>
+            </div>
+            <div>
+              <div class="product-name">商品名称示例</div>
+              <div class="kv">
+                <span class="k">订单号</span>
+                <span class="v"><span>2024030512345678</span><span class="copy">⧉</span></span>
+              </div>
+              <div class="kv">
+                <span class="k">创建时间</span>
+                <span class="v"><span>2024-03-05 21:15:30</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="split-line"></div>
+          <div class="total">
+            <span class="label">应付金额</span>
+            <div class="amount">
+              <span class="unit">CNY</span>
+              <span class="num">1,280.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧支付详情 -->
+        <div class="right">
+          <div class="right-header">
+            <div class="back">←</div>
+            <h2 class="right-title">支付详情</h2>
+          </div>
+
+          <!-- 金额卡片 -->
+          <div class="paycard">
+            <div class="paycard-top">
+              <div class="pay-amount">
+                <div class="coin-big"></div>
+                <div>
+                  <div style="display:flex;align-items:baseline;gap:8px">
+                    <span class="num">180.50</span>
+                    <span class="unit">USDT</span>
+                  </div>
+                  <div class="paid">≈ ¥1,280.00</div>
+                </div>
+              </div>
+              <div class="chain">
+                <div class="mini"></div>
+                <span>ERC20</span>
+                <span class="arrow">→</span>
+                <span>扫码支付</span>
+              </div>
+            </div>
+            <div class="meta">
+              <span>订单号: 2024030512345678</span>
+              <span>剩余时间: 14:59</span>
+              <button class="trace-btn">查看交易</button>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="tabs">
+            <div class="tab">地址转账</div>
+            <div class="tab active">钱包扫码</div>
+          </div>
+
+          <!-- 双二维码 -->
+          <div class="qr-dual">
+            <div>
+              <div class="qr"></div>
+              <div style="text-align:center;margin-top:8px;color:var(--muted);font-size:12px">收款码</div>
+            </div>
+            <div>
+              <div class="qr"></div>
+              <div style="text-align:center;margin-top:8px;color:var(--muted);font-size:12px">支付码</div>
+            </div>
+          </div>
+
+          <!-- 支持的钱包 -->
+          <div class="wallets">
+            <div class="wallet-dot" style="background:linear-gradient(135deg,#f6851b,#e2761b)"></div>
+            <div class="wallet-dot" style="background:linear-gradient(135deg,#627ee0,#8c9eff)"></div>
+            <div class="wallet-dot" style="background:linear-gradient(135deg,#ff4654,#ff6b6b)"></div>
+            <div class="wallet-dot" style="background:linear-gradient(135deg,#00d395,#00ff9d)"></div>
+          </div>
+          <div style="text-align:center;color:var(--muted);font-size:12px;margin-top:6px">
+            支持 MetaMask、imToken、TokenPocket 等主流钱包
+          </div>
+
+          <div class="bottom-links">
+            <div class="lang">🌐 简体中文</div>
+            <span>遇到问题？联系客服</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

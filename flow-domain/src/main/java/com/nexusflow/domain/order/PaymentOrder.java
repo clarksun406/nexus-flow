@@ -144,5 +144,48 @@ public class PaymentOrder {
                 pf != null ? pf.toPlainString() : null, pending));
     }
 
+    /**
+     * Full-args builder for reconstituting a PaymentOrder from persistence.
+     * Not for public use — only for repository mapping.
+     */
+    @Builder(builderMethodName = "reconstitute")
+    private PaymentOrder(String paymentId, String merchantId, String merchantOrderNo,
+                         BigDecimal amountFiat, String currencyFiat,
+                         BigDecimal amountCrypto, String currencyCrypto, String network,
+                         BigDecimal exchangeRate, String channelId, String channelUserId,
+                         String channelOrderId, OrderStatus status,
+                         String payAddress, String memo,
+                         BigDecimal paidAmountCrypto, BigDecimal paidAmountFiat,
+                         String txHash, String notifyUrl, String returnUrl, String extendData,
+                         Instant expireTime, Instant payTime, Instant confirmTime,
+                         Instant createTime, Instant updateTime) {
+        this.paymentId = paymentId;
+        this.merchantId = merchantId;
+        this.merchantOrderNo = merchantOrderNo;
+        this.amountFiat = amountFiat;
+        this.currencyFiat = currencyFiat;
+        this.amountCrypto = amountCrypto;
+        this.currencyCrypto = currencyCrypto;
+        this.network = network;
+        this.exchangeRate = exchangeRate;
+        this.channelId = channelId;
+        this.channelUserId = channelUserId;
+        this.channelOrderId = channelOrderId;
+        this.status = status;
+        this.payAddress = payAddress;
+        this.memo = memo;
+        this.paidAmountCrypto = paidAmountCrypto;
+        this.paidAmountFiat = paidAmountFiat;
+        this.txHash = txHash;
+        this.notifyUrl = notifyUrl;
+        this.returnUrl = returnUrl;
+        this.extendData = extendData;
+        this.expireTime = expireTime;
+        this.payTime = payTime;
+        this.confirmTime = confirmTime;
+        this.createTime = createTime;
+        this.updateTime = updateTime;
+    }
+
     private void touch() { this.updateTime = Instant.now(); }
 }

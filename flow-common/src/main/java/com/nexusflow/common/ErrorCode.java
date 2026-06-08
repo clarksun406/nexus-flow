@@ -9,6 +9,8 @@ public enum ErrorCode {
     INTERNAL_ERROR("NF-0001", "Internal server error"),
     INVALID_REQUEST("NF-0002", "Invalid request"),
     IDEMPOTENCY_VIOLATION("NF-0003", "Duplicate request detected"),
+    UNAUTHORIZED("NF-0004", "Unauthorized"),
+    INVALID_SIGNATURE("NF-0005", "Invalid callback signature"),
 
     // Payment
     PAYMENT_NOT_FOUND("NF-1001", "Payment not found"),

@@ -1,11 +1,18 @@
 package com.nexusflow.application;
 
+import com.nexusflow.application.dto.CreatePaymentCommand;
+import com.nexusflow.application.dto.PaymentResponse;
+import com.nexusflow.common.IdempotencyViolationException;
+import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.domain.event.DomainEventPublisher;
 import com.nexusflow.domain.payment.CryptoPayment;
 import com.nexusflow.domain.payment.PaymentRepository;
 import com.nexusflow.domain.payment.PaymentStatus;
+import com.nexusflow.domain.shared.Chain;
 import com.nexusflow.domain.shared.Money;
+import com.nexusflow.domain.wallet.Wallet;
 import com.nexusflow.domain.wallet.WalletRepository;
+import com.nexusflow.domain.wallet.WalletType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -13,6 +20,7 @@ import java.math.BigDecimal;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -47,6 +55,54 @@ class PaymentApplicationServiceTest {
         p.collectEvents(); // drop the PENDING event so assertions focus on detection
         return p;
     }
+
+    // ── createPayment ──
+
+    @Test
+    void createPaymentHappyPath() {
+        when(paymentRepository.existsByOrderId("order-1")).thenReturn(false);
+        Wallet wallet = Wallet.builder()
+                .id("w-1").name("hot").chain(Chain.TRON).type(WalletType.HOT)
+                .address("TADDR").encryptedPrivateKey("enc").build();
+        when(walletRepository.findActiveByChain(Chain.TRON)).thenReturn(Optional.of(wallet));
+
+        CreatePaymentCommand cmd = CreatePaymentCommand.builder()
+                .orderId("order-1").currency("USDT_TRC20").amount("100").build();
+
+        PaymentResponse resp = service.createPayment(cmd);
+
+        assertThat(resp.getPaymentId()).isNotBlank();
+        assertThat(resp.getOrderId()).isEqualTo("order-1");
+        assertThat(resp.getReceivingAddress()).isEqualTo("TADDR");
+        assertThat(resp.getStatus()).isEqualTo("PENDING");
+        verify(paymentRepository).save(any(CryptoPayment.class));
+        verify(eventPublisher).publish(any());
+    }
+
+    @Test
+    void createPaymentRejectsDuplicateOrderId() {
+        when(paymentRepository.existsByOrderId("order-1")).thenReturn(true);
+
+        CreatePaymentCommand cmd = CreatePaymentCommand.builder()
+                .orderId("order-1").currency("USDT_TRC20").amount("100").build();
+
+        assertThatThrownBy(() -> service.createPayment(cmd))
+                .isInstanceOf(IdempotencyViolationException.class);
+    }
+
+    @Test
+    void createPaymentFailsWhenNoWalletForChain() {
+        when(paymentRepository.existsByOrderId("order-1")).thenReturn(false);
+        when(walletRepository.findActiveByChain(Chain.TRON)).thenReturn(Optional.empty());
+
+        CreatePaymentCommand cmd = CreatePaymentCommand.builder()
+                .orderId("order-1").currency("USDT_TRC20").amount("100").build();
+
+        assertThatThrownBy(() -> service.createPayment(cmd))
+                .isInstanceOf(NexusFlowException.class);
+    }
+
+    // ── onPaymentDetected ──
 
     @Test
     void detectsMatchingPaymentAndTransitionsToDetected() {
@@ -107,5 +163,31 @@ class PaymentApplicationServiceTest {
 
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PENDING);
         verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void rejectsDustPaymentBelow10Percent() {
+        CryptoPayment payment = pendingPaymentAt("TADDR"); // expects 100
+        when(paymentRepository.findByTxHash("tx-1")).thenReturn(Optional.empty());
+        when(paymentRepository.findPendingByReceivingAddress("TADDR")).thenReturn(Optional.of(payment));
+
+        // Send 5 (5% of 100) — below 10% threshold
+        service.onPaymentDetected("tx-1", "TADDR", "5", "USDT_TRC20");
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PENDING); // rejected
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void acceptsUnderpaymentAbove10Percent() {
+        CryptoPayment payment = pendingPaymentAt("TADDR"); // expects 100
+        when(paymentRepository.findByTxHash("tx-1")).thenReturn(Optional.empty());
+        when(paymentRepository.findPendingByReceivingAddress("TADDR")).thenReturn(Optional.of(payment));
+
+        // Send 50 (50% of 100) — above 10% threshold, accepted as underpayment
+        service.onPaymentDetected("tx-1", "TADDR", "50", "USDT_TRC20");
+
+        assertThat(payment.getStatus()).isEqualTo(PaymentStatus.DETECTED);
+        verify(paymentRepository).save(payment);
     }
 }

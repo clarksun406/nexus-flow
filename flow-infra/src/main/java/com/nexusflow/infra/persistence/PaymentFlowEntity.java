@@ -31,4 +31,5 @@ public class PaymentFlowEntity {
     @Column(name = "paid_amount", precision = 36, scale = 18) private BigDecimal paidAmount;
     @Column(name = "create_time") private Instant createTime;
     @Column(name = "update_time") private Instant updateTime;
+    @Version private Long version;
 }

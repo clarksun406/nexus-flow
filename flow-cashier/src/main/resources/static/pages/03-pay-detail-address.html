@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>03 - 支付详情（地址转账）</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="frame">
+      <div class="two-col">
+        <!-- 左侧订单信息 -->
+        <div class="left">
+          <h2 class="left-title">订单信息</h2>
+          <div class="split-line"></div>
+          
+          <div class="product">
+            <div class="product-thumb">
+              <div class="bag"></div>
+            </div>
+            <div>
+              <div class="product-name">商品名称示例</div>
+              <div class="kv">
+                <span class="k">订单号</span>
+                <span class="v"><span>2024030512345678</span><span class="copy">⧉</span></span>
+              </div>
+              <div class="kv">
+                <span class="k">创建时间</span>
+                <span class="v"><span>2024-03-05 21:15:30</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="split-line"></div>
+          <div class="total">
+            <span class="label">应付金额</span>
+            <div class="amount">
+              <span class="unit">CNY</span>
+              <span class="num">1,280.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧支付详情 -->
+        <div class="right">
+          <div class="right-header">
+            <div class="back">←</div>
+            <h2 class="right-title">支付详情</h2>
+          </div>
+
+          <!-- 金额卡片 -->
+          <div class="paycard">
+            <div class="paycard-top">
+              <div class="pay-amount">
+                <div class="coin-big"></div>
+                <div>
+                  <div style="display:flex;align-items:baseline;gap:8px">
+                    <span class="num">180.50</span>
+                    <span class="unit">USDT</span>
+                  </div>
+                  <div class="paid">≈ ¥1,280.00</div>
+                </div>
+              </div>
+              <div class="chain">
+                <div class="mini"></div>
+                <span>ERC20</span>
+                <span class="arrow">→</span>
+                <span>收款地址</span>
+              </div>
+            </div>
+            <div class="meta">
+              <span>订单号: 2024030512345678</span>
+              <span>剩余时间: 14:59</span>
+              <button class="trace-btn">查看交易</button>
+            </div>
+          </div>
+
+          <!-- Tabs -->
+          <div class="tabs">
+            <div class="tab active">地址转账</div>
+            <div class="tab">钱包扫码</div>
+          </div>
+
+          <!-- 地址行 -->
+          <div class="address-row">
+            <span>收款地址</span>
+            <strong>0x7a16...3f8b</strong>
+            <span class="copy">⧉</span>
+          </div>
+
+          <!-- 二维码说明 -->
+          <div class="qr-box">
+            <div class="qr"></div>
+            <div class="qr-note">
+              <p><b>重要提示：</b></p>
+              <p>1. 请使用 <span class="amt">ERC20</span> 网络转账</p>
+              <p>2. 转账金额需精确为 <span class="amt">180.50 USDT</span></p>
+              <p>3. 请在倒计时结束前完成转账</p>
+              <p>4. 转账确认后，系统将自动完成订单</p>
+            </div>
+          </div>
+
+          <div class="bottom-links">
+            <div class="lang">🌐 简体中文</div>
+            <span>遇到问题？联系客服</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

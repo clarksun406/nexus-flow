@@ -51,5 +51,32 @@ public class RefundOrder {
         this.confirmTime = Instant.now(); touch();
     }
     public void markFailed() { this.status = status.requireTransitionTo(RefundStatus.FAILED); touch(); }
+    /**
+     * Full-args builder for reconstituting a RefundOrder from persistence.
+     */
+    @Builder(builderMethodName = "reconstitute")
+    private RefundOrder(String refundOrderNo, String paymentId, String channelRefundId,
+                        BigDecimal refundAmountFiat, BigDecimal refundAmountCrypto,
+                        BigDecimal exchangeRate, String token, String network,
+                        String toAddress, String txHash, String notifyUrl,
+                        RefundStatus status, Instant createTime, Instant confirmTime,
+                        Instant updateTime) {
+        this.refundOrderNo = refundOrderNo;
+        this.paymentId = paymentId;
+        this.channelRefundId = channelRefundId;
+        this.refundAmountFiat = refundAmountFiat;
+        this.refundAmountCrypto = refundAmountCrypto;
+        this.exchangeRate = exchangeRate;
+        this.token = token;
+        this.network = network;
+        this.toAddress = toAddress;
+        this.txHash = txHash;
+        this.notifyUrl = notifyUrl;
+        this.status = status;
+        this.createTime = createTime;
+        this.confirmTime = confirmTime;
+        this.updateTime = updateTime;
+    }
+
     private void touch() { this.updateTime = Instant.now(); }
 }

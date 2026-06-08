@@ -1,11 +1,12 @@
 package com.nexusflow.application;
 
-import com.nexusflow.application.dto.CashierSubmitRequest;
-import com.nexusflow.application.dto.CashierSubmitResponse;
+import com.nexusflow.application.dto.*;
 import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.domain.channel.ChannelAdapter;
 import com.nexusflow.domain.channel.ChannelRouter;
+import com.nexusflow.domain.channel.ChannelUser;
 import com.nexusflow.domain.channel.DepositAddress;
+import com.nexusflow.domain.channel.ExchangeRate;
 import com.nexusflow.domain.event.DomainEventPublisher;
 import com.nexusflow.domain.event.ProcessedEventStore;
 import com.nexusflow.domain.order.FlowRepository;
@@ -13,6 +14,7 @@ import com.nexusflow.domain.order.OrderRepository;
 import com.nexusflow.domain.order.OrderStatus;
 import com.nexusflow.domain.order.PaymentFlow;
 import com.nexusflow.domain.order.PaymentOrder;
+import com.nexusflow.domain.refund.RefundOrder;
 import com.nexusflow.domain.refund.RefundRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -74,7 +76,58 @@ class PaymentOrchestratorTest {
                 .build();
     }
 
-    // ── Bug 2: deposit address must come from the channel adapter, not a hardcoded value ──
+    // ── Create Order ──
+
+    @Test
+    void createOrderHappyPath() {
+        when(orderRepository.existsByMerchantOrderNo("m-1", "ord-1")).thenReturn(false);
+        when(channelRouter.route(any())).thenReturn(List.of(stubChannel));
+        when(stubChannel.channelId()).thenReturn("STUB");
+        when(stubChannel.openUser("m-1", "ord-1")).thenReturn(
+                ChannelUser.builder().channelUserId("cu-1").channelId("STUB").newlyCreated(true).build());
+        when(stubChannel.getExchangeRate("USDT", "TRC20", "USD")).thenReturn(
+                ExchangeRate.builder().token("USDT").network("TRC20")
+                        .price(new BigDecimal("1.0002")).quoteCurrency("USD").timestamp(Instant.now()).build());
+
+        CreateOrderRequest req = CreateOrderRequest.builder()
+                .merchantId("m-1").merchantOrderNo("ord-1")
+                .amountFiat("100").currencyFiat("USD").build();
+
+        OrderResponse resp = orchestrator.createOrder(req);
+
+        assertThat(resp.getPaymentId()).isNotBlank();
+        assertThat(resp.getStatus()).isEqualTo("WAITING_PAYMENT");
+        assertThat(resp.getAmountFiat()).isEqualTo("100");
+        assertThat(resp.getChannelId()).isEqualTo("STUB");
+        verify(orderRepository).save(any(PaymentOrder.class));
+    }
+
+    @Test
+    void createOrderRejectsDuplicate() {
+        when(orderRepository.existsByMerchantOrderNo("m-1", "ord-1")).thenReturn(true);
+
+        CreateOrderRequest req = CreateOrderRequest.builder()
+                .merchantId("m-1").merchantOrderNo("ord-1")
+                .amountFiat("100").currencyFiat("USD").build();
+
+        assertThatThrownBy(() -> orchestrator.createOrder(req))
+                .isInstanceOf(NexusFlowException.class);
+    }
+
+    @Test
+    void createOrderFailsWhenNoChannelAvailable() {
+        when(orderRepository.existsByMerchantOrderNo("m-1", "ord-1")).thenReturn(false);
+        when(channelRouter.route(any())).thenReturn(List.of());
+
+        CreateOrderRequest req = CreateOrderRequest.builder()
+                .merchantId("m-1").merchantOrderNo("ord-1")
+                .amountFiat("100").currencyFiat("USD").build();
+
+        assertThatThrownBy(() -> orchestrator.createOrder(req))
+                .isInstanceOf(NexusFlowException.class);
+    }
+
+    // ── Submit Payment ──
 
     @Test
     void submitPaymentUsesAddressReturnedByChannelAdapter() {
@@ -92,9 +145,7 @@ class PaymentOrchestratorTest {
 
         CashierSubmitResponse resp = orchestrator.submitPayment(req);
 
-        // the real channel was consulted
         verify(stubChannel).createDepositAddress(any());
-        // response, order, and flow all carry the channel-provided address
         assertThat(resp.getPayAddress()).isEqualTo("0xREAL_ADDRESS");
         assertThat(resp.getRequiredConfirmations()).isEqualTo(5);
         assertThat(order.getPayAddress()).isEqualTo("0xREAL_ADDRESS");
@@ -118,20 +169,18 @@ class PaymentOrchestratorTest {
                 .isInstanceOf(NexusFlowException.class);
     }
 
-    // ── Bug 3: duplicate channel callbacks (same eventId) must be processed once ──
+    // ── Handle Channel Callback ──
 
     @Test
     void duplicateCallbackIsProcessedOnlyOnce() {
         PaymentOrder order = waitingOrder();
         when(orderRepository.findByChannelOrderId("STUB", "co-1")).thenReturn(Optional.of(order));
         when(flowRepository.findActiveByPaymentId("pay-1")).thenReturn(Optional.empty());
-        // first delivery is new, second is a duplicate
         when(processedEventStore.markProcessed("evt-1")).thenReturn(true, false);
 
         orchestrator.handlePaymentCallback("STUB", "co-1", "tx-1", "100", null, "evt-1");
         orchestrator.handlePaymentCallback("STUB", "co-1", "tx-1", "100", null, "evt-1");
 
-        // order confirmed and persisted exactly once despite two deliveries
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         verify(orderRepository, times(1)).save(order);
     }
@@ -144,7 +193,144 @@ class PaymentOrchestratorTest {
                 orchestrator.handlePaymentCallback("STUB", "missing", "tx-1", "100", null, "evt-1"))
                 .isInstanceOf(NexusFlowException.class);
 
-        // dedup must not run before the order is resolved
         verify(processedEventStore, never()).markProcessed(anyString());
+    }
+
+    @Test
+    void partialPaymentMarksPartiallyPaid() {
+        PaymentOrder order = waitingOrder();
+        when(orderRepository.findByChannelOrderId("STUB", "co-1")).thenReturn(Optional.of(order));
+        when(flowRepository.findActiveByPaymentId("pay-1")).thenReturn(Optional.empty());
+        when(processedEventStore.markProcessed("evt-2")).thenReturn(true);
+
+        // Pay less than expected (50 out of 100)
+        orchestrator.handlePaymentCallback("STUB", "co-1", "tx-1", "50", "50", "evt-2");
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.PARTIALLY_PAID);
+        assertThat(order.getPaidAmountCrypto()).isEqualByComparingTo("50");
+    }
+
+    // ── Refund ──
+
+    @Test
+    void refundHappyPath() {
+        PaymentOrder order = waitingOrder();
+        // Mark order as CONFIRMED first
+        order.markConfirmed("tx-1", new BigDecimal("100"), new BigDecimal("100"));
+        order.collectEvents(); // clear events
+
+        when(orderRepository.findByMerchantOrderNo("m-1", "ord-1")).thenReturn(Optional.of(order));
+
+        RefundRequestDto req = RefundRequestDto.builder()
+                .merchantId("m-1").merchantOrderNo("ord-1")
+                .refundOrderNo("ref-1").refundAmountFiat("50")
+                .notifyUrl("https://example.com/callback").build();
+
+        RefundResponseDto resp = orchestrator.refund(req);
+
+        assertThat(resp.getRefundOrderNo()).isEqualTo("ref-1");
+        assertThat(resp.getStatus()).isEqualTo("PROCESSING");
+        assertThat(resp.getRefundAmountFiat()).isEqualTo("50");
+        verify(refundRepository).save(any(RefundOrder.class));
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUND_PROCESSING);
+    }
+
+    @Test
+    void refundRejectsNonConfirmedOrder() {
+        PaymentOrder order = waitingOrder(); // WAITING_PAYMENT
+        when(orderRepository.findByMerchantOrderNo("m-1", "ord-1")).thenReturn(Optional.of(order));
+
+        RefundRequestDto req = RefundRequestDto.builder()
+                .merchantId("m-1").merchantOrderNo("ord-1")
+                .refundOrderNo("ref-1").refundAmountFiat("50").build();
+
+        assertThatThrownBy(() -> orchestrator.refund(req))
+                .isInstanceOf(NexusFlowException.class);
+    }
+
+    @Test
+    void refundRejectsExceedingPaidAmount() {
+        PaymentOrder order = waitingOrder();
+        order.markConfirmed("tx-1", new BigDecimal("100"), new BigDecimal("100"));
+        order.collectEvents();
+        when(orderRepository.findByMerchantOrderNo("m-1", "ord-1")).thenReturn(Optional.of(order));
+
+        RefundRequestDto req = RefundRequestDto.builder()
+                .merchantId("m-1").merchantOrderNo("ord-1")
+                .refundOrderNo("ref-1").refundAmountFiat("200").build();
+
+        assertThatThrownBy(() -> orchestrator.refund(req))
+                .isInstanceOf(NexusFlowException.class);
+    }
+
+    // ── Handle Refund Callback ──
+
+    @Test
+    void refundCallbackSuccessMarksRefunded() {
+        // Set up order in REFUND_PROCESSING
+        PaymentOrder order = waitingOrder();
+        order.markConfirmed("tx-1", new BigDecimal("100"), new BigDecimal("100"));
+        order.markRefundProcessing();
+        order.collectEvents();
+
+        RefundOrder refund = RefundOrder.builder()
+                .refundOrderNo("ref-1").paymentId("pay-1")
+                .refundAmountFiat(new BigDecimal("50"))
+                .refundAmountCrypto(new BigDecimal("50"))
+                .exchangeRate(BigDecimal.ONE)
+                .token("USDT").network("TRC20").toAddress("addr").build();
+
+        when(refundRepository.findByChannelRefundId("ch-ref-1")).thenReturn(Optional.of(refund));
+        when(orderRepository.findByPaymentId("pay-1")).thenReturn(Optional.of(order));
+
+        orchestrator.handleRefundCallback("ch-ref-1", "SUCCESS", "tx-ref-1");
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUNDED);
+        verify(refundRepository).save(refund);
+        verify(orderRepository).save(order);
+    }
+
+    @Test
+    void refundCallbackFailureMarksRefundFailed() {
+        PaymentOrder order = waitingOrder();
+        order.markConfirmed("tx-1", new BigDecimal("100"), new BigDecimal("100"));
+        order.markRefundProcessing();
+        order.collectEvents();
+
+        RefundOrder refund = RefundOrder.builder()
+                .refundOrderNo("ref-1").paymentId("pay-1")
+                .refundAmountFiat(new BigDecimal("50"))
+                .refundAmountCrypto(new BigDecimal("50"))
+                .exchangeRate(BigDecimal.ONE)
+                .token("USDT").network("TRC20").toAddress("addr").build();
+
+        when(refundRepository.findByChannelRefundId("ch-ref-1")).thenReturn(Optional.of(refund));
+        when(orderRepository.findByPaymentId("pay-1")).thenReturn(Optional.of(order));
+
+        orchestrator.handleRefundCallback("ch-ref-1", "FAILED", null);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUND_FAILED);
+    }
+
+    @Test
+    void refundCallbackUnknownStatusTreatsAsFailure() {
+        PaymentOrder order = waitingOrder();
+        order.markConfirmed("tx-1", new BigDecimal("100"), new BigDecimal("100"));
+        order.markRefundProcessing();
+        order.collectEvents();
+
+        RefundOrder refund = RefundOrder.builder()
+                .refundOrderNo("ref-1").paymentId("pay-1")
+                .refundAmountFiat(new BigDecimal("50"))
+                .refundAmountCrypto(new BigDecimal("50"))
+                .exchangeRate(BigDecimal.ONE)
+                .token("USDT").network("TRC20").toAddress("addr").build();
+
+        when(refundRepository.findByChannelRefundId("ch-ref-1")).thenReturn(Optional.of(refund));
+        when(orderRepository.findByPaymentId("pay-1")).thenReturn(Optional.of(order));
+
+        orchestrator.handleRefundCallback("ch-ref-1", "UNKNOWN_STATUS", null);
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUND_FAILED);
     }
 }

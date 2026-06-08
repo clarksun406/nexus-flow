@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>02 - 处理网络选择</title>
+  <link rel="stylesheet" href="../assets/styles.css" />
+</head>
+<body>
+  <div class="page-wrap">
+    <div class="frame">
+      <div class="two-col">
+        <!-- 左侧订单信息 -->
+        <div class="left">
+          <h2 class="left-title">订单信息</h2>
+          <div class="split-line"></div>
+          
+          <div class="product">
+            <div class="product-thumb">
+              <div class="bag"></div>
+            </div>
+            <div>
+              <div class="product-name">商品名称示例</div>
+              <div class="kv">
+                <span class="k">订单号</span>
+                <span class="v"><span>2024030512345678</span><span class="copy">⧉</span></span>
+              </div>
+              <div class="kv">
+                <span class="k">创建时间</span>
+                <span class="v"><span>2024-03-05 21:15:30</span></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="split-line"></div>
+          <div class="total">
+            <span class="label">应付金额</span>
+            <div class="amount">
+              <span class="unit">CNY</span>
+              <span class="num">1,280.00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧网络选择 -->
+        <div class="right">
+          <div class="right-header">
+            <div class="back">←</div>
+            <h2 class="right-title">选择处理网络</h2>
+          </div>
+
+          <div class="panel">
+            <div class="option">
+              <div class="opt-left">
+                <div class="icon coin">Ξ</div>
+                <div>
+                  <div class="opt-title">Ethereum (ERC20)</div>
+                  <div class="opt-sub">推荐 · 手续费较低</div>
+                </div>
+              </div>
+              <div class="radio on"></div>
+            </div>
+
+            <div class="option">
+              <div class="opt-left">
+                <div class="icon tron">T</div>
+                <div>
+                  <div class="opt-title">Tron (TRC20)</div>
+                  <div class="opt-sub">手续费低 · 到账快</div>
+                </div>
+              </div>
+              <div class="radio"></div>
+            </div>
+
+            <div class="option">
+              <div class="opt-left">
+                <div class="icon bnb">B</div>
+                <div>
+                  <div class="opt-title">BSC (BEP20)</div>
+                  <div class="opt-sub">币安智能链</div>
+                </div>
+              </div>
+              <div class="radio"></div>
+            </div>
+
+            <div class="option">
+              <div class="opt-left">
+                <div class="icon avax">A</div>
+                <div>
+                  <div class="opt-title">Avalanche (C-Chain)</div>
+                  <div class="opt-sub">高性能公链</div>
+                </div>
+              </div>
+              <div class="radio"></div>
+            </div>
+
+            <div class="inline-row">
+              <div class="badge">
+                <span class="coin-dot"></span>
+                <span>USDT</span>
+                <strong>· Tether USD</strong>
+              </div>
+            </div>
+
+            <div class="warn">
+              <div class="w">!</div>
+              <div>请确保选择正确的网络，错误的网络可能导致资产丢失且无法恢复。</div>
+            </div>
+          </div>
+
+          <button class="primary-btn">确认网络</button>
+
+          <div class="bottom-links">
+            <div class="lang">🌐 简体中文</div>
+            <span>遇到问题？联系客服</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

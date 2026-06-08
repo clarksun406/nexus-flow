@@ -56,5 +56,34 @@ public class PaymentFlow {
     }
     public void markCancelled() { this.status = status.requireTransitionTo(FlowStatus.CANCELLED); touch(); }
     public void markFailed() { this.status = status.requireTransitionTo(FlowStatus.FAILED); touch(); }
+    /**
+     * Full-args builder for reconstituting a PaymentFlow from persistence.
+     */
+    @Builder(builderMethodName = "reconstitute")
+    private PaymentFlow(String flowNo, String paymentId, String channelId,
+                        String token, String network, BigDecimal cryptoAmount,
+                        BigDecimal fiatAmount, String fiatCurrency, BigDecimal exchangeRate,
+                        String payAddress, String memo, String payerAddress,
+                        FlowStatus status, String txHash, BigDecimal paidAmount,
+                        Instant createTime, Instant updateTime) {
+        this.flowNo = flowNo;
+        this.paymentId = paymentId;
+        this.channelId = channelId;
+        this.token = token;
+        this.network = network;
+        this.cryptoAmount = cryptoAmount;
+        this.fiatAmount = fiatAmount;
+        this.fiatCurrency = fiatCurrency;
+        this.exchangeRate = exchangeRate;
+        this.payAddress = payAddress;
+        this.memo = memo;
+        this.payerAddress = payerAddress;
+        this.status = status;
+        this.txHash = txHash;
+        this.paidAmount = paidAmount;
+        this.createTime = createTime;
+        this.updateTime = updateTime;
+    }
+
     private void touch() { this.updateTime = Instant.now(); }
 }

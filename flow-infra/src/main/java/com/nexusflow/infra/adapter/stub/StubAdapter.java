@@ -2,6 +2,7 @@ package com.nexusflow.infra.adapter.stub;
 
 import com.nexusflow.domain.channel.*;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -11,9 +12,11 @@ import java.util.List;
 
 /**
  * Stub adapter for testing — returns fixed responses.
+ * Only active in test/dev profiles to prevent fake addresses in production.
  */
 @Slf4j
 @Component
+@Profile({"test", "dev"})
 public class StubAdapter implements ChannelAdapter {
 
     @Override public String channelId() { return "STUB"; }

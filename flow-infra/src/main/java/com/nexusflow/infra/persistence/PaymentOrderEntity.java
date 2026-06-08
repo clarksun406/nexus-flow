@@ -50,4 +50,5 @@ public class PaymentOrderEntity {
     @Column(name = "confirm_time") private Instant confirmTime;
     @Column(name = "create_time") private Instant createTime;
     @Column(name = "update_time") private Instant updateTime;
+    @Version private Long version;
 }

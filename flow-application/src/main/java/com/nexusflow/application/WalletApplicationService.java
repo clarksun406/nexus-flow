@@ -52,6 +52,7 @@ public class WalletApplicationService {
      * Decrypt and return private key (use with extreme caution).
      */
     public String decryptPrivateKey(String walletId) {
+        log.warn("AUDIT: Private key decryption requested for walletId={}", walletId);
         Wallet wallet = walletRepository.findById(walletId)
                 .orElseThrow(() -> new NexusFlowException(ErrorCode.WALLET_NOT_FOUND,
                         "Wallet not found: " + walletId));
