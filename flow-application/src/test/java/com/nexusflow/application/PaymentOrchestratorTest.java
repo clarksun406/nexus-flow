@@ -5,6 +5,7 @@ import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.domain.channel.ChannelAdapter;
 import com.nexusflow.domain.channel.ChannelRouter;
 import com.nexusflow.domain.channel.ChannelUser;
+import com.nexusflow.domain.channel.CurrencyRateCache;
 import com.nexusflow.domain.channel.DepositAddress;
 import com.nexusflow.domain.channel.ExchangeRate;
 import com.nexusflow.domain.event.DomainEventPublisher;
@@ -46,6 +47,7 @@ class PaymentOrchestratorTest {
     private DomainEventPublisher eventPublisher;
     private WebhookService webhookService;
     private ProcessedEventStore processedEventStore;
+    private CurrencyRateCache currencyRateCache;
 
     private PaymentOrchestrator orchestrator;
 
@@ -59,10 +61,11 @@ class PaymentOrchestratorTest {
         eventPublisher = mock(DomainEventPublisher.class);
         webhookService = mock(WebhookService.class);
         processedEventStore = mock(ProcessedEventStore.class);
+        currencyRateCache = mock(CurrencyRateCache.class);
 
         orchestrator = new PaymentOrchestrator(
                 channelRouter, List.of(stubChannel), orderRepository, flowRepository,
-                refundRepository, eventPublisher, webhookService, processedEventStore);
+                refundRepository, eventPublisher, webhookService, processedEventStore, currencyRateCache);
     }
 
     private PaymentOrder waitingOrder() {
@@ -85,7 +88,7 @@ class PaymentOrchestratorTest {
         when(stubChannel.channelId()).thenReturn("STUB");
         when(stubChannel.openUser("m-1", "ord-1")).thenReturn(
                 ChannelUser.builder().channelUserId("cu-1").channelId("STUB").newlyCreated(true).build());
-        when(stubChannel.getExchangeRate("USDT", "TRC20", "USD")).thenReturn(
+        when(currencyRateCache.getExchangeRate(stubChannel, "USDT", "TRC20", "USD")).thenReturn(
                 ExchangeRate.builder().token("USDT").network("TRC20")
                         .price(new BigDecimal("1.0002")).quoteCurrency("USD").timestamp(Instant.now()).build());
 

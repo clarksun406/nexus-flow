@@ -60,6 +60,12 @@ nexusflow:
     expiry:
       interval-ms: 60000    # how often to scan for overdue WAITING_PAYMENT orders
 
+  # ── Cache ──
+  cache:
+    enabled: false            # set to true to enable Redis-backed rate + currency cache
+    rate-ttl-seconds: 60      # how long an exchange rate is cached
+    currency-ttl-seconds: 300 # how long supported-currency lists are cached
+
   # ── Idempotency ──
   idempotency:
     store: memory             # memory (default) | redis — dedup backend for channel callbacks

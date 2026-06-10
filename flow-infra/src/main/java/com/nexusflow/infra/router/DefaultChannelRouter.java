@@ -2,6 +2,7 @@ package com.nexusflow.infra.router;
 
 import com.nexusflow.domain.channel.ChannelAdapter;
 import com.nexusflow.domain.channel.ChannelRouter;
+import com.nexusflow.domain.channel.CurrencyRateCache;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -16,6 +17,7 @@ import java.util.stream.Collectors;
  * then sorts by exchange rate (best rate for the buyer first).
  *
  * If exchange rate lookup fails for a channel, it is placed at the end of the list.
+ * Uses {@link CurrencyRateCache} to avoid repeated upstream calls.
  */
 @Slf4j
 @Component
@@ -23,6 +25,7 @@ import java.util.stream.Collectors;
 public class DefaultChannelRouter implements ChannelRouter {
 
     private final List<ChannelAdapter> allAdapters;
+    private final CurrencyRateCache currencyRateCache;
 
     @Override
     public List<ChannelAdapter> route(RouteRequest request) {
@@ -45,7 +48,7 @@ public class DefaultChannelRouter implements ChannelRouter {
 
     private BigDecimal getRate(ChannelAdapter adapter, String token, String network, String quote) {
         try {
-            var rate = adapter.getExchangeRate(token, network, quote);
+            var rate = currencyRateCache.getExchangeRate(adapter, token, network, quote);
             return rate != null && rate.getPrice() != null ? rate.getPrice() : BigDecimal.ZERO;
         } catch (Exception e) {
             log.warn("Failed to get exchange rate from {}: {}", adapter.channelId(), e.getMessage());

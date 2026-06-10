@@ -7,6 +7,7 @@ import com.nexusflow.common.PaymentNotFoundException;
 import com.nexusflow.domain.channel.ChannelAdapter;
 import com.nexusflow.domain.channel.ChannelRouter;
 import com.nexusflow.domain.channel.ChannelUser;
+import com.nexusflow.domain.channel.CurrencyRateCache;
 import com.nexusflow.domain.channel.DepositAddress;
 import com.nexusflow.domain.event.DomainEventPublisher;
 import com.nexusflow.domain.event.ProcessedEventStore;
@@ -41,6 +42,7 @@ public class PaymentOrchestrator {
     private final DomainEventPublisher eventPublisher;
     private final WebhookService webhookService;
     private final ProcessedEventStore processedEventStore;
+    private final CurrencyRateCache currencyRateCache;
 
     // ── Create Order ──
 
@@ -65,8 +67,8 @@ public class PaymentOrchestrator {
         // Ensure buyer account on channel
         ChannelUser channelUser = channel.openUser(req.getMerchantId(), req.getMerchantOrderNo());
 
-        // Get exchange rate
-        var rate = channel.getExchangeRate("USDT", "TRC20", req.getCurrencyFiat());
+        // Get exchange rate (cached)
+        var rate = currencyRateCache.getExchangeRate(channel, "USDT", "TRC20", req.getCurrencyFiat());
         BigDecimal amountCrypto = new BigDecimal(req.getAmountFiat()).divide(rate.getPrice(), 6, RoundingMode.HALF_UP);
 
         // Create order
