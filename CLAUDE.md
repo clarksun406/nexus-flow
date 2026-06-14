@@ -131,9 +131,12 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   or live node integration before refund callbacks mark success/failure.
   Its internal callback HMAC secret defaults to `WEBHOOK_HMAC_SECRET` via
   `CALLBACK_HMAC_SECRET_SELF_HOSTED_NODE`.
-- `COINBASE_COMMERCE` is currently a stub `ChannelAdapter` registered in `BlockchainConfig`, matching
-  the BitMart/Binance stub level. It returns fixed deposit/refund/rate data; real Coinbase Commerce
-  REST calls and webhook semantics are still follow-up work.
+- `COINBASE_COMMERCE` is a REST-capable `ChannelAdapter` registered in `BlockchainConfig` when
+  `COINBASE_COMMERCE_API_KEY` is set. It uses `COINBASE_COMMERCE_BASE_URL` (default
+  `https://api.commerce.coinbase.com`) and `COINBASE_COMMERCE_API_VERSION` (default `2018-03-22`)
+  for Coinbase Commerce charge and exchange-rate calls. Without an API key it preserves the old
+  stub behavior for local/dev compatibility. Coinbase live credentials, webhook semantics, and
+  external refund operations still need environment verification.
 - Kafka domain-event publishing is available behind the same `DomainEventPublisher` port. Default
   remains Spring in-process events; set `EVENT_PUBLISHER=kafka` and `KAFKA_BOOTSTRAP_SERVERS` to
   publish to event-type topics such as `crypto.payment.confirmed`. `LiveMessagingInfrastructureTest`

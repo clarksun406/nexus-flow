@@ -802,12 +802,12 @@ Implemented:
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 200 passing tests
+> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 205 passing tests
 > across common/domain/application/infra/listener/wallet and skips 11 opt-in integration/live tests when Docker or live dependency variables are
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
 > execution-layer JPA repositories, HD wallet derivation, ETH/BTC adapter parsing, address pool storage,
 > mnemonic storage, createPayment idempotency, crypto-denominated order creation,
-> execution webhooks with dead-letter replay/ignore workflow, Coinbase channel stub,
+> execution webhooks with dead-letter replay/ignore workflow, Coinbase Commerce REST-capable channel with no-key stub fallback,
 > self-hosted node channel deposit/refund delegation,
 > callback HMAC body caching, orphan transaction storage/resolution/compensation,
 > reconciliation retry, scanner cursor/reorg behavior, Kafka event publishing, ops dashboard aggregation,
@@ -841,7 +841,7 @@ Implemented:
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, TronAdapter · 🟡 Reconciliation live verification |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · ⬜ MPC/GasAbstraction/OnOffRamp |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (200 passing locally) · 🟡 Integration/live tests present, 11 skipped locally without Docker/live env |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (205 passing locally) · 🟡 Integration/live tests present, 11 skipped locally without Docker/live env |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：

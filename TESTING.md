@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 211 | 200 | 0 | 0 | 11 |
+| 216 | 205 | 0 | 0 | 11 |
 
 The 11 skipped tests are 6 `NexusFlowApplicationIT` Testcontainers cases, 3 opt-in live blockchain smoke tests, and 2 opt-in live messaging smoke tests. They require Docker or explicit live dependency environment variables and are skipped automatically when unavailable.
 
@@ -65,7 +65,8 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-application` | `WebhookDeadLetterApplicationServiceTest` | 7 | Dead-letter listing, replay success/failure/exception handling, ignore, not-found, and closed-state rejection |
 | `flow-application` | `WebhookServiceTest` | 5 | Merchant/execution callback payload filtering, SSRF blocking, and webhook dead-letter recording |
 | `flow-infra` | `BitcoinAdapterTest` | 3 | Bitcoin Core RPC parsing, block scan, confirmations, failure behavior |
-| `flow-infra` | `CoinbaseCommerceAdapterTest` | 3 | Coinbase Commerce stub deposit address, supported currencies, exchange-rate quote |
+| `flow-infra` | `CoinbaseCommerceAdapterTest` | 6 | Coinbase Commerce REST charge/rate parsing, real-mode supported currencies, and no-key stub fallback |
+| `flow-infra` | `DefaultChannelRouterTest` | 2 | Asset-support filtering before rate sorting and preferred-channel handling when the requested asset is unsupported |
 | `flow-infra` | `EthereumAdapterTest` | 3 | ERC20 `Transfer` log parsing, confirmations, block hash lookup |
 | `flow-infra` | `LiveBlockchainAdapterTest` | 3 skipped locally | Opt-in ETH/BTC/TRON live-node smoke checks for height, health, block hash where supported, one-block scan, and optional tx confirmations |
 | `flow-infra` | `SelfHostedNodeAdapterTest` | 5 | Self-hosted channel delegation to execution payments, refund task creation, and stablecoin rate behavior |
@@ -96,7 +97,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Area | Covered |
 |------|---------|
 | Domain state machines | `OrderStatus`, `FlowStatus`, `RefundStatus`, `CryptoPayment` lifecycle |
-| Payment orchestration | Channel routing, fiat and crypto-denominated create-order flows, Coinbase/BitMart/Binance stubs, self-hosted node deposit/refund delegation, refund flow, callback deduplication |
+| Payment orchestration | Asset-aware channel routing, fiat and crypto-denominated create-order flows, Coinbase Commerce REST-capable channel with no-key stub fallback, BitMart/Binance stubs, self-hosted node deposit/refund delegation, refund flow, callback deduplication |
 | Execution payments | Address allocation with row locking, Docker-backed concurrent allocation test, payment detection, underpayment/dust rules, confirmation reconciliation, merchant callback delivery, PaymentController HTTP contract |
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions, webhook dead letters |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; opt-in live-node smoke tests; scanner reorg behavior |
@@ -115,6 +116,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `PaymentController` full persistence-backed HTTP E2E | PostgreSQL-backed createPayment idempotency is covered in `NexusFlowApplicationIT`; local run still skips it without Docker |
 | Kafka broker integration | Opt-in `LiveMessagingInfrastructureTest` can write a smoke event to `LIVE_KAFKA_TOPIC`; local run skips it until `LIVE_KAFKA_BOOTSTRAP_SERVERS` is configured |
 | Redis integration against a real Redis server | Opt-in `LiveMessagingInfrastructureTest` can verify Redis `SET NX EX`; local run skips it until `LIVE_REDIS_HOST` is configured |
+| Coinbase Commerce live verification | REST charge/rate paths are unit-tested with mocked transport and can be enabled with `COINBASE_COMMERCE_API_KEY`; live credentials, webhook semantics, and external refund operations still need environment verification |
 | Address-pool concurrent allocation | Docker-backed concurrent createPayment test covers distinct address assignment through `FOR UPDATE SKIP LOCKED`; local run still skips it without Docker |
 | Missing-event catch-up live policy | Orphan transaction alerting, manual compensation, and configurable auto compensation exist; production auto-compensation policy still needs operator approval |
 | Self-hosted node refund broadcast | Refund tasks and `crypto.refund.requested` events are emitted; chain signing/broadcast remains an external worker/live-environment responsibility |
