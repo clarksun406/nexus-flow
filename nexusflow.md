@@ -803,7 +803,7 @@ Implemented:
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
 > Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 200 passing tests
-> across common/domain/application/infra/listener/wallet and skips 9 opt-in integration/live tests when Docker or live-node variables are
+> across common/domain/application/infra/listener/wallet and skips 11 opt-in integration/live tests when Docker or live dependency variables are
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
 > execution-layer JPA repositories, HD wallet derivation, ETH/BTC adapter parsing, address pool storage,
 > mnemonic storage, createPayment idempotency, crypto-denominated order creation,
@@ -829,7 +829,7 @@ Implemented:
 | Module | What to test |
 |--------|-------------|
 | `flow-api` | Docker-backed `NexusFlowApplicationIT` for Spring/Flyway/JPA round trips, persistence-backed createPayment HTTP idempotency, and concurrent address-pool allocation; Redis-backed HTTP E2E still needs a brokered environment |
-| `flow-infra` | Opt-in `LiveBlockchainAdapterTest` for ETH/BTC/TRON nodes; repository CRUD against real database; `EthereumAdapter` against local Ganache/Hardhat node |
+| `flow-infra` | Opt-in `LiveBlockchainAdapterTest` for ETH/BTC/TRON nodes; opt-in `LiveMessagingInfrastructureTest` for Redis/Kafka; repository CRUD against real database; `EthereumAdapter` against local Ganache/Hardhat node |
 | `flow-listener` | `BlockchainScanner` scheduled execution with mocked adapter |
 
 ---
@@ -841,7 +841,7 @@ Implemented:
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, TronAdapter · 🟡 Reconciliation live verification |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · ⬜ MPC/GasAbstraction/OnOffRamp |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (200 passing locally) · 🟡 Integration/live tests present, 9 skipped locally without Docker/live env |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (200 passing locally) · 🟡 Integration/live tests present, 11 skipped locally without Docker/live env |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：

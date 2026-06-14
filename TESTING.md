@@ -6,9 +6,9 @@ Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 209 | 200 | 0 | 0 | 9 |
+| 211 | 200 | 0 | 0 | 11 |
 
-The 9 skipped tests are 6 `NexusFlowApplicationIT` Testcontainers cases plus 3 opt-in live blockchain smoke tests. They require Docker or explicit live-node environment variables and are skipped automatically when unavailable.
+The 11 skipped tests are 6 `NexusFlowApplicationIT` Testcontainers cases, 3 opt-in live blockchain smoke tests, and 2 opt-in live messaging smoke tests. They require Docker or explicit live dependency environment variables and are skipped automatically when unavailable.
 
 ## How to Run
 
@@ -30,6 +30,9 @@ mvn test -pl flow-domain -Dtest=CryptoPaymentTest#fullHappyPathTransitionsToConf
 
 # Run opt-in live node smoke tests after setting LIVE_* variables
 mvn test -pl flow-infra -Dtest=LiveBlockchainAdapterTest
+
+# Run opt-in Redis/Kafka smoke tests after setting LIVE_* variables
+mvn test -pl flow-infra -Dtest=LiveMessagingInfrastructureTest
 ```
 
 JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `pom.xml`.
@@ -37,6 +40,8 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 `LiveBlockchainAdapterTest` uses `LIVE_ETH_RPC_URL`, `LIVE_BTC_RPC_URL`, and `LIVE_TRON_NODE_URL`.
 Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_BTC_RPC_USERNAME`,
 `LIVE_BTC_RPC_PASSWORD`, `LIVE_ETH_TX_HASH`, `LIVE_BTC_TX_HASH`, and `LIVE_TRON_TX_HASH`.
+`LiveMessagingInfrastructureTest` uses `LIVE_REDIS_HOST` / `LIVE_REDIS_PORT` and
+`LIVE_KAFKA_BOOTSTRAP_SERVERS` / `LIVE_KAFKA_TOPIC`.
 
 ## Test Classes
 
@@ -68,6 +73,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-infra` | `RedisCurrencyRateCacheTest` | 4 | Redis-backed exchange-rate and currency cache fallback behavior |
 | `flow-infra` | `InMemoryProcessedEventStoreTest` | 3 | In-memory callback idempotency |
 | `flow-infra` | `KafkaDomainEventPublisherTest` | 1 | Kafka domain-event envelope, eventId key, and event-type topic routing |
+| `flow-infra` | `LiveMessagingInfrastructureTest` | 2 skipped locally | Opt-in Redis SET-NX idempotency and Kafka producer smoke checks against live dependencies |
 | `flow-infra` | `RedisProcessedEventStoreTest` | 3 | Redis `SET NX EX` callback idempotency behavior |
 | `flow-infra` | `InMemoryPaymentRepositoryTest` | 6 | In-memory payment repository matching and lookup |
 | `flow-infra` | `JpaAddressPoolRepositoryTest` | 2 | Address pool JPA mapping and available-address lookup |
@@ -95,7 +101,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions, webhook dead letters |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; opt-in live-node smoke tests; scanner reorg behavior |
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check |
-| Reliability | Redis idempotency, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter replay/ignore workflow, Kafka domain-event publishing, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
+| Reliability | Redis idempotency, opt-in Redis live smoke, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter replay/ignore workflow, Kafka domain-event publishing, opt-in Kafka live smoke, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
 | API contracts | API envelope serialization, immutable request DTO JSON binding, MVC path/query parameter binding without `-parameters`, request validation for execution payment creation |
 | Integration | PostgreSQL Testcontainers coverage includes Spring context/Flyway/JPA round trips, persistence-backed createPayment HTTP idempotency, and concurrent address allocation; needs Docker to execute |
 
@@ -107,8 +113,8 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Live ETH/BTC/TRON node verification | Opt-in `LiveBlockchainAdapterTest` exists; local run skips it until `LIVE_ETH_RPC_URL`, `LIVE_BTC_RPC_URL`, and/or `LIVE_TRON_NODE_URL` are configured |
 | TRON live block scanning | `scanNewBlocks()` parsing is unit-tested with mocked TronGrid responses; opt-in live smoke can exercise one-block scanning when `LIVE_TRON_NODE_URL` is set |
 | `PaymentController` full persistence-backed HTTP E2E | PostgreSQL-backed createPayment idempotency is covered in `NexusFlowApplicationIT`; local run still skips it without Docker |
-| Kafka broker integration | Publisher payload and topic routing are unit-tested with a mocked `KafkaTemplate`; no live Kafka broker test yet |
-| Redis integration against a real Redis server | Cache/idempotency tests use mocked clients |
+| Kafka broker integration | Opt-in `LiveMessagingInfrastructureTest` can write a smoke event to `LIVE_KAFKA_TOPIC`; local run skips it until `LIVE_KAFKA_BOOTSTRAP_SERVERS` is configured |
+| Redis integration against a real Redis server | Opt-in `LiveMessagingInfrastructureTest` can verify Redis `SET NX EX`; local run skips it until `LIVE_REDIS_HOST` is configured |
 | Address-pool concurrent allocation | Docker-backed concurrent createPayment test covers distinct address assignment through `FOR UPDATE SKIP LOCKED`; local run still skips it without Docker |
 | Missing-event catch-up live policy | Orphan transaction alerting, manual compensation, and configurable auto compensation exist; production auto-compensation policy still needs operator approval |
 | Self-hosted node refund broadcast | Refund tasks and `crypto.refund.requested` events are emitted; chain signing/broadcast remains an external worker/live-environment responsibility |
@@ -117,6 +123,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 
 - `NexusFlowApplicationIT` uses `@Testcontainers(disabledWithoutDocker = true)`, so local no-Docker runs can still show a green build while skipping integration coverage.
 - `LiveBlockchainAdapterTest` runs only when live-node env vars are set. Optional tx confirmation checks use `LIVE_ETH_TX_HASH`, `LIVE_BTC_TX_HASH`, and `LIVE_TRON_TX_HASH`.
+- `LiveMessagingInfrastructureTest` runs only when Redis/Kafka env vars are set. If Kafka auto topic creation is disabled, set `LIVE_KAFKA_TOPIC` to an existing writable topic.
 - Blockchain adapter tests validate request/response parsing and domain conversion. Without the live env vars, they do not prove behavior against real nodes or network-specific edge cases.
 - `flow-cashier` has no Java tests; `mvn -pl flow-cashier test` verifies static resource packaging, including `checkout.html`, `merchant.html`, and `ops.html`.
 - Roadmap status and production risks are tracked in `nexusflow-roadmap.md`, especially the "production preflight risk" section.

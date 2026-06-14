@@ -136,7 +136,10 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   REST calls and webhook semantics are still follow-up work.
 - Kafka domain-event publishing is available behind the same `DomainEventPublisher` port. Default
   remains Spring in-process events; set `EVENT_PUBLISHER=kafka` and `KAFKA_BOOTSTRAP_SERVERS` to
-  publish to event-type topics such as `crypto.payment.confirmed`.
+  publish to event-type topics such as `crypto.payment.confirmed`. `LiveMessagingInfrastructureTest`
+  can smoke-test a real broker when `LIVE_KAFKA_BOOTSTRAP_SERVERS` is configured.
+- Redis idempotency/cache behavior is unit-tested with mocked clients. `LiveMessagingInfrastructureTest`
+  can verify real Redis `SET NX EX` behavior when `LIVE_REDIS_HOST` is configured.
 - Merchant orchestration orders can be crypto-denominated. `PaymentOrchestrator.createOrder` accepts
   `amountCrypto` + `currencyCrypto` + `network`, routes with that asset, and derives the fiat display
   amount from the channel exchange rate.
