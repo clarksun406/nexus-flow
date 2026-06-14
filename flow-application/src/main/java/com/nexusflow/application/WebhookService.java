@@ -83,13 +83,17 @@ public class WebhookService {
             node.put("event_type", event.eventType());
             node.put("payment_id", payment.getId());
             node.put("order_id", payment.getOrderId());
+            node.put("reference_order_no", payment.getOrderId());
             node.put("status", event.getNewStatus().name());
             node.put("previous_status", event.getPreviousStatus().name());
             node.put("currency", payment.getExpected() != null ? payment.getExpected().getCurrency() : null);
             node.put("expected_amount", payment.getExpected() != null
                     ? payment.getExpected().getAmount().toPlainString() : null);
-            node.put("received_amount", payment.getReceived() != null
-                    ? payment.getReceived().getAmount().toPlainString() : null);
+            String receivedAmount = payment.getReceived() != null
+                    ? payment.getReceived().getAmount().toPlainString() : null;
+            node.put("received_amount", receivedAmount);
+            node.put("amount", receivedAmount);
+            node.put("cumulative_amount", receivedAmount);
             node.put("receiving_address", payment.getReceivingAddress());
             node.put("tx_hash", event.getTxHash());
             if (event.getConfirmations() != null) {

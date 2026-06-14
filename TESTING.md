@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 156 | 152 | 0 | 0 | 4 |
+| 160 | 156 | 0 | 0 | 4 |
 
 The 4 skipped tests are `NexusFlowApplicationIT` Testcontainers cases. They require a working Docker environment and are skipped automatically when Docker is unavailable.
 
@@ -49,6 +49,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-application` | `WebhookServiceTest` | 3 | Execution-layer merchant callback payload filtering and delivery |
 | `flow-infra` | `BitcoinAdapterTest` | 3 | Bitcoin Core RPC parsing, block scan, confirmations, failure behavior |
 | `flow-infra` | `EthereumAdapterTest` | 3 | ERC20 `Transfer` log parsing, confirmations, block hash lookup |
+| `flow-infra` | `SelfHostedNodeAdapterTest` | 3 | Self-hosted channel delegation to execution payments and stablecoin rate behavior |
 | `flow-infra` | `TronAdapterTest` | 8 | TronGrid response parsing, confirmations, health, explicit scan stub |
 | `flow-infra` | `RedisCurrencyRateCacheTest` | 4 | Redis-backed exchange-rate and currency cache fallback behavior |
 | `flow-infra` | `InMemoryProcessedEventStoreTest` | 3 | In-memory callback idempotency |
@@ -63,6 +64,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-listener` | `BlockchainScannerTest` | 2 | Scanner cursor advance, transaction dispatch, reorg rewind and rollback |
 | `flow-wallet` | `Base58Test` | 5 | Base58/Base58Check encoding |
 | `flow-wallet` | `KeyGeneratorTest` | 7 | BIP39/BIP44 derivation and ETH/TRON/BTC address derivation |
+| `flow-api` | `CallbackHmacFilterTest` | 1 | Callback HMAC verification keeps request body readable downstream |
 | `flow-api` | `NexusFlowApplicationIT` | 4 skipped locally | Spring Boot context, PostgreSQL Testcontainers, JPA round trips |
 
 ## Coverage by Area
@@ -70,12 +72,12 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Area | Covered |
 |------|---------|
 | Domain state machines | `OrderStatus`, `FlowStatus`, `RefundStatus`, `CryptoPayment` lifecycle |
-| Payment orchestration | Channel routing, create-order flow, refund flow, callback deduplication |
+| Payment orchestration | Channel routing, create-order flow, self-hosted node deposit delegation, refund flow, callback deduplication |
 | Execution payments | Address allocation with row locking, payment detection, underpayment/dust rules, confirmation reconciliation, merchant callback delivery |
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; scanner reorg behavior |
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check |
-| Reliability | Redis idempotency, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, orphan transaction deduplication and manual resolution |
+| Reliability | Redis idempotency, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, orphan transaction deduplication and manual resolution |
 | Integration | PostgreSQL Testcontainers test class exists but needs Docker to execute |
 
 ## Known Gaps
@@ -89,6 +91,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Redis integration against a real Redis server | Cache/idempotency tests use mocked clients |
 | Address-pool concurrent allocation | Repository uses PostgreSQL `FOR UPDATE SKIP LOCKED`; still worth stress testing against a real database |
 | Missing-event catch-up | Orphan transaction records are persisted and manually resolvable/ignorable via API; alerting and automatic compensation are still pending |
+| Self-hosted node refunds | Deposit delegation to execution payments exists; refund flow is not implemented |
 | `Money` and `ApiResponse` edge cases | Still worth adding focused unit tests |
 
 ## Notes

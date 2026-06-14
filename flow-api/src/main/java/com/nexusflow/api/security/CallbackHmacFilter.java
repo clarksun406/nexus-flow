@@ -10,17 +10,22 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.util.ContentCachingRequestWrapper;
 
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
 /**
  * Filter that verifies HMAC-SHA256 signatures on channel callback endpoints.
  *
- * Wraps the request with {@link ContentCachingRequestWrapper} so the body
- * can be read multiple times (once for verification, once by the controller).
+ * Wraps the request with a cached body so the payload can be read once for
+ * verification and again by the controller.
  */
 @Slf4j
 public class CallbackHmacFilter extends OncePerRequestFilter {
@@ -38,8 +43,8 @@ public class CallbackHmacFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        // Wrap the request so the body can be re-read by the controller
-        ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request);
+        byte[] bodyBytes = request.getInputStream().readAllBytes();
+        CachedBodyRequest wrappedRequest = new CachedBodyRequest(request, bodyBytes);
 
         String path = wrappedRequest.getRequestURI();
         String channelId = extractChannelId(path);
@@ -62,9 +67,6 @@ public class CallbackHmacFilter extends OncePerRequestFilter {
             return;
         }
 
-        // Force the body to be cached
-        wrappedRequest.getInputStream().readAllBytes();
-        byte[] bodyBytes = wrappedRequest.getContentAsByteArray();
         String body = new String(bodyBytes, StandardCharsets.UTF_8);
 
         if (!HmacSignatureVerifier.verify(body, secret, signature)) {
@@ -95,5 +97,45 @@ public class CallbackHmacFilter extends OncePerRequestFilter {
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.getWriter().write(objectMapper.writeValueAsString(
                 ApiResponse.fail(ErrorCode.INVALID_SIGNATURE, message)));
+    }
+
+    private static final class CachedBodyRequest extends HttpServletRequestWrapper {
+        private final byte[] body;
+
+        private CachedBodyRequest(HttpServletRequest request, byte[] body) {
+            super(request);
+            this.body = body;
+        }
+
+        @Override
+        public ServletInputStream getInputStream() {
+            ByteArrayInputStream input = new ByteArrayInputStream(body);
+            return new ServletInputStream() {
+                @Override
+                public boolean isFinished() {
+                    return input.available() == 0;
+                }
+
+                @Override
+                public boolean isReady() {
+                    return true;
+                }
+
+                @Override
+                public void setReadListener(ReadListener readListener) {
+                    // Synchronous filter path; no async listener is needed.
+                }
+
+                @Override
+                public int read() {
+                    return input.read();
+                }
+            };
+        }
+
+        @Override
+        public BufferedReader getReader() {
+            return new BufferedReader(new InputStreamReader(getInputStream(), StandardCharsets.UTF_8));
+        }
     }
 }

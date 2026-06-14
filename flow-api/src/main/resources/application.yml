@@ -38,6 +38,7 @@ nexusflow:
     hmac-secret:
       STUB: ${CALLBACK_HMAC_SECRET_STUB:}   # HMAC-SHA256 shared secret for STUB channel
       BITMART: ${CALLBACK_HMAC_SECRET_BITMART:}  # HMAC-SHA256 shared secret for BITMART channel
+      SELF_HOSTED_NODE: ${CALLBACK_HMAC_SECRET_SELF_HOSTED_NODE:${WEBHOOK_HMAC_SECRET:}} # internal execution callback
   encryption:
     key: ${ENCRYPTION_KEY:}                 # base64-encoded 32-byte AES-256 key; required in production
     allow-generated-key: ${ALLOW_GENERATED_KEY:false} # set true explicitly only for local development
@@ -80,6 +81,8 @@ nexusflow:
   order:
     expiry:
       interval-ms: 60000    # how often to scan for overdue WAITING_PAYMENT orders
+  self-hosted-channel:
+    enabled: ${SELF_HOSTED_CHANNEL_ENABLED:false} # enable PaymentOrder -> CryptoPayment channel
 
   # ── Cache ──
   cache:

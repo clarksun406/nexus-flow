@@ -37,9 +37,10 @@ that must not be conflated:
   `application/PaymentOrchestrator`) - merchant fiat/crypto orders. `PaymentOrder` aggregate,
   talks to acquiring channels (exchanges/PSPs) via `ChannelAdapter`. Counterparty = the channel.
 
-These have **separate aggregates, state machines, and repositories**. When self-hosting nodes,
-an orchestration `PaymentOrder` is meant to delegate down to an execution `CryptoPayment`
-(Phase 2; not yet wired).
+These have **separate aggregates, state machines, and repositories**. Self-hosting nodes is wired
+as the optional `SELF_HOSTED_NODE` channel: when `nexusflow.self-hosted-channel.enabled=true`, an
+orchestration `PaymentOrder` can delegate deposit-address creation down to an execution
+`CryptoPayment`. Refunds for this channel are still not implemented.
 
 ### Module dependency direction (strict)
 
@@ -107,6 +108,10 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   payment state changes. The initial CREATED->PENDING setup event is not sent; DETECTED,
   CONFIRMING/CONFIRMED, FAILED, EXPIRED, and reorg rollback events use the shared webhook retry,
   HMAC signing, and SSRF protections.
+- `SELF_HOSTED_NODE` is a real `ChannelAdapter` backed by `PaymentApplicationService.createPayment`.
+  It is disabled by default and currently supports USDT on TRC20/ERC20 with a USD/USDT parity rate.
+  Its internal callback HMAC secret defaults to `WEBHOOK_HMAC_SECRET` via
+  `CALLBACK_HMAC_SECRET_SELF_HOSTED_NODE`.
 - When a scanned transaction hits a managed address but no PENDING payment matches, the application
   records an `orphan_transactions` row through `OrphanTransactionRepository`. Operators can list,
   resolve, or ignore these via `/crypto/orphan-transactions`; alerting and automatic compensation

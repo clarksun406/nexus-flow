@@ -47,11 +47,14 @@ class WebhookServiceTest {
         assertThat(json.get("event_type").asText()).isEqualTo("crypto.payment.detected");
         assertThat(json.get("payment_id").asText()).isEqualTo("pay-1");
         assertThat(json.get("order_id").asText()).isEqualTo("order-1");
+        assertThat(json.get("reference_order_no").asText()).isEqualTo("order-1");
         assertThat(json.get("status").asText()).isEqualTo("DETECTED");
         assertThat(json.get("previous_status").asText()).isEqualTo("PENDING");
         assertThat(json.get("currency").asText()).isEqualTo("USDT_TRC20");
         assertThat(json.get("expected_amount").asText()).isEqualTo("100");
         assertThat(json.get("received_amount").asText()).isEqualTo("100");
+        assertThat(json.get("amount").asText()).isEqualTo("100");
+        assertThat(json.get("cumulative_amount").asText()).isEqualTo("100");
         assertThat(json.get("tx_hash").asText()).isEqualTo("tx-1");
         assertThat(json.get("detected_block_number").asLong()).isEqualTo(123L);
     }
