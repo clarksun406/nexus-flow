@@ -77,6 +77,15 @@ nexusflow:
     circuit-breaker:
       failure-threshold: ${BLOCKCHAIN_CB_FAILURE_THRESHOLD:3}
       cooldown-seconds: ${BLOCKCHAIN_CB_COOLDOWN_SECONDS:30}
+  gas:
+    ethereum:
+      erc20-gas-price-gwei: ${GAS_ETH_ERC20_GAS_PRICE_GWEI:30}
+      erc20-transfer-gas-limit: ${GAS_ETH_ERC20_TRANSFER_GAS_LIMIT:65000}
+    tron:
+      trc20-fee-trx: ${GAS_TRON_TRC20_FEE_TRX:15}
+    bitcoin:
+      virtual-bytes: ${GAS_BTC_VIRTUAL_BYTES:180}
+      sats-per-virtual-byte: ${GAS_BTC_SATS_PER_VBYTE:20}
   payment:
     expiry-minutes: 30        # PENDING payments older than this are marked EXPIRED
   reconciliation:

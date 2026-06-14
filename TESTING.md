@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 223 | 209 | 0 | 0 | 14 |
+| 228 | 214 | 0 | 0 | 14 |
 
 The 14 skipped tests are 6 `NexusFlowApplicationIT` Testcontainers cases, 3 opt-in live blockchain smoke tests, 2 opt-in live messaging smoke tests, 2 opt-in Coinbase Commerce smoke tests, and 1 opt-in live webhook delivery smoke test. They require Docker or explicit live dependency environment variables and are skipped automatically when unavailable.
 
@@ -74,7 +74,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-application` | `OrphanTransactionApplicationServiceTest` | 5 | Orphan transaction listing, resolve, ignore, compensate, not-found behavior |
 | `flow-application` | `OpsDashboardApplicationServiceTest` | 1 | Ops dashboard channel health, status counts, reconciliation summary, risk alerts |
 | `flow-application` | `PaymentApplicationServiceTest` | 14 | Create payment, request/response idempotency, address-pool allocation, duplicate order rejection, dust/underpayment handling, orphan alerting and compensation |
-| `flow-application` | `PaymentOrchestratorTest` | 17 | Fiat and crypto-denominated order creation, channel routing, refund flow, callback idempotency |
+| `flow-application` | `PaymentOrchestratorTest` | 18 | Fiat and crypto-denominated order creation, channel routing, refund flow, self-hosted refund gas budget event, callback idempotency |
 | `flow-application` | `PaymentReconciliationJobTest` | 4 | Confirmation polling, expiry, retry/backoff |
 | `flow-application` | `RequestDtoJsonTest` | 4 | Jackson deserialization for immutable create-payment, create-order, refund, and cashier-submit request DTOs |
 | `flow-application` | `WebhookDeadLetterApplicationServiceTest` | 7 | Dead-letter listing, replay success/failure/exception handling, ignore, not-found, and closed-state rejection |
@@ -88,6 +88,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-infra` | `SelfHostedNodeAdapterTest` | 5 | Self-hosted channel delegation to execution payments, refund task creation, and stablecoin rate behavior |
 | `flow-infra` | `TronAdapterTest` | 8 | TronGrid response parsing, TRC20 Transfer event scanning, confirmations, health |
 | `flow-infra` | `RedisCurrencyRateCacheTest` | 4 | Redis-backed exchange-rate and currency cache fallback behavior |
+| `flow-infra` | `StaticGasEstimatorTest` | 4 | Static ETH/TRON/BTC gas and miner-fee estimates plus unsupported-chain rejection |
 | `flow-infra` | `HttpWebhookClientTest` | 2 | Outbound webhook JSON delivery, HMAC signing, and injectable retry delays |
 | `flow-infra` | `LiveWebhookDeliveryTest` | 1 skipped locally | Opt-in outbound webhook reachability smoke check against a configured HTTPS endpoint |
 | `flow-infra` | `InMemoryProcessedEventStoreTest` | 3 | In-memory callback idempotency |
@@ -120,6 +121,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Execution payments | Address allocation with row locking, Docker-backed concurrent allocation test, payment detection, underpayment/dust rules, confirmation reconciliation, merchant callback delivery, PaymentController HTTP contract |
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions, webhook dead letters |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; opt-in live-node smoke tests; scanner reorg behavior |
+| Gas abstraction | `GasEstimator` port, static ETH/TRON/BTC estimates, and self-hosted refund events carrying native gas budget fields |
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check |
 | Reliability | Redis idempotency, opt-in Redis live smoke, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter replay/ignore workflow, opt-in outbound webhook live smoke, Kafka domain-event publishing, opt-in Kafka live smoke, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
 | API contracts | API envelope serialization, immutable request DTO JSON binding, MVC path/query parameter binding without `-parameters`, request validation for execution payment creation |
@@ -141,6 +143,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Address-pool concurrent allocation | Docker-backed concurrent createPayment test covers distinct address assignment through `FOR UPDATE SKIP LOCKED`; local run still skips it without Docker |
 | Missing-event catch-up live policy | Orphan transaction alerting, manual compensation, and configurable auto compensation exist; production auto-compensation policy still needs operator approval |
 | Self-hosted node refund broadcast | Refund tasks and `crypto.refund.requested` events are emitted; chain signing/broadcast remains an external worker/live-environment responsibility |
+| Live gas pricing | `StaticGasEstimator` provides configurable conservative defaults; live fee oracle integration and gas-bank funding automation are still pending |
 
 ## Notes
 

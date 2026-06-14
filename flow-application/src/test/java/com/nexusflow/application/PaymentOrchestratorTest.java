@@ -9,8 +9,14 @@ import com.nexusflow.domain.channel.ChannelUser;
 import com.nexusflow.domain.channel.CurrencyRateCache;
 import com.nexusflow.domain.channel.DepositAddress;
 import com.nexusflow.domain.channel.ExchangeRate;
+import com.nexusflow.domain.event.DomainEvent;
 import com.nexusflow.domain.event.DomainEventPublisher;
 import com.nexusflow.domain.event.ProcessedEventStore;
+import com.nexusflow.domain.event.RefundRequestedEvent;
+import com.nexusflow.domain.gas.GasEstimate;
+import com.nexusflow.domain.gas.GasEstimateRequest;
+import com.nexusflow.domain.gas.GasEstimator;
+import com.nexusflow.domain.gas.GasOperation;
 import com.nexusflow.domain.order.FlowRepository;
 import com.nexusflow.domain.order.OrderRepository;
 import com.nexusflow.domain.order.OrderStatus;
@@ -18,6 +24,7 @@ import com.nexusflow.domain.order.PaymentFlow;
 import com.nexusflow.domain.order.PaymentOrder;
 import com.nexusflow.domain.refund.RefundOrder;
 import com.nexusflow.domain.refund.RefundRepository;
+import com.nexusflow.domain.shared.Chain;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -49,6 +56,7 @@ class PaymentOrchestratorTest {
     private WebhookService webhookService;
     private ProcessedEventStore processedEventStore;
     private CurrencyRateCache currencyRateCache;
+    private GasEstimator gasEstimator;
 
     private PaymentOrchestrator orchestrator;
 
@@ -63,10 +71,11 @@ class PaymentOrchestratorTest {
         webhookService = mock(WebhookService.class);
         processedEventStore = mock(ProcessedEventStore.class);
         currencyRateCache = mock(CurrencyRateCache.class);
+        gasEstimator = mock(GasEstimator.class);
 
         orchestrator = new PaymentOrchestrator(
                 channelRouter, List.of(stubChannel), orderRepository, flowRepository,
-                refundRepository, eventPublisher, webhookService, processedEventStore, currencyRateCache);
+                refundRepository, eventPublisher, webhookService, processedEventStore, currencyRateCache, gasEstimator);
     }
 
     private PaymentOrder waitingOrder() {
@@ -325,6 +334,68 @@ class PaymentOrchestratorTest {
         verify(refundRepository).save(refundCaptor.capture());
         assertThat(refundCaptor.getValue().getChannelRefundId()).isEqualTo("STUB_REFUND_ref-1");
         assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUND_PROCESSING);
+    }
+
+    @Test
+    void selfHostedRefundPublishesGasBudgetForExternalSigner() {
+        PaymentOrder order = PaymentOrder.builder()
+                .paymentId("pay-1").merchantId("m-1").merchantOrderNo("ord-1")
+                .amountFiat(new BigDecimal("100")).currencyFiat("USD")
+                .amountCrypto(new BigDecimal("100")).currencyCrypto("USDT")
+                .network("TRC20").exchangeRate(BigDecimal.ONE)
+                .channelId("SELF_HOSTED_NODE").channelUserId("u-1")
+                .expireTime(Instant.now().plusSeconds(600))
+                .build();
+        order.markConfirmed("tx-1", new BigDecimal("100"), new BigDecimal("100"));
+        order.collectEvents();
+
+        when(orderRepository.findByMerchantOrderNo("m-1", "ord-1")).thenReturn(Optional.of(order));
+        when(stubChannel.channelId()).thenReturn("SELF_HOSTED_NODE");
+        when(stubChannel.refund(any())).thenReturn(ChannelRefund.builder()
+                .channelRefundId("SELF_HOSTED_NODE_REFUND_ref-1")
+                .status("PROCESSING")
+                .refundAmount(new BigDecimal("50"))
+                .build());
+        when(gasEstimator.estimate(any())).thenReturn(GasEstimate.builder()
+                .chain(Chain.TRON)
+                .network("TRC20")
+                .operation(GasOperation.REFUND)
+                .gasLimit(1L)
+                .gasPrice(new BigDecimal("15"))
+                .estimatedFee(new BigDecimal("15"))
+                .nativeCurrency("TRX")
+                .build());
+
+        RefundRequestDto req = RefundRequestDto.builder()
+                .merchantId("m-1")
+                .merchantOrderNo("ord-1")
+                .refundOrderNo("ref-1")
+                .refundAmountFiat("50")
+                .toAddress("TREFUND")
+                .build();
+
+        orchestrator.refund(req);
+
+        ArgumentCaptor<GasEstimateRequest> gasRequestCaptor = ArgumentCaptor.forClass(GasEstimateRequest.class);
+        verify(gasEstimator).estimate(gasRequestCaptor.capture());
+        assertThat(gasRequestCaptor.getValue().getChain()).isEqualTo(Chain.TRON);
+        assertThat(gasRequestCaptor.getValue().getToken()).isEqualTo("USDT");
+        assertThat(gasRequestCaptor.getValue().getNetwork()).isEqualTo("TRC20");
+        assertThat(gasRequestCaptor.getValue().getOperation()).isEqualTo(GasOperation.REFUND);
+        assertThat(gasRequestCaptor.getValue().getAmount()).isEqualByComparingTo("50.000000");
+        assertThat(gasRequestCaptor.getValue().getToAddress()).isEqualTo("TREFUND");
+
+        ArgumentCaptor<DomainEvent> eventCaptor = ArgumentCaptor.forClass(DomainEvent.class);
+        verify(eventPublisher, times(2)).publish(eventCaptor.capture());
+        RefundRequestedEvent refundEvent = eventCaptor.getAllValues().stream()
+                .filter(RefundRequestedEvent.class::isInstance)
+                .map(RefundRequestedEvent.class::cast)
+                .findFirst()
+                .orElseThrow();
+        assertThat(refundEvent.getGasNativeCurrency()).isEqualTo("TRX");
+        assertThat(refundEvent.getGasLimit()).isEqualTo("1");
+        assertThat(refundEvent.getGasPrice()).isEqualTo("15");
+        assertThat(refundEvent.getGasEstimatedFee()).isEqualTo("15");
     }
 
     @Test

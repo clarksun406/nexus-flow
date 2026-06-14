@@ -129,10 +129,14 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
 - `SELF_HOSTED_NODE` is a real `ChannelAdapter` backed by `PaymentApplicationService.createPayment`.
   It is disabled by default and currently supports USDT on TRC20/ERC20 with a USD/USDT parity rate.
   Refunds create deterministic `SELF_HOSTED_NODE_REFUND_*` processing tasks and publish
-  `crypto.refund.requested`; chain signing/broadcast is expected to be handled by an external worker
-  or live node integration before refund callbacks mark success/failure.
+  `crypto.refund.requested` with a static native gas budget from the `GasEstimator` port; chain
+  signing/broadcast is expected to be handled by an external worker or live node integration before
+  refund callbacks mark success/failure.
   Its internal callback HMAC secret defaults to `WEBHOOK_HMAC_SECRET` via
   `CALLBACK_HMAC_SECRET_SELF_HOSTED_NODE`.
+- Gas abstraction has a domain `GasEstimator` port and an infra `StaticGasEstimator` bean. Defaults
+  are configurable under `nexusflow.gas.*`; live gas oracle and gas-bank funding automation remain
+  follow-up work.
 - `COINBASE_COMMERCE` is a REST-capable `ChannelAdapter` registered in `BlockchainConfig` when
   `COINBASE_COMMERCE_API_KEY` is set. It uses `COINBASE_COMMERCE_BASE_URL` (default
   `https://api.commerce.coinbase.com`) and `COINBASE_COMMERCE_API_VERSION` (default `2018-03-22`)

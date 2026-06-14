@@ -14,10 +14,15 @@ import com.nexusflow.domain.channel.ExchangeRate;
 import com.nexusflow.domain.event.DomainEventPublisher;
 import com.nexusflow.domain.event.ProcessedEventStore;
 import com.nexusflow.domain.event.RefundRequestedEvent;
+import com.nexusflow.domain.gas.GasEstimate;
+import com.nexusflow.domain.gas.GasEstimateRequest;
+import com.nexusflow.domain.gas.GasEstimator;
+import com.nexusflow.domain.gas.GasOperation;
 import com.nexusflow.domain.order.*;
 import com.nexusflow.domain.refund.RefundOrder;
 import com.nexusflow.domain.refund.RefundRepository;
 import com.nexusflow.domain.refund.RefundStatus;
+import com.nexusflow.domain.shared.Chain;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,6 +54,7 @@ public class PaymentOrchestrator {
     private final WebhookService webhookService;
     private final ProcessedEventStore processedEventStore;
     private final CurrencyRateCache currencyRateCache;
+    private final GasEstimator gasEstimator;
 
     @Value("${nexusflow.cashier.base-url:/checkout.html}")
     private String cashierBaseUrl = "/checkout.html";
@@ -340,6 +346,7 @@ public class PaymentOrchestrator {
         order.markRefundProcessing();
         orderRepository.save(order);
         order.collectEvents().forEach(eventPublisher::publish);
+        GasEstimate gasEstimate = estimateSelfHostedRefundGas(channel.channelId(), refund);
         eventPublisher.publish(new RefundRequestedEvent(
                 refund.getRefundOrderNo(),
                 refund.getPaymentId(),
@@ -348,7 +355,11 @@ public class PaymentOrchestrator {
                 refund.getToken(),
                 refund.getNetwork(),
                 refund.getRefundAmountCrypto().toPlainString(),
-                refund.getToAddress()));
+                refund.getToAddress(),
+                gasEstimate != null ? gasEstimate.getNativeCurrency() : null,
+                gasEstimate != null ? Long.toString(gasEstimate.getGasLimit()) : null,
+                gasEstimate != null ? gasEstimate.getGasPrice().toPlainString() : null,
+                gasEstimate != null ? gasEstimate.getEstimatedFee().toPlainString() : null));
 
         log.info("Refund initiated: refundOrderNo={}, amount={}", req.getRefundOrderNo(), refundFiat);
 
@@ -396,6 +407,26 @@ public class PaymentOrchestrator {
                 .findFirst()
                 .orElseThrow(() -> new NexusFlowException(ErrorCode.NO_AVAILABLE_CHANNEL,
                         "No channel adapter for channelId: " + channelId));
+    }
+
+    private GasEstimate estimateSelfHostedRefundGas(String channelId, RefundOrder refund) {
+        if (!"SELF_HOSTED_NODE".equalsIgnoreCase(channelId)) {
+            return null;
+        }
+        try {
+            return gasEstimator.estimate(GasEstimateRequest.builder()
+                    .chain(Chain.fromCurrency(refund.getToken() + "_" + refund.getNetwork()))
+                    .token(refund.getToken())
+                    .network(refund.getNetwork())
+                    .operation(GasOperation.REFUND)
+                    .amount(refund.getRefundAmountCrypto())
+                    .toAddress(refund.getToAddress())
+                    .build());
+        } catch (RuntimeException e) {
+            log.warn("Failed to estimate gas for self-hosted refund: refundOrderNo={}, token={}, network={}, reason={}",
+                    refund.getRefundOrderNo(), refund.getToken(), refund.getNetwork(), e.getMessage());
+            return null;
+        }
     }
 
     private OrderPricing resolvePricing(CreateOrderRequest req) {
