@@ -136,7 +136,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   `https://api.commerce.coinbase.com`) and `COINBASE_COMMERCE_API_VERSION` (default `2018-03-22`)
   for Coinbase Commerce charge and exchange-rate calls. Without an API key it preserves the old
   stub behavior for local/dev compatibility. Coinbase live credentials, webhook semantics, and
-  external refund operations still need environment verification.
+  external refund operations still need environment verification. `LiveCoinbaseCommerceAdapterTest`
+  provides opt-in live rate coverage and only creates a live charge when
+  `LIVE_COINBASE_COMMERCE_CREATE_CHARGE=true`.
 - Kafka domain-event publishing is available behind the same `DomainEventPublisher` port. Default
   remains Spring in-process events; set `EVENT_PUBLISHER=kafka` and `KAFKA_BOOTSTRAP_SERVERS` to
   publish to event-type topics such as `crypto.payment.confirmed`. `LiveMessagingInfrastructureTest`
