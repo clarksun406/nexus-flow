@@ -548,19 +548,19 @@ Ensure blockchain truth matches system state
 
 ---
 
-#### P0-1: TronAdapter — TRC20 Block Scanning — 🟡 PARTIAL
+#### P0-1: TronAdapter — TRC20 Block Scanning — ✅ IMPLEMENTED / NOT LIVE-VERIFIED
 
 **File:** `flow-infra/.../blockchain/TronAdapter.java` (now backed by `TronGridClient` / `HttpTronGridClient`)
 
 | Method | Status | Notes |
 |--------|--------|-------|
-| `scanNewBlocks()` | ⬜ explicit stub | TronGrid's TRC20 transfer API is account/timestamp-scoped and doesn't map onto the block-range abstraction; needs the event-info endpoint or full-node log decoding. Left documented rather than faked. |
+| `scanNewBlocks()` | ✅ done | Uses TronGrid `/v1/contracts/{contract}/events` with `event_name=Transfer`, `only_confirmed=true`, and per-block `block_number` queries; parses txHash/from/to/value/block/timestamp/confirmations into `ScannedTransaction`. |
 | `getCurrentBlockHeight()` | ✅ done | `POST /wallet/getnowblock` → `block_header.raw_data.number` |
 | `getConfirmations()` | ✅ done | `gettransactioninfobyid` → `blockNumber`, then `currentHeight - txBlock` |
 | `isHealthy()` | ✅ done | healthy when block height > 0 |
 
-Response parsing covered by `TronAdapterTest` (HTTP transport stubbed — not live-verified).
-Remaining: implement real `scanNewBlocks` and verify all calls against a live TronGrid endpoint.
+Response parsing and event scanning are covered by `TronAdapterTest` (HTTP transport stubbed).
+Remaining: verify all TRON calls against a live TronGrid or full-node environment.
 
 ---
 
@@ -640,8 +640,8 @@ Per init.md: "Blockchain is source of truth, system is derived state."
 > the chain adapter, re-queries `BlockchainAdapter.getConfirmations()`, and drives confirmation via
 > `confirmPayment()` (own transaction per payment; one failure does not abort the batch). Backed by
 > `PaymentRepository.findByStatusIn()`. Covered by `PaymentReconciliationJobTest`.
-> NOTE: ETH/BTC adapters are implemented and Tron confirmations are backed by `TronGridClient`,
-> but all chain adapters still need live-node environment verification before production use.
+> NOTE: ETH/BTC adapters and TRON contract-event scanning are implemented, but all chain adapters
+> still need live-node environment verification before production use.
 
 **Still to do:**
 1. ✅ Periodically scan unconfirmed payments (DETECTED, CONFIRMING)
@@ -834,7 +834,7 @@ Implemented:
 
 | Priority | Count | Items | Status |
 |----------|-------|-------|--------|
-| P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry · 🟡 TronAdapter, Reconciliation |
+| P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, TronAdapter · 🟡 Reconciliation live verification |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · ⬜ MPC/GasAbstraction/OnOffRamp |
 | P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (166 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |

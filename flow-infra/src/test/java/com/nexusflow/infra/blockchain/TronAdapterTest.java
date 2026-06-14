@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -97,7 +98,47 @@ class TronAdapterTest {
     }
 
     @Test
-    void scanNewBlocksReturnsEmptyStub() {
-        assertTrue(adapter.scanNewBlocks(100L).isEmpty());
+    void scanNewBlocksParsesConfirmedTransferEvents() {
+        when(client.post(eq("/wallet/getnowblock"), any()))
+                .thenReturn(json("{\"block_header\":{\"raw_data\":{\"number\":105}}}"));
+        when(client.get(eq("/v1/contracts/TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t/events"), any()))
+                .thenAnswer(invocation -> {
+                    Map<?, ?> query = invocation.getArgument(1);
+                    long blockNumber = ((Number) query.get("block_number")).longValue();
+                    if (blockNumber == 104L) {
+                        return json("""
+                                {
+                                  "data": [
+                                    {
+                                      "transaction_id": "tx-104",
+                                      "block_number": 104,
+                                      "block_timestamp": 1710000000000,
+                                      "event_name": "Transfer",
+                                      "result": {
+                                        "from": "TFROM",
+                                        "to": "TTO",
+                                        "value": "1000000"
+                                      }
+                                    }
+                                  ],
+                                  "meta": {}
+                                }
+                                """);
+                    }
+                    return json("{\"data\":[],\"meta\":{}}");
+                });
+
+        List<com.nexusflow.domain.blockchain.ScannedTransaction> transactions = adapter.scanNewBlocks(103L);
+
+        assertEquals(1, transactions.size());
+        var tx = transactions.get(0);
+        assertEquals("tx-104", tx.getTxHash());
+        assertEquals("TFROM", tx.getFromAddress());
+        assertEquals("TTO", tx.getToAddress());
+        assertEquals("1000000", tx.getAmount());
+        assertEquals("TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t", tx.getContractAddress());
+        assertEquals(104L, tx.getBlockNumber());
+        assertEquals(1, tx.getConfirmations());
+        assertEquals(1710000000000L, tx.getTimestamp());
     }
 }

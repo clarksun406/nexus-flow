@@ -97,7 +97,8 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   `InMemoryPaymentRepository` and `InMemoryWalletRepository` are opt-in only with
   `nexusflow.execution.persistence=memory`.
 - `TronAdapter`: `getCurrentBlockHeight`/`getConfirmations`/`isHealthy` are real (via `TronGridClient`,
-  parsing unit-tested) but **not live-verified**; `scanNewBlocks` is still an explicit stub.
+  parsing unit-tested). `scanNewBlocks` uses TronGrid contract events to scan confirmed TRC20
+  `Transfer` events by block and convert them to `ScannedTransaction`; still **not live-verified**.
 - `EthereumAdapter` implements ERC20 Transfer log scanning / confirmations / block hash via web3j.
   `BitcoinAdapter` implements Bitcoin Core JSON-RPC block scanning / confirmations / health. Both
   are unit-tested with mocked transports but still require live-node verification before production.

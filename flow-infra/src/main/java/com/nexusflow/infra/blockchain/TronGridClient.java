@@ -15,4 +15,9 @@ public interface TronGridClient {
      * parsed JSON response.
      */
     JsonNode post(String path, Map<String, Object> body);
+
+    /**
+     * GET a TronGrid path with query parameters and return the parsed JSON response.
+     */
+    JsonNode get(String path, Map<String, Object> query);
 }

@@ -6,11 +6,14 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * JDK-HttpClient-based {@link TronGridClient}.
@@ -54,5 +57,43 @@ public class HttpTronGridClient implements TronGridClient {
         } catch (IOException e) {
             throw new IllegalStateException("TronGrid request failed: " + path, e);
         }
+    }
+
+    @Override
+    public JsonNode get(String path, Map<String, Object> query) {
+        String queryString = toQueryString(query);
+        String pathWithQuery = queryString.isBlank() ? path : path + "?" + queryString;
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(baseUrl + pathWithQuery))
+                    .timeout(Duration.ofSeconds(10))
+                    .GET()
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() / 100 != 2) {
+                throw new IOException("TronGrid HTTP " + response.statusCode() + " for " + pathWithQuery);
+            }
+            return objectMapper.readTree(response.body());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("TronGrid request interrupted: " + pathWithQuery, e);
+        } catch (IOException e) {
+            throw new IllegalStateException("TronGrid request failed: " + pathWithQuery, e);
+        }
+    }
+
+    private String toQueryString(Map<String, Object> query) {
+        if (query == null || query.isEmpty()) {
+            return "";
+        }
+        return query.entrySet().stream()
+                .filter(entry -> entry.getValue() != null)
+                .map(entry -> encode(entry.getKey()) + "=" + encode(String.valueOf(entry.getValue())))
+                .collect(Collectors.joining("&"));
+    }
+
+    private String encode(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8);
     }
 }

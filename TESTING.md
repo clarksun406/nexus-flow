@@ -52,7 +52,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-infra` | `CoinbaseCommerceAdapterTest` | 3 | Coinbase Commerce stub deposit address, supported currencies, exchange-rate quote |
 | `flow-infra` | `EthereumAdapterTest` | 3 | ERC20 `Transfer` log parsing, confirmations, block hash lookup |
 | `flow-infra` | `SelfHostedNodeAdapterTest` | 3 | Self-hosted channel delegation to execution payments and stablecoin rate behavior |
-| `flow-infra` | `TronAdapterTest` | 8 | TronGrid response parsing, confirmations, health, explicit scan stub |
+| `flow-infra` | `TronAdapterTest` | 8 | TronGrid response parsing, TRC20 Transfer event scanning, confirmations, health |
 | `flow-infra` | `RedisCurrencyRateCacheTest` | 4 | Redis-backed exchange-rate and currency cache fallback behavior |
 | `flow-infra` | `InMemoryProcessedEventStoreTest` | 3 | In-memory callback idempotency |
 | `flow-infra` | `KafkaDomainEventPublisherTest` | 1 | Kafka domain-event envelope, eventId key, and event-type topic routing |
@@ -89,12 +89,12 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 |-----|--------|
 | Docker-backed integration test run | Present but skipped locally without Docker |
 | Live ETH/BTC/TRON node verification | Not covered; adapter tests use mocked transports or parsed HTTP responses |
-| TRON `scanNewBlocks()` | Explicit stub; no automatic USDT_TRC20 block scanning test until implementation exists |
+| TRON live block scanning | `scanNewBlocks()` parsing is unit-tested with mocked TronGrid responses; not yet live-verified against TronGrid/full node |
 | `PaymentController` end-to-end API tests | Not yet covered with HTTP-level integration tests |
 | Kafka broker integration | Publisher payload and topic routing are unit-tested with a mocked `KafkaTemplate`; no live Kafka broker test yet |
 | Redis integration against a real Redis server | Cache/idempotency tests use mocked clients |
 | Address-pool concurrent allocation | Repository uses PostgreSQL `FOR UPDATE SKIP LOCKED`; still worth stress testing against a real database |
-| Missing-event catch-up | Orphan transaction records are persisted and manually resolvable/ignorable via API; alerting and automatic compensation are still pending |
+| Missing-event catch-up live policy | Orphan transaction alerting, manual compensation, and configurable auto compensation exist; production auto-compensation policy still needs operator approval |
 | Self-hosted node refunds | Deposit delegation to execution payments exists; refund flow is not implemented |
 | `Money` and `ApiResponse` edge cases | Still worth adding focused unit tests |
 
