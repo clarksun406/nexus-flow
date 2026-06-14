@@ -73,6 +73,10 @@ nexusflow:
     base-url: ${COINBASE_COMMERCE_BASE_URL:https://api.commerce.coinbase.com}
     api-key: ${COINBASE_COMMERCE_API_KEY:} # enables real Coinbase Commerce REST mode when configured
     api-version: ${COINBASE_COMMERCE_API_VERSION:2018-03-22}
+  mpc:
+    http:
+      sign-url: ${MPC_HTTP_SIGN_URL:} # opt-in custom MPC signer endpoint
+      api-key: ${MPC_HTTP_API_KEY:}   # sent as X-API-Key when configured
   scanner:
     interval-ms: 15000
     reorg-rewind-blocks: ${SCANNER_REORG_REWIND_BLOCKS:12}

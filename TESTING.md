@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 256 | 242 | 0 | 0 | 14 |
+| 260 | 246 | 0 | 0 | 14 |
 
 The 14 skipped tests are 6 `NexusFlowApplicationIT` Testcontainers cases, 3 opt-in live blockchain smoke tests, 2 opt-in live messaging smoke tests, 2 opt-in Coinbase Commerce smoke tests, and 1 opt-in live webhook delivery smoke test. They require Docker or explicit live dependency environment variables and are skipped automatically when unavailable.
 
@@ -93,6 +93,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-infra` | `RedisCurrencyRateCacheTest` | 4 | Redis-backed exchange-rate and currency cache fallback behavior |
 | `flow-infra` | `StaticGasEstimatorTest` | 4 | Static ETH/TRON/BTC gas and miner-fee estimates plus unsupported-chain rejection |
 | `flow-infra` | `HttpWebhookClientTest` | 2 | Outbound webhook JSON delivery, HMAC signing, and injectable retry delays |
+| `flow-infra` | `HttpMpcSignerTest` | 2 | Custom HTTP MPC signer request headers/body, nested response parsing, and malformed response rejection |
 | `flow-infra` | `LiveWebhookDeliveryTest` | 1 skipped locally | Opt-in outbound webhook reachability smoke check against a configured HTTPS endpoint |
 | `flow-infra` | `InMemoryProcessedEventStoreTest` | 3 | In-memory callback idempotency |
 | `flow-infra` | `KafkaDomainEventPublisherTest` | 1 | Kafka domain-event envelope, eventId key, and event-type topic routing |
@@ -114,6 +115,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-api` | `CallbackHmacFilterTest` | 1 | Callback HMAC verification keeps request body readable downstream |
 | `flow-api` | `BlockchainConfigTest` | 2 | Stubbed external BitMart/Binance channel beans are guarded out of the `prod` profile; Coinbase no-key stub is omitted in `prod` |
 | `flow-api` | `FiatRampControllerTest` | 4 | Merchant fiat ramp quote/create/get HTTP contract and request validation |
+| `flow-api` | `MpcSignerConfigTest` | 2 | Opt-in custom HTTP MPC signer Spring bean registration |
 | `flow-api` | `PaymentControllerTest` | 6 | MockMvc HTTP contract for create/get/confirm/fail, idempotency headers, validation, and parameter binding |
 | `flow-api` | `SecurityConfigTest` | 2 | API key filter protects `/fiat/*` endpoints; callback HMAC filter includes fiat ramp providers |
 | `flow-api` | `WebhookDeadLetterControllerTest` | 4 | Ops dead-letter list/replay/ignore HTTP contract and not-found response |
@@ -130,7 +132,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; opt-in live-node smoke tests; scanner reorg behavior |
 | Gas abstraction | `GasEstimator` port, static ETH/TRON/BTC estimates, GasBank policy recommendations, and self-hosted refund events carrying native gas budget fields |
 | Fiat on/off ramp | `FiatGateway` port, quote/order request value objects, merchant quote/order/get API orchestration, normalized HMAC callback endpoint, repository port/JPA mapping, and fiat↔crypto conversion tracking aggregate |
-| Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check, MPC signer port and wallet provider-id persistence |
+| Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check, MPC signer port, opt-in custom HTTP signer adapter, and wallet provider-id persistence |
 | Reliability | Redis idempotency, opt-in Redis live smoke, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter replay/ignore workflow, opt-in outbound webhook live smoke, Kafka domain-event publishing, opt-in Kafka live smoke, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
 | API contracts | API envelope serialization, immutable request DTO JSON binding, MVC path/query parameter binding without `-parameters`, request validation for execution payment and fiat ramp creation |
 | Integration | PostgreSQL Testcontainers coverage includes Spring context/Flyway/JPA round trips, persistence-backed createPayment HTTP idempotency, and concurrent address allocation; opt-in live smoke coverage exists for blockchain nodes, Redis/Kafka, and Coinbase Commerce; needs Docker or live credentials to execute |
@@ -152,7 +154,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Missing-event catch-up live policy | Orphan transaction alerting, manual compensation, and configurable auto compensation exist; production auto-compensation policy still needs operator approval |
 | Self-hosted node refund broadcast | Refund tasks and `crypto.refund.requested` events are emitted; chain signing/broadcast remains an external worker/live-environment responsibility |
 | Live gas pricing | `StaticGasEstimator` provides configurable conservative defaults and `GasBankPolicy` can recommend top-up/batching actions; live fee oracle integration and actual gas-bank funding automation are still pending |
-| MPC provider integration | `MpcSigner` port and wallet `mpcWalletId` persistence exist; real provider adapters, signing workflow, and live signing smoke tests remain pending |
+| MPC provider integration | `MpcSigner` port, wallet `mpcWalletId` persistence, and opt-in custom HTTP signer adapter exist; Fireblocks/Copper-specific adapters, signing workflow integration, and live signing smoke tests remain pending |
 | Fiat on/off ramp provider integration | `FiatGateway` port, merchant API orchestration, HMAC callback endpoint, and persisted `FiatRampOrder` tracking exist; real MoonPay/Ramp/Banxa adapters, KYC/provider-specific payload mapping/signature semantics, and live settlement smoke tests remain pending |
 
 ## Notes
