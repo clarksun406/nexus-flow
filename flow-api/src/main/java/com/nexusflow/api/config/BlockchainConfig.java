@@ -37,6 +37,15 @@ public class BlockchainConfig {
     @Value("${nexusflow.bitcoin.password:}")
     private String bitcoinPassword;
 
+    @Value("${nexusflow.coinbase-commerce.base-url:https://api.commerce.coinbase.com}")
+    private String coinbaseCommerceBaseUrl;
+
+    @Value("${nexusflow.coinbase-commerce.api-key:}")
+    private String coinbaseCommerceApiKey;
+
+    @Value("${nexusflow.coinbase-commerce.api-version:2018-03-22}")
+    private String coinbaseCommerceApiVersion;
+
     @Bean
     public BlockchainAdapter tronAdapter() {
         return new TronAdapter(new HttpTronGridClient(tronNodeUrl), tronUsdtContract);
@@ -64,6 +73,9 @@ public class BlockchainConfig {
 
     @Bean
     public ChannelAdapter coinbaseCommerceAdapter() {
-        return new CoinbaseCommerceAdapter();
+        return new CoinbaseCommerceAdapter(
+                coinbaseCommerceBaseUrl,
+                coinbaseCommerceApiKey,
+                coinbaseCommerceApiVersion);
     }
 }

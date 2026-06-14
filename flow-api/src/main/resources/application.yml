@@ -66,6 +66,10 @@ nexusflow:
     node-url: ${BTC_RPC_URL:http://localhost:8332}
     username: ${BTC_RPC_USERNAME:}
     password: ${BTC_RPC_PASSWORD:}
+  coinbase-commerce:
+    base-url: ${COINBASE_COMMERCE_BASE_URL:https://api.commerce.coinbase.com}
+    api-key: ${COINBASE_COMMERCE_API_KEY:} # enables real Coinbase Commerce REST mode when configured
+    api-version: ${COINBASE_COMMERCE_API_VERSION:2018-03-22}
   scanner:
     interval-ms: 15000
     reorg-rewind-blocks: ${SCANNER_REORG_REWIND_BLOCKS:12}
