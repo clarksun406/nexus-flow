@@ -46,7 +46,7 @@ public class SecurityConfig {
     public FilterRegistrationBean<Filter> apiKeyFilterRegistration() {
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new ApiKeyAuthFilter(apiKey, objectMapper));
-        registration.addUrlPatterns("/pay/*", "/crypto/*", "/refund/*", "/ops/*");
+        registration.addUrlPatterns("/pay/*", "/crypto/*", "/refund/*", "/ops/*", "/fiat/*");
         registration.setOrder(1);
         registration.setName("apiKeyAuthFilter");
         return registration;
