@@ -18,6 +18,7 @@ import java.util.List;
 public class OrphanTransactionApplicationService {
 
     private final OrphanTransactionRepository repository;
+    private final PaymentApplicationService paymentApplicationService;
 
     @Transactional(readOnly = true)
     public List<OrphanTransactionResponse> list(OrphanTransactionStatus status) {
@@ -39,6 +40,13 @@ public class OrphanTransactionApplicationService {
         OrphanTransaction transaction = findRequired(chain, txHash);
         transaction.ignore();
         repository.save(transaction);
+        return toResponse(transaction);
+    }
+
+    @Transactional
+    public OrphanTransactionResponse compensate(Chain chain, String txHash) {
+        OrphanTransaction transaction = findRequired(chain, txHash);
+        paymentApplicationService.compensateOrphanTransaction(transaction);
         return toResponse(transaction);
     }
 

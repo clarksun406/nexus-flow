@@ -64,7 +64,8 @@ public class OpsDashboardApplicationService {
     private Map<OrphanTransactionStatus, List<OrphanTransaction>> orphanByStatus() {
         Map<OrphanTransactionStatus, List<OrphanTransaction>> result = new EnumMap<>(OrphanTransactionStatus.class);
         for (OrphanTransactionStatus status : OrphanTransactionStatus.values()) {
-            result.put(status, orphanTransactionRepository.findByStatus(status));
+            List<OrphanTransaction> transactions = orphanTransactionRepository.findByStatus(status);
+            result.put(status, transactions != null ? transactions : List.of());
         }
         return result;
     }

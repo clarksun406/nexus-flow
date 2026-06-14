@@ -6,7 +6,9 @@ import com.nexusflow.common.IdempotencyViolationException;
 import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.domain.blockchain.OrphanTransaction;
 import com.nexusflow.domain.blockchain.OrphanTransactionRepository;
+import com.nexusflow.domain.blockchain.OrphanTransactionStatus;
 import com.nexusflow.domain.event.DomainEventPublisher;
+import com.nexusflow.domain.event.OrphanTransactionDetectedEvent;
 import com.nexusflow.domain.payment.CryptoPayment;
 import com.nexusflow.domain.payment.PaymentRepository;
 import com.nexusflow.domain.payment.PaymentStatus;
@@ -27,8 +29,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -216,6 +220,36 @@ class PaymentApplicationServiceTest {
         assertThat(orphan.getAmount()).isEqualTo("100");
         assertThat(orphan.getCurrency()).isEqualTo("USDT_TRC20");
         assertThat(orphan.getBlockNumber()).isEqualTo(123L);
+        assertThat(orphan.getStatus()).isEqualTo(OrphanTransactionStatus.UNMATCHED);
+        verify(eventPublisher).publish(isA(OrphanTransactionDetectedEvent.class));
+    }
+
+    @Test
+    void autoCompensatesOrphanWhenEnabled() {
+        service.setOrphanAutoCompensationEnabled(true);
+        when(paymentRepository.findByTxHash("tx-auto")).thenReturn(Optional.empty());
+        when(paymentRepository.findPendingByReceivingAddress("TADDR")).thenReturn(Optional.empty());
+        when(orphanTransactionRepository.findByChainAndTxHash(Chain.TRON, "tx-auto")).thenReturn(Optional.empty());
+        when(paymentRepository.existsByOrderId(anyString())).thenReturn(false);
+
+        service.onPaymentDetected("tx-auto", "TADDR", "100", "USDT_TRC20", 456L);
+
+        ArgumentCaptor<CryptoPayment> paymentCaptor = ArgumentCaptor.forClass(CryptoPayment.class);
+        verify(paymentRepository).save(paymentCaptor.capture());
+        CryptoPayment compensation = paymentCaptor.getValue();
+        assertThat(compensation.getStatus()).isEqualTo(PaymentStatus.DETECTED);
+        assertThat(compensation.getOrderId()).startsWith("ORPHAN-TRON-");
+        assertThat(compensation.getReceivingAddress()).isEqualTo("TADDR");
+        assertThat(compensation.getTxHash()).isEqualTo("tx-auto");
+        assertThat(compensation.getDetectedBlockNumber()).isEqualTo(456L);
+
+        ArgumentCaptor<OrphanTransaction> orphanCaptor = ArgumentCaptor.forClass(OrphanTransaction.class);
+        verify(orphanTransactionRepository, times(2)).save(orphanCaptor.capture());
+        OrphanTransaction compensated = orphanCaptor.getAllValues().get(1);
+        assertThat(compensated.getStatus()).isEqualTo(OrphanTransactionStatus.COMPENSATED);
+        assertThat(compensated.getResolvedPaymentId()).isEqualTo(compensation.getId());
+        verify(eventPublisher).publish(isA(OrphanTransactionDetectedEvent.class));
+        verify(webhookService).notifyCryptoPayment(eq(compensation), anyList());
     }
 
     @Test

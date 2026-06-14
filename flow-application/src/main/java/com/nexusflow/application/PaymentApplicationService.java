@@ -6,10 +6,12 @@ import com.nexusflow.common.ErrorCode;
 import com.nexusflow.common.IdempotencyViolationException;
 import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.common.PaymentNotFoundException;
-import com.nexusflow.domain.event.DomainEvent;
-import com.nexusflow.domain.event.DomainEventPublisher;
 import com.nexusflow.domain.blockchain.OrphanTransaction;
 import com.nexusflow.domain.blockchain.OrphanTransactionRepository;
+import com.nexusflow.domain.blockchain.OrphanTransactionStatus;
+import com.nexusflow.domain.event.DomainEvent;
+import com.nexusflow.domain.event.DomainEventPublisher;
+import com.nexusflow.domain.event.OrphanTransactionDetectedEvent;
 import com.nexusflow.domain.payment.CryptoPayment;
 import com.nexusflow.domain.payment.PaymentRepository;
 import com.nexusflow.domain.payment.PaymentStatus;
@@ -19,6 +21,7 @@ import com.nexusflow.domain.wallet.AddressPoolEntry;
 import com.nexusflow.domain.wallet.AddressPoolRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -45,6 +48,9 @@ public class PaymentApplicationService {
     private final WebhookService webhookService;
     private final PaymentIdempotencyStore idempotencyStore;
     private final OrphanTransactionRepository orphanTransactionRepository;
+
+    @Value("${nexusflow.orphan.auto-compensation.enabled:false}")
+    private boolean orphanAutoCompensationEnabled = false;
 
     /**
      * Create a new payment and assign a receiving address.
@@ -128,6 +134,10 @@ public class PaymentApplicationService {
                 hashPart(command.getCurrency()),
                 hashPart(command.getAmount()),
                 hashPart(command.getCallbackUrl()));
+        return sha256Hex(canonical);
+    }
+
+    private static String sha256Hex(String canonical) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             return HexFormat.of().formatHex(digest.digest(canonical.getBytes(StandardCharsets.UTF_8)));
@@ -204,6 +214,18 @@ public class PaymentApplicationService {
 
         log.info("Payment detected: paymentId={}, orderId={}, txHash={}, address={}",
                 payment.getId(), payment.getOrderId(), txHash, toAddress);
+    }
+
+    @Transactional
+    public PaymentResponse compensateOrphanTransaction(OrphanTransaction orphan) {
+        if (orphan == null) {
+            throw new NexusFlowException(ErrorCode.INVALID_REQUEST, "Orphan transaction is required");
+        }
+        if (orphan.getStatus() != OrphanTransactionStatus.UNMATCHED) {
+            throw new NexusFlowException(ErrorCode.INVALID_STATE_TRANSITION,
+                    "Orphan transaction is not unmatched: " + orphan.getStatus());
+        }
+        return createCompensationPayment(orphan);
     }
 
     /**
@@ -335,8 +357,89 @@ public class PaymentApplicationService {
                         .build());
 
         orphanTransactionRepository.save(orphan);
+        publishOrphanDetected(orphan);
         log.warn("Recorded orphan transaction: chain={}, txHash={}, toAddress={}, amount={}, currency={}",
                 chain, txHash, toAddress, amount, currency);
+
+        if (orphanAutoCompensationEnabled && orphan.getStatus() == OrphanTransactionStatus.UNMATCHED) {
+            try {
+                compensateOrphanTransaction(orphan);
+            } catch (RuntimeException e) {
+                log.error("Automatic orphan compensation failed: chain={}, txHash={}, reason={}",
+                        orphan.getChain(), orphan.getTxHash(), e.getMessage());
+            }
+        }
+    }
+
+    private PaymentResponse createCompensationPayment(OrphanTransaction orphan) {
+        validateCompensationInput(orphan);
+
+        String orderId = compensationOrderId(orphan);
+        if (paymentRepository.existsByOrderId(orderId)) {
+            CryptoPayment existing = paymentRepository.findByOrderId(orderId)
+                    .orElseThrow(() -> new IdempotencyViolationException(orderId));
+            orphan.compensate(existing.getId());
+            orphanTransactionRepository.save(orphan);
+            return toResponse(existing);
+        }
+
+        Money received = Money.of(orphan.getCurrency(), new BigDecimal(orphan.getAmount()));
+        CryptoPayment payment = CryptoPayment.builder()
+                .id(UUID.randomUUID().toString())
+                .orderId(orderId)
+                .expected(received)
+                .receivingAddress(orphan.getToAddress())
+                .build();
+        payment.markPending();
+        payment.markDetected(orphan.getTxHash(), received, orphan.getBlockNumber());
+
+        paymentRepository.save(payment);
+        publishAndNotify(payment, payment.collectEvents());
+
+        orphan.compensate(payment.getId());
+        orphanTransactionRepository.save(orphan);
+        log.warn("Compensated orphan transaction: chain={}, txHash={}, paymentId={}, orderId={}",
+                orphan.getChain(), orphan.getTxHash(), payment.getId(), orderId);
+        return toResponse(payment);
+    }
+
+    private void validateCompensationInput(OrphanTransaction orphan) {
+        if (orphan.getChain() == null || normalize(orphan.getTxHash()) == null
+                || normalize(orphan.getToAddress()) == null || normalize(orphan.getAmount()) == null
+                || normalize(orphan.getCurrency()) == null) {
+            throw new NexusFlowException(ErrorCode.INVALID_REQUEST,
+                    "Orphan transaction is missing required compensation fields");
+        }
+        try {
+            BigDecimal amount = new BigDecimal(orphan.getAmount());
+            if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new NexusFlowException(ErrorCode.INVALID_REQUEST,
+                        "Orphan transaction amount must be positive");
+            }
+        } catch (NumberFormatException e) {
+            throw new NexusFlowException(ErrorCode.INVALID_REQUEST,
+                    "Invalid orphan transaction amount: " + orphan.getAmount());
+        }
+    }
+
+    private String compensationOrderId(OrphanTransaction orphan) {
+        String fingerprint = sha256Hex(orphan.getChain().name() + ":" + orphan.getTxHash()).substring(0, 32);
+        return "ORPHAN-" + orphan.getChain().name() + "-" + fingerprint;
+    }
+
+    private void publishOrphanDetected(OrphanTransaction orphan) {
+        eventPublisher.publish(new OrphanTransactionDetectedEvent(
+                orphan.getChain(),
+                orphan.getTxHash(),
+                orphan.getToAddress(),
+                orphan.getAmount(),
+                orphan.getCurrency(),
+                orphan.getBlockNumber(),
+                orphan.getSeenCount()));
+    }
+
+    void setOrphanAutoCompensationEnabled(boolean enabled) {
+        this.orphanAutoCompensationEnabled = enabled;
     }
 
     private void publishEvents(List<DomainEvent> events) {

@@ -71,6 +71,12 @@ public class OrphanTransaction {
         this.lastSeenAt = Instant.now();
     }
 
+    public void compensate(String paymentId) {
+        this.status = OrphanTransactionStatus.COMPENSATED;
+        this.resolvedPaymentId = paymentId;
+        this.lastSeenAt = Instant.now();
+    }
+
     public void ignore() {
         this.status = OrphanTransactionStatus.IGNORED;
         this.lastSeenAt = Instant.now();

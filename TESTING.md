@@ -1,12 +1,12 @@
 # NexusFlow Test Summary
 
-Last verified: 2026-06-14 with `mvn test`.
+Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 ## Current Result
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 168 | 164 | 0 | 0 | 4 |
+| 170 | 166 | 0 | 0 | 4 |
 
 The 4 skipped tests are `NexusFlowApplicationIT` Testcontainers cases. They require a working Docker environment and are skipped automatically when Docker is unavailable.
 
@@ -42,9 +42,9 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-domain` | `RefundStatusTest` | 7 | Refund status transitions |
 | `flow-domain` | `ReconstituteBuilderTest` | 3 | Reconstitution builders preserve persisted aggregate fields |
 | `flow-application` | `BlockchainCircuitBreakerTest` | 1 | Circuit breaker opens after repeated chain RPC failures and recovers |
-| `flow-application` | `OrphanTransactionApplicationServiceTest` | 4 | Orphan transaction listing, resolve, ignore, not-found behavior |
+| `flow-application` | `OrphanTransactionApplicationServiceTest` | 5 | Orphan transaction listing, resolve, ignore, compensate, not-found behavior |
 | `flow-application` | `OpsDashboardApplicationServiceTest` | 1 | Ops dashboard channel health, status counts, reconciliation summary, risk alerts |
-| `flow-application` | `PaymentApplicationServiceTest` | 13 | Create payment, request/response idempotency, address-pool allocation, duplicate order rejection, dust/underpayment handling, orphan transaction recording |
+| `flow-application` | `PaymentApplicationServiceTest` | 14 | Create payment, request/response idempotency, address-pool allocation, duplicate order rejection, dust/underpayment handling, orphan alerting and compensation |
 | `flow-application` | `PaymentOrchestratorTest` | 17 | Fiat and crypto-denominated order creation, channel routing, refund flow, callback idempotency |
 | `flow-application` | `PaymentReconciliationJobTest` | 4 | Confirmation polling, expiry, retry/backoff |
 | `flow-application` | `WebhookServiceTest` | 3 | Execution-layer merchant callback payload filtering and delivery |
@@ -80,7 +80,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; scanner reorg behavior |
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check |
-| Reliability | Redis idempotency, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, Kafka domain-event publishing, orphan transaction deduplication/manual resolution, ops risk dashboard |
+| Reliability | Redis idempotency, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, Kafka domain-event publishing, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
 | Integration | PostgreSQL Testcontainers test class exists but needs Docker to execute |
 
 ## Known Gaps

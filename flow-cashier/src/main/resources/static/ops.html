@@ -436,6 +436,15 @@
       await refreshDashboard();
     }
 
+    async function compensateOrphan(chain, txHash) {
+      await request("/crypto/orphan-transactions/" + encodeURIComponent(chain) + "/" + encodeURIComponent(txHash) + "/compensate", {
+        method: "POST",
+        body: {}
+      });
+      await loadOrphans();
+      await refreshDashboard();
+    }
+
     async function request(path, options = {}) {
       const method = options.method || "GET";
       const url = (state.config.apiBase || "") + path;
@@ -547,6 +556,7 @@
             <div class="form-row">
               <input id="resolve-${index}" placeholder="paymentId" />
               <button class="btn small primary" type="button" data-resolve="${index}">Resolve</button>
+              <button class="btn small" type="button" data-compensate="${index}">Compensate</button>
               <button class="btn small danger" type="button" data-ignore="${index}">Ignore</button>
             </div>
           </td>
@@ -555,6 +565,12 @@
         button.addEventListener("click", () => {
           const row = state.orphans[Number(button.dataset.resolve)];
           guard(resolveOrphan(row.chain, row.txHash, $("resolve-" + button.dataset.resolve).value.trim()));
+        });
+      });
+      $("orphansBody").querySelectorAll("[data-compensate]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const row = state.orphans[Number(button.dataset.compensate)];
+          guard(compensateOrphan(row.chain, row.txHash));
         });
       });
       $("orphansBody").querySelectorAll("[data-ignore]").forEach((button) => {

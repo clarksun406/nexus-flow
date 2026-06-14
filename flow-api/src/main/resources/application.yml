@@ -78,6 +78,9 @@ nexusflow:
   reconciliation:
     interval-ms: 30000        # how often to re-check confirmations for DETECTED/CONFIRMING
     max-backoff-seconds: ${RECONCILIATION_MAX_BACKOFF_SECONDS:300}
+  orphan:
+    auto-compensation:
+      enabled: ${ORPHAN_AUTO_COMPENSATION_ENABLED:false} # create compensation payments for unmatched inbound txs when explicitly enabled
   expiry:
     interval-ms: 60000        # how often to scan for overdue PENDING payments
   execution:

@@ -43,4 +43,10 @@ public class OrphanTransactionController {
                                                          @PathVariable String txHash) {
         return ApiResponse.ok(orphanTransactionService.ignore(chain, txHash));
     }
+
+    @PostMapping("/{chain}/{txHash}/compensate")
+    public ApiResponse<OrphanTransactionResponse> compensate(@PathVariable Chain chain,
+                                                             @PathVariable String txHash) {
+        return ApiResponse.ok(orphanTransactionService.compensate(chain, txHash));
+    }
 }

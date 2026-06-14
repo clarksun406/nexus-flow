@@ -145,7 +145,7 @@ It stores API base, `X-API-Key`, and callback URLs locally in the browser and ca
 
 The static ops dashboard is available at `flow-cashier/src/main/resources/static/ops.html`. It calls
 `/ops/dashboard` for channel health, order-board counts, reconciliation backlog, and risk alerts, and
-uses `/crypto/orphan-transactions` for orphan resolve/ignore actions.
+uses `/crypto/orphan-transactions` for orphan resolve, ignore, and compensate actions.
 
 ---
 
@@ -649,9 +649,10 @@ Per init.md: "Blockchain is source of truth, system is derived state."
 3. ✅ Update payment confirmations, transition to CONFIRMED as appropriate
 4. ✅ Retry/backoff transient chain failures and gate noisy RPC failures with `BlockchainCircuitBreaker`
 5. ✅ Detect block-hash reorg in `BlockchainScanner` and roll affected payments back to `PENDING`
-6. 🟡 Detect missing events: tx seen on a managed address without a PENDING payment is now persisted
-   as an `orphan_transactions` record; `/crypto/orphan-transactions` supports listing, resolve, and
-   ignore for manual follow-up. Alerting and automatic compensation remain.
+6. ✅ Detect missing events: tx seen on a managed address without a PENDING payment is persisted
+   as an `orphan_transactions` record and emits `crypto.orphan.detected`; `/crypto/orphan-transactions`
+   supports listing, resolve, ignore, and compensate, with optional automatic compensation via
+   `ORPHAN_AUTO_COMPENSATION_ENABLED=true`.
 
 ---
 
@@ -798,14 +799,14 @@ Implemented:
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Current local verification (2026-06-14): `mvn test` runs 164 passing tests
+> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 166 passing tests
 > across common/domain/application/infra/listener/wallet and skips 4 API Testcontainers tests when Docker is
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
 > execution-layer JPA repositories, HD wallet derivation, ETH/BTC adapter parsing, address pool storage,
 > mnemonic storage, createPayment idempotency, crypto-denominated order creation,
 > execution webhooks, Coinbase channel stub,
 > self-hosted node channel delegation,
-> callback HMAC body caching, orphan transaction storage/resolution,
+> callback HMAC body caching, orphan transaction storage/resolution/compensation,
 > reconciliation retry, scanner cursor/reorg behavior, Kafka event publishing, ops dashboard aggregation,
 > and the blockchain circuit breaker.
 
@@ -836,7 +837,7 @@ Implemented:
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry · 🟡 TronAdapter, Reconciliation |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · ⬜ MPC/GasAbstraction/OnOffRamp |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (164 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (166 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：

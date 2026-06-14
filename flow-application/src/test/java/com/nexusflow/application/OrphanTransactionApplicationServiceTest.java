@@ -1,5 +1,6 @@
 package com.nexusflow.application;
 
+import com.nexusflow.application.dto.PaymentResponse;
 import com.nexusflow.common.OrphanTransactionNotFoundException;
 import com.nexusflow.domain.blockchain.OrphanTransaction;
 import com.nexusflow.domain.blockchain.OrphanTransactionRepository;
@@ -13,6 +14,7 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -20,12 +22,14 @@ import static org.mockito.Mockito.when;
 class OrphanTransactionApplicationServiceTest {
 
     private OrphanTransactionRepository repository;
+    private PaymentApplicationService paymentApplicationService;
     private OrphanTransactionApplicationService service;
 
     @BeforeEach
     void setUp() {
         repository = mock(OrphanTransactionRepository.class);
-        service = new OrphanTransactionApplicationService(repository);
+        paymentApplicationService = mock(PaymentApplicationService.class);
+        service = new OrphanTransactionApplicationService(repository, paymentApplicationService);
     }
 
     @Test
@@ -61,6 +65,22 @@ class OrphanTransactionApplicationServiceTest {
 
         assertThat(response.getStatus()).isEqualTo("IGNORED");
         verify(repository).save(orphan);
+    }
+
+    @Test
+    void compensateDelegatesToPaymentService() {
+        OrphanTransaction orphan = orphan();
+        when(repository.findByChainAndTxHash(Chain.TRON, "tx-1")).thenReturn(Optional.of(orphan));
+        doAnswer(invocation -> {
+            orphan.compensate("pay-comp");
+            return PaymentResponse.builder().paymentId("pay-comp").build();
+        }).when(paymentApplicationService).compensateOrphanTransaction(orphan);
+
+        var response = service.compensate(Chain.TRON, "tx-1");
+
+        assertThat(response.getStatus()).isEqualTo("COMPENSATED");
+        assertThat(response.getResolvedPaymentId()).isEqualTo("pay-comp");
+        verify(paymentApplicationService).compensateOrphanTransaction(orphan);
     }
 
     @Test

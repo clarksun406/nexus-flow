@@ -133,11 +133,12 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   `/pay/order/{paymentId}`, and `/refund/order`; it is not a server-side merchant settings store.
 - `flow-cashier/src/main/resources/static/ops.html` is the static Ops Dashboard. It calls
   `/ops/dashboard` for channel/order/reconciliation/risk data and `/crypto/orphan-transactions`
-  for orphan resolve/ignore actions; `/ops/*` is protected by the same `X-API-Key` filter.
+  for orphan resolve/ignore/compensate actions; `/ops/*` is protected by the same `X-API-Key` filter.
 - When a scanned transaction hits a managed address but no PENDING payment matches, the application
-  records an `orphan_transactions` row through `OrphanTransactionRepository`. Operators can list,
-  resolve, or ignore these via `/crypto/orphan-transactions`; alerting and automatic compensation
-  are still follow-up work.
+  records an `orphan_transactions` row through `OrphanTransactionRepository` and publishes
+  `crypto.orphan.detected`. Operators can list, resolve, ignore, or compensate these via
+  `/crypto/orphan-transactions`; set `ORPHAN_AUTO_COMPENSATION_ENABLED=true` to create compensation
+  `CryptoPayment` records automatically for unmatched inbound transactions.
 - `StubAdapter` is a working fake `ChannelAdapter` used for routing/testing.
 
 Before relying on a feature end-to-end, verify the relevant adapter is actually implemented
