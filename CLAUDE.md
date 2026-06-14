@@ -124,6 +124,10 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
 - Merchant orchestration orders can be crypto-denominated. `PaymentOrchestrator.createOrder` accepts
   `amountCrypto` + `currencyCrypto` + `network`, routes with that asset, and derives the fiat display
   amount from the channel exchange rate.
+- `flow-cashier/src/main/resources/static/checkout.html` is the static buyer Checkout. It accepts
+  `payment_id`/`paymentId` from the URL, calls `/cashier/order/status` and `/cashier/pay/submit`,
+  renders the deposit address and Canvas QR code, and polls status until terminal states.
+  `nexusflow.cashier.base-url` controls the returned `payUrl`; the default is `/checkout.html`.
 - `flow-cashier/src/main/resources/static/merchant.html` is the static Merchant Portal. It stores API
   base, API key, and callback URLs in browser localStorage and calls `/pay/order`,
   `/pay/order/{paymentId}`, and `/refund/order`; it is not a server-side merchant settings store.

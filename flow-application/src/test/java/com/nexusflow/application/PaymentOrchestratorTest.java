@@ -113,6 +113,7 @@ class PaymentOrchestratorTest {
         assertThat(resp.getStatus()).isEqualTo("WAITING_PAYMENT");
         assertThat(resp.getAmountFiat()).isEqualTo("100");
         assertThat(resp.getChannelId()).isEqualTo("STUB");
+        assertThat(resp.getPayUrl()).startsWith("/checkout.html?payment_id=");
         verify(orderRepository).save(any(PaymentOrder.class));
     }
 

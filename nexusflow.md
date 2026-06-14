@@ -133,6 +133,12 @@ POST /pay/order
 }
 ```
 
+The static buyer checkout is available at `flow-cashier/src/main/resources/static/checkout.html`.
+It loads `payment_id` from the URL, calls `/cashier/order/status` and `/cashier/pay/submit`,
+renders the deposit address/Canvas QR code, and polls payment status until a terminal state.
+`PaymentOrchestrator.createOrder` returns a configurable checkout URL via
+`nexusflow.cashier.base-url`, defaulting to `/checkout.html`.
+
 The static merchant console is available at `flow-cashier/src/main/resources/static/merchant.html`.
 It stores API base, `X-API-Key`, and callback URLs locally in the browser and calls `/pay/order`,
 `/pay/order/{paymentId}`, and `/refund/order`.

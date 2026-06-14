@@ -18,11 +18,14 @@ import com.nexusflow.domain.refund.RefundRepository;
 import com.nexusflow.domain.refund.RefundStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -44,6 +47,9 @@ public class PaymentOrchestrator {
     private final WebhookService webhookService;
     private final ProcessedEventStore processedEventStore;
     private final CurrencyRateCache currencyRateCache;
+
+    @Value("${nexusflow.cashier.base-url:/checkout.html}")
+    private String cashierBaseUrl = "/checkout.html";
 
     // ── Create Order ──
 
@@ -109,7 +115,7 @@ public class PaymentOrchestrator {
         orderRepository.save(order);
         order.collectEvents().forEach(eventPublisher::publish);
 
-        String payUrl = "https://cashier.nexusflow.com/checkout?payment_id=" + order.getPaymentId();
+        String payUrl = buildCashierPayUrl(order.getPaymentId());
         log.info("Order created: paymentId={}, channel={}", order.getPaymentId(), channel.channelId());
 
         return toResponse(order, channel.displayName(), payUrl);
@@ -418,6 +424,12 @@ public class PaymentOrchestrator {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private String buildCashierPayUrl(String paymentId) {
+        String baseUrl = hasText(cashierBaseUrl) ? cashierBaseUrl.trim() : "/checkout.html";
+        String separator = baseUrl.contains("?") ? "&" : "?";
+        return baseUrl + separator + "payment_id=" + URLEncoder.encode(paymentId, StandardCharsets.UTF_8);
     }
 
     private NexusFlowException invalidRequest(String message) {

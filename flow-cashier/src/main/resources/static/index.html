@@ -1,60 +1,160 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>静态页预览</title>
-  <link rel="stylesheet" href="assets/styles.css" />
+  <title>NexusFlow Console</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #dce3ea;
+      --text: #17202a;
+      --muted: #617080;
+      --primary: #0f766e;
+      --blue: #2563eb;
+      --amber: #b45309;
+      --shadow: 0 14px 34px rgba(23, 32, 42, 0.07);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 34px 22px; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--primary), #38bdf8);
+    }
+    h1 { margin: 0; font-size: 22px; }
+    .muted { color: var(--muted); margin: 4px 0 0; font-size: 13px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .tile {
+      min-height: 190px;
+      display: grid;
+      align-content: space-between;
+      gap: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.16s ease, border-color 0.16s ease;
+    }
+    .tile:hover { transform: translateY(-2px); border-color: #c8d3dd; }
+    .tile strong { display: block; font-size: 18px; }
+    .tile span { display: block; margin-top: 8px; color: var(--muted); font-size: 13px; }
+    .pill {
+      justify-self: start;
+      min-height: 28px;
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 10px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      background: var(--primary);
+    }
+    .pill.blue { background: var(--blue); }
+    .pill.amber { background: var(--amber); }
+    .secondary {
+      margin-top: 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .links {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .link {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      color: var(--text);
+      text-decoration: none;
+      background: #fff;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .link:hover { border-color: #c8d3dd; background: #fafcff; }
+    @media (max-width: 860px) {
+      .grid, .links { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
 </head>
 <body>
-  <div class="shell">
+  <main class="wrap">
     <div class="topbar">
-      <div class="brand">Payment UI / 静态页</div>
-    </div>
-
-    <div class="card">
-        <h1 class="h1">支付系统演示</h1>
-        <p class="muted">推荐使用交互式演示，或查看独立静态页面。</p>
-        
-        <a href="app.html" style="display:block;padding:16px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:#fff;border-radius:12px;margin-bottom:20px;text-align:center;font-weight:700;font-size:16px;text-decoration:none">
-          🚀 启动交互式演示
-        </a>
-        
-        <h2 class="h1" style="margin-top:24px">独立静态页面</h2>
-
-      <div class="grid-links">
-        <a class="link-tile" href="pages/01-pay-method-address.html">
-          <div class="tile-title">01 - 支付方式选择（地址转账）</div>
-          <div class="tile-desc">包含：地址转账 / 链接钱包 / 第三方合作</div>
-        </a>
-        <a class="link-tile" href="pages/05-pay-method-wallet.html">
-          <div class="tile-title">05 - 支付方式选择（链接钱包）</div>
-          <div class="tile-desc">包含：币种行 + 处理网络选择入口</div>
-        </a>
-        <a class="link-tile" href="pages/02-network-select.html">
-          <div class="tile-title">02 - 处理网络选择</div>
-          <div class="tile-desc">包含：多网络列表与确认按钮</div>
-        </a>
-        <a class="link-tile" href="pages/06-network-select-tron.html">
-          <div class="tile-title">06 - 处理网络选择（Tron 选中）</div>
-          <div class="tile-desc">对应截图：Tron 为选中状态、确认置灰</div>
-        </a>
-        <a class="link-tile" href="pages/03-pay-detail-address.html">
-          <div class="tile-title">03 - 支付详情（地址转账）</div>
-          <div class="tile-desc">包含：金额卡片、tabs、地址与二维码说明</div>
-        </a>
-        <a class="link-tile" href="pages/07-pay-detail-tron.html">
-          <div class="tile-title">07 - 支付详情（USDT / Tron）</div>
-          <div class="tile-desc">对应截图：三 tabs + Tron 头部 + 地址转账内容</div>
-        </a>
-        <a class="link-tile" href="pages/04-pay-detail-scan.html">
-          <div class="tile-title">04 - 支付详情（钱包扫码）</div>
-          <div class="tile-desc">包含：tabs、双二维码、钱包图标</div>
-        </a>
+      <div class="brand">
+        <div class="mark" aria-hidden="true"></div>
+        <div>
+          <h1>NexusFlow Console</h1>
+          <p class="muted">Static frontends packaged with the cashier module.</p>
+        </div>
       </div>
-
-      <div class="footer-note">建议用 1440px 以上宽度打开以接近截图比例。</div>
     </div>
-  </div>
+
+    <section class="grid">
+      <a class="tile" href="checkout.html">
+        <div>
+          <strong>Checkout</strong>
+          <span>Buyer payment page with order loading, address generation, QR code, copy actions, countdown, and status polling.</span>
+        </div>
+        <span class="pill">Buyer</span>
+      </a>
+      <a class="tile" href="merchant.html">
+        <div>
+          <strong>Merchant Portal</strong>
+          <span>Create and look up orders, store local API configuration, and submit refund requests.</span>
+        </div>
+        <span class="pill blue">Merchant</span>
+      </a>
+      <a class="tile" href="ops.html">
+        <div>
+          <strong>Ops Dashboard</strong>
+          <span>Monitor channel health, order status, reconciliation backlog, and orphan transaction risks.</span>
+        </div>
+        <span class="pill amber">Ops</span>
+      </a>
+    </section>
+
+    <section class="secondary">
+      <strong>Static design previews</strong>
+      <p class="muted">Legacy visual mockups remain available for comparison.</p>
+      <div class="links">
+        <a class="link" href="app.html">Interactive demo</a>
+        <a class="link" href="pages/01-pay-method-address.html">Pay method</a>
+        <a class="link" href="pages/02-network-select.html">Network select</a>
+        <a class="link" href="pages/03-pay-detail-address.html">Pay detail</a>
+      </div>
+    </section>
+  </main>
 </body>
 </html>

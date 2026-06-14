@@ -102,5 +102,5 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 
 - `NexusFlowApplicationIT` uses `@Testcontainers(disabledWithoutDocker = true)`, so local no-Docker runs can still show a green build while skipping integration coverage.
 - Blockchain adapter tests validate request/response parsing and domain conversion. They do not prove behavior against real nodes or network-specific edge cases.
-- `flow-cashier` has no Java tests; `mvn -pl flow-cashier test` verifies static resource packaging, including `merchant.html` and `ops.html`.
+- `flow-cashier` has no Java tests; `mvn -pl flow-cashier test` verifies static resource packaging, including `checkout.html`, `merchant.html`, and `ops.html`.
 - Roadmap status and production risks are tracked in `nexusflow-roadmap.md`, especially the "production preflight risk" section.
