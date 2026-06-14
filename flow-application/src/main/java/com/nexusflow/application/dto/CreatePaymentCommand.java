@@ -9,7 +9,7 @@ import lombok.Value;
  * Command to create a new crypto payment.
  */
 @Value
-@Builder
+@Builder(toBuilder = true)
 public class CreatePaymentCommand {
 
     @NotBlank
@@ -23,4 +23,6 @@ public class CreatePaymentCommand {
     String amount;    // smallest unit (e.g. "1000000" for 1 USDT with 6 decimals)
 
     String callbackUrl;
+
+    String idempotencyKey;
 }

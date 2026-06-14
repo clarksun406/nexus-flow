@@ -20,10 +20,17 @@ public class PaymentController {
 
     /**
      * Create a new crypto payment.
-     * Idempotent via orderId.
+     * Idempotent via Idempotency-Key / X-Idempotency-Key header, or orderId fallback.
      */
     @PostMapping
-    public ApiResponse<PaymentResponse> createPayment(@Valid @RequestBody CreatePaymentCommand command) {
+    public ApiResponse<PaymentResponse> createPayment(
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String xIdempotencyKey,
+            @Valid @RequestBody CreatePaymentCommand command) {
+        String headerKey = firstNonBlank(idempotencyKey, xIdempotencyKey);
+        if (headerKey != null) {
+            command = command.toBuilder().idempotencyKey(headerKey).build();
+        }
         PaymentResponse response = paymentService.createPayment(command);
         return ApiResponse.ok(response);
     }
@@ -57,5 +64,15 @@ public class PaymentController {
         paymentService.failPayment(paymentId, reason);
         PaymentResponse response = paymentService.getPayment(paymentId);
         return ApiResponse.ok(response);
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        if (second != null && !second.isBlank()) {
+            return second;
+        }
+        return null;
     }
 }

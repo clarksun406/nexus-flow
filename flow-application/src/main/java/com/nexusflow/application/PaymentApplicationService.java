@@ -21,8 +21,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.UUID;
 
@@ -37,12 +40,58 @@ public class PaymentApplicationService {
     private final PaymentRepository paymentRepository;
     private final AddressPoolRepository addressPoolRepository;
     private final DomainEventPublisher eventPublisher;
+    private final WebhookService webhookService;
+    private final PaymentIdempotencyStore idempotencyStore;
 
     /**
      * Create a new payment and assign a receiving address.
      */
     @Transactional
     public PaymentResponse createPayment(CreatePaymentCommand command) {
+        String idempotencyKey = normalize(command.getIdempotencyKey());
+        if (idempotencyKey != null) {
+            return createPaymentIdempotently(command, idempotencyKey);
+        }
+        return createPaymentOnce(command);
+    }
+
+    private PaymentResponse createPaymentIdempotently(CreatePaymentCommand command, String idempotencyKey) {
+        String requestHash = requestHashFor(command);
+        PaymentIdempotencyStore.StoredPaymentResponse existing = idempotencyStore.find(idempotencyKey).orElse(null);
+        if (existing != null) {
+            return replayOrReject(idempotencyKey, requestHash, existing);
+        }
+
+        Instant expiresAt = Instant.now().plus(Duration.ofHours(24));
+        if (!idempotencyStore.reserve(idempotencyKey, requestHash, expiresAt)) {
+            existing = idempotencyStore.find(idempotencyKey)
+                    .orElseThrow(() -> new IdempotencyViolationException(idempotencyKey));
+            return replayOrReject(idempotencyKey, requestHash, existing);
+        }
+
+        try {
+            PaymentResponse response = createPaymentOnce(command);
+            idempotencyStore.complete(idempotencyKey, response);
+            return response;
+        } catch (RuntimeException e) {
+            idempotencyStore.delete(idempotencyKey);
+            throw e;
+        }
+    }
+
+    private PaymentResponse replayOrReject(String idempotencyKey,
+                                           String requestHash,
+                                           PaymentIdempotencyStore.StoredPaymentResponse existing) {
+        if (!requestHash.equals(existing.requestHash())) {
+            throw new IdempotencyViolationException(idempotencyKey);
+        }
+        if (!existing.isCompleted()) {
+            throw new IdempotencyViolationException(idempotencyKey);
+        }
+        return existing.response();
+    }
+
+    private PaymentResponse createPaymentOnce(CreatePaymentCommand command) {
         // Idempotency check
         if (paymentRepository.existsByOrderId(command.getOrderId())) {
             throw new IdempotencyViolationException(command.getOrderId());
@@ -62,13 +111,35 @@ public class PaymentApplicationService {
         payment.markPending();
         paymentRepository.save(payment);
 
-        // Publish domain events
-        publishEvents(payment.collectEvents());
+        publishAndNotify(payment, payment.collectEvents());
 
         log.info("Payment created: orderId={}, paymentId={}, address={}",
                 command.getOrderId(), payment.getId(), receivingAddress);
 
         return toResponse(payment);
+    }
+
+    static String requestHashFor(CreatePaymentCommand command) {
+        String canonical = String.join("\n",
+                hashPart(command.getOrderId()),
+                hashPart(command.getCurrency()),
+                hashPart(command.getAmount()),
+                hashPart(command.getCallbackUrl()));
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(canonical.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+
+    private static String normalize(String value) {
+        return value != null && !value.isBlank() ? value.trim() : null;
+    }
+
+    private static String hashPart(String value) {
+        String normalized = normalize(value);
+        return normalized != null ? normalized : "";
     }
 
     /**
@@ -125,7 +196,7 @@ public class PaymentApplicationService {
 
         payment.markDetected(txHash, received, blockNumber);
         paymentRepository.save(payment);
-        publishEvents(payment.collectEvents());
+        publishAndNotify(payment, payment.collectEvents());
 
         log.info("Payment detected: paymentId={}, orderId={}, txHash={}, address={}",
                 payment.getId(), payment.getOrderId(), txHash, toAddress);
@@ -142,7 +213,7 @@ public class PaymentApplicationService {
         boolean confirmed = payment.updateConfirmations(confirmations);
         paymentRepository.save(payment);
 
-        publishEvents(payment.collectEvents());
+        publishAndNotify(payment, payment.collectEvents());
 
         if (confirmed) {
             log.info("Payment confirmed: paymentId={}, confirmations={}", paymentId, confirmations);
@@ -174,7 +245,7 @@ public class PaymentApplicationService {
             if (paymentChain == chain && (detectedBlock == null || detectedBlock >= forkBlock)) {
                 payment.rollbackAfterReorg();
                 paymentRepository.save(payment);
-                publishEvents(payment.collectEvents());
+                publishAndNotify(payment, payment.collectEvents());
                 log.warn("Rolled payment back after chain reorg: paymentId={}, chain={}, forkBlock={}",
                         payment.getId(), chain, forkBlock);
             }
@@ -193,7 +264,7 @@ public class PaymentApplicationService {
         payment.markExpired();
         paymentRepository.save(payment);
 
-        publishEvents(payment.collectEvents());
+        publishAndNotify(payment, payment.collectEvents());
         log.info("Payment expired: paymentId={}", paymentId);
     }
 
@@ -208,7 +279,7 @@ public class PaymentApplicationService {
         payment.markFailed(reason);
         paymentRepository.save(payment);
 
-        publishEvents(payment.collectEvents());
+        publishAndNotify(payment, payment.collectEvents());
         log.info("Payment failed: paymentId={}, reason={}", paymentId, reason);
     }
 
@@ -235,6 +306,11 @@ public class PaymentApplicationService {
 
     private void publishEvents(List<DomainEvent> events) {
         events.forEach(eventPublisher::publish);
+    }
+
+    private void publishAndNotify(CryptoPayment payment, List<DomainEvent> events) {
+        publishEvents(events);
+        webhookService.notifyCryptoPayment(payment, events);
     }
 
     private PaymentResponse toResponse(CryptoPayment p) {

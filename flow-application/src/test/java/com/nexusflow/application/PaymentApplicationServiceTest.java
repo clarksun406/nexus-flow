@@ -21,7 +21,9 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -32,6 +34,8 @@ class PaymentApplicationServiceTest {
     private PaymentRepository paymentRepository;
     private AddressPoolRepository addressPoolRepository;
     private DomainEventPublisher eventPublisher;
+    private WebhookService webhookService;
+    private PaymentIdempotencyStore idempotencyStore;
 
     private PaymentApplicationService service;
 
@@ -40,7 +44,10 @@ class PaymentApplicationServiceTest {
         paymentRepository = mock(PaymentRepository.class);
         addressPoolRepository = mock(AddressPoolRepository.class);
         eventPublisher = mock(DomainEventPublisher.class);
-        service = new PaymentApplicationService(paymentRepository, addressPoolRepository, eventPublisher);
+        webhookService = mock(WebhookService.class);
+        idempotencyStore = mock(PaymentIdempotencyStore.class);
+        service = new PaymentApplicationService(
+                paymentRepository, addressPoolRepository, eventPublisher, webhookService, idempotencyStore);
     }
 
     private CryptoPayment pendingPaymentAt(String address) {
@@ -79,6 +86,7 @@ class PaymentApplicationServiceTest {
         verify(addressPoolRepository).save(address);
         assertThat(address.getAssignedPaymentId()).isEqualTo(resp.getPaymentId());
         verify(eventPublisher).publish(any());
+        verify(webhookService).notifyCryptoPayment(any(CryptoPayment.class), anyList());
     }
 
     @Test
@@ -87,6 +95,56 @@ class PaymentApplicationServiceTest {
 
         CreatePaymentCommand cmd = CreatePaymentCommand.builder()
                 .orderId("order-1").currency("USDT_TRC20").amount("100").build();
+
+        assertThatThrownBy(() -> service.createPayment(cmd))
+                .isInstanceOf(IdempotencyViolationException.class);
+    }
+
+    @Test
+    void createPaymentReservesAndCompletesIdempotencyKey() {
+        when(idempotencyStore.find("key-1")).thenReturn(Optional.empty());
+        when(idempotencyStore.reserve(eq("key-1"), anyString(), any())).thenReturn(true);
+        when(paymentRepository.existsByOrderId("order-1")).thenReturn(false);
+        AddressPoolEntry address = AddressPoolEntry.builder()
+                .id("addr-1").chain(Chain.TRON).address("TADDR")
+                .encryptedPrivateKey("enc").derivationPath("m/44'/195'/0'/0/0")
+                .derivationIndex(0).build();
+        when(addressPoolRepository.findFirstAvailableByChain(Chain.TRON)).thenReturn(Optional.of(address));
+        CreatePaymentCommand cmd = CreatePaymentCommand.builder()
+                .orderId("order-1").currency("USDT_TRC20").amount("100")
+                .idempotencyKey("key-1").build();
+
+        PaymentResponse response = service.createPayment(cmd);
+
+        verify(idempotencyStore).reserve(eq("key-1"), eq(PaymentApplicationService.requestHashFor(cmd)), any());
+        verify(idempotencyStore).complete("key-1", response);
+    }
+
+    @Test
+    void createPaymentReplaysCachedIdempotentResponse() {
+        CreatePaymentCommand cmd = CreatePaymentCommand.builder()
+                .orderId("order-1").currency("USDT_TRC20").amount("100")
+                .idempotencyKey("key-1").build();
+        PaymentResponse cached = PaymentResponse.builder()
+                .paymentId("pay-cached").orderId("order-1").status("PENDING").build();
+        when(idempotencyStore.find("key-1")).thenReturn(Optional.of(
+                new PaymentIdempotencyStore.StoredPaymentResponse(
+                        PaymentApplicationService.requestHashFor(cmd), cached)));
+
+        PaymentResponse response = service.createPayment(cmd);
+
+        assertThat(response).isSameAs(cached);
+        verify(paymentRepository, never()).save(any());
+        verify(addressPoolRepository, never()).save(any());
+    }
+
+    @Test
+    void createPaymentRejectsIdempotencyKeyWithDifferentRequest() {
+        CreatePaymentCommand cmd = CreatePaymentCommand.builder()
+                .orderId("order-1").currency("USDT_TRC20").amount("100")
+                .idempotencyKey("key-1").build();
+        when(idempotencyStore.find("key-1")).thenReturn(Optional.of(
+                new PaymentIdempotencyStore.StoredPaymentResponse("different-hash", null)));
 
         assertThatThrownBy(() -> service.createPayment(cmd))
                 .isInstanceOf(IdempotencyViolationException.class);
@@ -119,6 +177,7 @@ class PaymentApplicationServiceTest {
         assertThat(payment.getReceived().getAmount()).isEqualByComparingTo("100");
         verify(paymentRepository).save(payment);
         verify(eventPublisher).publish(any());
+        verify(webhookService).notifyCryptoPayment(eq(payment), anyList());
     }
 
     @Test
@@ -130,6 +189,7 @@ class PaymentApplicationServiceTest {
 
         verify(paymentRepository, never()).findPendingByReceivingAddress(anyString());
         verify(paymentRepository, never()).save(any());
+        verify(webhookService, never()).notifyCryptoPayment(any(), anyList());
     }
 
     @Test
