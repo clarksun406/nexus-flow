@@ -137,8 +137,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   `COINBASE_COMMERCE_API_KEY` is set. It uses `COINBASE_COMMERCE_BASE_URL` (default
   `https://api.commerce.coinbase.com`) and `COINBASE_COMMERCE_API_VERSION` (default `2018-03-22`)
   for Coinbase Commerce charge and exchange-rate calls. Without an API key it preserves the old
-  stub behavior for local/dev compatibility. Coinbase live credentials, webhook semantics, and
-  external refund operations still need environment verification. `LiveCoinbaseCommerceAdapterTest`
+  stub behavior for local/dev compatibility, but the bean is omitted in the `prod` profile unless
+  an API key is configured. Coinbase live credentials, webhook semantics, and external refund
+  operations still need environment verification. `LiveCoinbaseCommerceAdapterTest`
   provides opt-in live rate coverage and only creates a live charge when
   `LIVE_COINBASE_COMMERCE_CREATE_CHARGE=true`.
 - BitMart and Binance Pay adapters are still stubs. Their `BlockchainConfig` beans are guarded with

@@ -11,8 +11,13 @@ import com.nexusflow.infra.blockchain.HttpTronGridClient;
 import com.nexusflow.infra.blockchain.TronAdapter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Condition;
+import org.springframework.context.annotation.ConditionContext;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Profile;
+import org.springframework.core.env.Profiles;
+import org.springframework.core.type.AnnotatedTypeMetadata;
 
 @Configuration
 public class BlockchainConfig {
@@ -75,10 +80,24 @@ public class BlockchainConfig {
     }
 
     @Bean
+    @Conditional(CoinbaseCommerceAdapterCondition.class)
     public ChannelAdapter coinbaseCommerceAdapter() {
         return new CoinbaseCommerceAdapter(
                 coinbaseCommerceBaseUrl,
                 coinbaseCommerceApiKey,
                 coinbaseCommerceApiVersion);
+    }
+
+    static class CoinbaseCommerceAdapterCondition implements Condition {
+        @Override
+        public boolean matches(ConditionContext context, AnnotatedTypeMetadata metadata) {
+            boolean prodProfile = context.getEnvironment().acceptsProfiles(Profiles.of("prod"));
+            String apiKey = context.getEnvironment().getProperty("nexusflow.coinbase-commerce.api-key", "");
+            return !prodProfile || hasText(apiKey);
+        }
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 }

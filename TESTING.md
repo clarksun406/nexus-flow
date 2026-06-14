@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 222 | 208 | 0 | 0 | 14 |
+| 223 | 209 | 0 | 0 | 14 |
 
 The 14 skipped tests are 6 `NexusFlowApplicationIT` Testcontainers cases, 3 opt-in live blockchain smoke tests, 2 opt-in live messaging smoke tests, 2 opt-in Coinbase Commerce smoke tests, and 1 opt-in live webhook delivery smoke test. They require Docker or explicit live dependency environment variables and are skipped automatically when unavailable.
 
@@ -106,7 +106,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-wallet` | `Base58Test` | 5 | Base58/Base58Check encoding |
 | `flow-wallet` | `KeyGeneratorTest` | 7 | BIP39/BIP44 derivation and ETH/TRON/BTC address derivation |
 | `flow-api` | `CallbackHmacFilterTest` | 1 | Callback HMAC verification keeps request body readable downstream |
-| `flow-api` | `BlockchainConfigTest` | 1 | Stubbed external BitMart/Binance channel beans are guarded out of the `prod` profile |
+| `flow-api` | `BlockchainConfigTest` | 2 | Stubbed external BitMart/Binance channel beans are guarded out of the `prod` profile; Coinbase no-key stub is omitted in `prod` |
 | `flow-api` | `PaymentControllerTest` | 6 | MockMvc HTTP contract for create/get/confirm/fail, idempotency headers, validation, and parameter binding |
 | `flow-api` | `WebhookDeadLetterControllerTest` | 4 | Ops dead-letter list/replay/ignore HTTP contract and not-found response |
 | `flow-api` | `NexusFlowApplicationIT` | 6 skipped locally | Spring Boot context, PostgreSQL Testcontainers, JPA round trips, persistence-backed `PaymentController` idempotency, concurrent address-pool allocation |
@@ -135,7 +135,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `PaymentController` full persistence-backed HTTP E2E | PostgreSQL-backed createPayment idempotency is covered in `NexusFlowApplicationIT`; local run still skips it without Docker |
 | Kafka broker integration | Opt-in `LiveMessagingInfrastructureTest` can write a smoke event to `LIVE_KAFKA_TOPIC`; local run skips it until `LIVE_KAFKA_BOOTSTRAP_SERVERS` is configured |
 | Redis integration against a real Redis server | Opt-in `LiveMessagingInfrastructureTest` can verify Redis `SET NX EX`; local run skips it until `LIVE_REDIS_HOST` is configured |
-| Coinbase Commerce live verification | Opt-in `LiveCoinbaseCommerceAdapterTest` can verify live exchange rates with `LIVE_COINBASE_COMMERCE_API_KEY` or `COINBASE_COMMERCE_API_KEY`; guarded charge creation requires `LIVE_COINBASE_COMMERCE_CREATE_CHARGE=true`; webhook semantics and external refund operations still need environment verification |
+| Coinbase Commerce live verification | Opt-in `LiveCoinbaseCommerceAdapterTest` can verify live exchange rates with `LIVE_COINBASE_COMMERCE_API_KEY` or `COINBASE_COMMERCE_API_KEY`; guarded charge creation requires `LIVE_COINBASE_COMMERCE_CREATE_CHARGE=true`; no-key stub remains non-prod only; webhook semantics and external refund operations still need environment verification |
 | Production webhook reachability | Opt-in `LiveWebhookDeliveryTest` can POST a signed smoke payload to `LIVE_WEBHOOK_URL`; production replay policy and merchant endpoint behavior still need environment validation |
 | BitMart/Binance production adapters | Stub implementations remain available only outside the `prod` profile; real REST adapters and live verification are still required before enabling those channels in production |
 | Address-pool concurrent allocation | Docker-backed concurrent createPayment test covers distinct address assignment through `FOR UPDATE SKIP LOCKED`; local run still skips it without Docker |
