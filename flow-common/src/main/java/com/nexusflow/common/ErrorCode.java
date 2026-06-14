@@ -29,6 +29,7 @@ public enum ErrorCode {
     CHAIN_UNREACHABLE("NF-3001", "Blockchain node unreachable"),
     TX_VERIFICATION_FAILED("NF-3002", "Transaction verification failed"),
     UNSUPPORTED_CHAIN("NF-3003", "Unsupported blockchain"),
+    ORPHAN_TRANSACTION_NOT_FOUND("NF-3004", "Orphan transaction not found"),
 
     // Orchestration (Order / Channel)
     NO_AVAILABLE_CHANNEL("NF-4001", "No available channel for this request"),

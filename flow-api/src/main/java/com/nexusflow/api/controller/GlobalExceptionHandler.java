@@ -5,6 +5,7 @@ import com.nexusflow.common.ErrorCode;
 import com.nexusflow.common.IdempotencyViolationException;
 import com.nexusflow.common.InvalidStateTransitionException;
 import com.nexusflow.common.NexusFlowException;
+import com.nexusflow.common.OrphanTransactionNotFoundException;
 import com.nexusflow.common.PaymentNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * Global exception handler that maps domain exceptions to API responses.
@@ -23,6 +25,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(PaymentNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiResponse<Void> handleNotFound(PaymentNotFoundException e) {
+        return ApiResponse.fail(e.getErrorCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(OrphanTransactionNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handleOrphanNotFound(OrphanTransactionNotFoundException e) {
         return ApiResponse.fail(e.getErrorCode(), e.getMessage());
     }
 
@@ -53,6 +61,12 @@ public class GlobalExceptionHandler {
                 .reduce((a, b) -> a + "; " + b)
                 .orElse("Validation failed");
         return ApiResponse.fail(ErrorCode.INVALID_REQUEST, msg);
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ApiResponse<Void> handleTypeMismatch(MethodArgumentTypeMismatchException e) {
+        return ApiResponse.fail(ErrorCode.INVALID_REQUEST, "Invalid parameter: " + e.getName());
     }
 
     @ExceptionHandler(Exception.class)

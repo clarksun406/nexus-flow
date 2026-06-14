@@ -108,8 +108,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   CONFIRMING/CONFIRMED, FAILED, EXPIRED, and reorg rollback events use the shared webhook retry,
   HMAC signing, and SSRF protections.
 - When a scanned transaction hits a managed address but no PENDING payment matches, the application
-  records an `orphan_transactions` row through `OrphanTransactionRepository`. Alerting and
-  manual/automatic claim flows are still follow-up work.
+  records an `orphan_transactions` row through `OrphanTransactionRepository`. Operators can list,
+  resolve, or ignore these via `/crypto/orphan-transactions`; alerting and automatic compensation
+  are still follow-up work.
 - `StubAdapter` is a working fake `ChannelAdapter` used for routing/testing.
 
 Before relying on a feature end-to-end, verify the relevant adapter is actually implemented
