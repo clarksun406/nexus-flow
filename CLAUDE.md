@@ -124,6 +124,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
 - Merchant orchestration orders can be crypto-denominated. `PaymentOrchestrator.createOrder` accepts
   `amountCrypto` + `currencyCrypto` + `network`, routes with that asset, and derives the fiat display
   amount from the channel exchange rate.
+- `flow-cashier/src/main/resources/static/merchant.html` is the static Merchant Portal. It stores API
+  base, API key, and callback URLs in browser localStorage and calls `/pay/order`,
+  `/pay/order/{paymentId}`, and `/refund/order`; it is not a server-side merchant settings store.
 - When a scanned transaction hits a managed address but no PENDING payment matches, the application
   records an `orphan_transactions` row through `OrphanTransactionRepository`. Operators can list,
   resolve, or ignore these via `/crypto/orphan-transactions`; alerting and automatic compensation

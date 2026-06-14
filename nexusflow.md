@@ -133,6 +133,10 @@ POST /pay/order
 }
 ```
 
+The static merchant console is available at `flow-cashier/src/main/resources/static/merchant.html`.
+It stores API base, `X-API-Key`, and callback URLs locally in the browser and calls `/pay/order`,
+`/pay/order/{paymentId}`, and `/refund/order`.
+
 ---
 
 ### Outbound (to Core)

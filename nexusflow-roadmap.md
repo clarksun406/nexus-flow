@@ -255,7 +255,7 @@ public interface ChannelRouter {
 | # | 任务 | 状态 |
 |---|------|------|
 | P3-1 | 收银台（Cashier UI）— 买家支付页，二维码/地址展示，状态轮询 | 🟡 基础版已就绪（checkout.html） |
-| P3-2 | 商户端（Merchant Portal）— 订单查询、退款申请、API Key / 回调配置 | ⬜ |
+| P3-2 | 商户端（Merchant Portal）— 订单查询、退款申请、API Key / 回调配置 | ✅ `merchant.html` 静态控制台，支持本地 API key/回调配置、订单查询、创建订单和退款申请 |
 | P3-3 | 运营端（Ops Dashboard）— 通道监控、订单看板、对账报表、风控告警 | ⬜ |
 
 ### 📊 汇总
@@ -268,8 +268,8 @@ public interface ChannelRouter {
 | P1-F | 6 | 6 | 100% |
 | P1-R | 6 | 6 | 100% |
 | P2 | 4 | 4 | 100% |
-| P3 | 3 | 0 | 0% |
-| **合计** | **45** | **42** | **~93%** |
+| P3 | 3 | 1 | 33% |
+| **合计** | **45** | **43** | **~96%** |
 
 ---
 
