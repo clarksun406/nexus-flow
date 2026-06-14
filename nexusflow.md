@@ -783,15 +783,16 @@ signing smoke tests remain pending.
 #### P2-3: Gas Abstraction
 
 **Status:** 🟡 PARTIAL — `GasEstimator` port, `StaticGasEstimator`, configurable ETH/TRON/BTC
-fee defaults, GasBank balance/top-up policy objects, and self-hosted refund event gas budget fields
-are implemented. Live gas oracle, actual gas-bank funding worker, sweeping integration, and
-production batching remain pending.
+fee defaults, GasBank balance/top-up policy objects, `GasBankFundingService`, conditional
+funding-service bean registration, and self-hosted refund event gas budget fields are implemented.
+Live gas oracle, real gas-bank funding adapter, sweeping integration, alerting, and production
+batching remain pending.
 
 **What to do:**
 1. ✅ `GasEstimator` port in `flow-domain`
 2. 🟡 Estimate gas for outgoing transactions: self-hosted refunds now carry static ETH/TRON/BTC gas budgets
-3. 🟡 `GasBank` to pre-fund wallets with native tokens for gas: port/request/result and policy recommendations exist; funding worker remains pending
-4. 🟡 Monitor gas prices, batch transactions when gas is low: policy supports low/high gas bands and batch/top-up recommendations; live oracle and production scheduler remain pending
+3. 🟡 `GasBank` to pre-fund wallets with native tokens for gas: port/request/result, policy recommendations, and application service trigger exist; real funding adapter remains pending
+4. 🟡 Monitor gas prices, batch transactions when gas is low: policy supports low/high gas bands and the funding service can trigger low-gas batch top-ups; live oracle and production scheduler remain pending
 
 ---
 
@@ -820,12 +821,12 @@ pending.
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 246 passing tests
+> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 251 passing tests
 > across common/domain/application/infra/listener/wallet and skips 14 opt-in integration/live tests when Docker or live dependency variables are
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
 > execution-layer JPA repositories, HD wallet derivation, MPC wallet-id persistence and custom HTTP signer adapter, ETH/BTC adapter parsing, address pool storage,
 > mnemonic storage, createPayment idempotency, crypto-denominated order creation,
-> execution webhooks with dead-letter replay/ignore workflow and opt-in live delivery smoke coverage, gas-estimated self-hosted refund events, GasBank policy recommendations, Coinbase Commerce REST-capable channel with non-prod no-key stub fallback and opt-in live smoke coverage, BitMart/Binance stub beans guarded out of the `prod` profile,
+> execution webhooks with dead-letter replay/ignore workflow and opt-in live delivery smoke coverage, gas-estimated self-hosted refund events, GasBank policy recommendations and funding-service trigger, Coinbase Commerce REST-capable channel with non-prod no-key stub fallback and opt-in live smoke coverage, BitMart/Binance stub beans guarded out of the `prod` profile,
 > persisted fiat on/off ramp gateway, merchant API orchestration, normalized HMAC callback, and conversion-tracking core,
 > self-hosted node channel deposit/refund delegation,
 > callback HMAC body caching, orphan transaction storage/resolution/compensation,

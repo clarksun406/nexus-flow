@@ -138,10 +138,11 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   refund callbacks mark success/failure.
   Its internal callback HMAC secret defaults to `WEBHOOK_HMAC_SECRET` via
   `CALLBACK_HMAC_SECRET_SELF_HOSTED_NODE`.
-- Gas abstraction has a domain `GasEstimator` port, an infra `StaticGasEstimator` bean, and GasBank
-  policy objects for native-balance thresholds, low/high gas price bands, and top-up/batching
-  recommendations. Defaults are configurable under `nexusflow.gas.*`; live gas oracle and actual
-  gas-bank funding automation remain follow-up work.
+- Gas abstraction has a domain `GasEstimator` port, an infra `StaticGasEstimator` bean, GasBank
+  policy objects for native-balance thresholds, low/high gas price bands, and a
+  `GasBankFundingService` that can trigger immediate or low-gas batch top-ups against a configured
+  `GasBank` implementation. Defaults are configurable under `nexusflow.gas.*`; live gas oracle,
+  a real gas-bank funding adapter, alerting, and production scheduling remain follow-up work.
 - Fiat on/off ramp core is represented by the `FiatGateway` port plus `FiatRampOrder` conversion
   tracking for fiat transfer ids, crypto tx hashes, and provider checkout/order ids. JPA persistence
   uses `fiat_ramp_orders`; `FiatRampApplicationService` and `/fiat/ramp` expose merchant quote,
