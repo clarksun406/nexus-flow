@@ -20,7 +20,7 @@ public class PayController {
     }
 
     @GetMapping("/order/{paymentId}")
-    public ApiResponse<OrderResponse> getOrder(@PathVariable String paymentId) {
+    public ApiResponse<OrderResponse> getOrder(@PathVariable("paymentId") String paymentId) {
         return ApiResponse.ok(orchestrator.getOrder(paymentId));
     }
 }

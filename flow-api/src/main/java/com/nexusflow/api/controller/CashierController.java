@@ -15,7 +15,7 @@ public class CashierController {
     private final PaymentOrchestrator orchestrator;
 
     @GetMapping("/order/status")
-    public ApiResponse<CashierStatusResponse> getStatus(@RequestParam String paymentId) {
+    public ApiResponse<CashierStatusResponse> getStatus(@RequestParam("paymentId") String paymentId) {
         return ApiResponse.ok(orchestrator.getCashierStatus(paymentId));
     }
 

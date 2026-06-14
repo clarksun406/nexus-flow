@@ -22,7 +22,7 @@ public class CallbackController {
 
     @PostMapping("/{channelId}/payment")
     public ApiResponse<Void> handlePaymentCallback(
-            @PathVariable String channelId,
+            @PathVariable("channelId") String channelId,
             @RequestBody Map<String, Object> body) {
         log.debug("Payment callback from {}: {}", channelId, body);
         String channelOrderId = safeString(body, "reference_order_no", safeString(body, "order_id", null));
@@ -38,7 +38,7 @@ public class CallbackController {
 
     @PostMapping("/{channelId}/refund")
     public ApiResponse<Void> handleRefundCallback(
-            @PathVariable String channelId,
+            @PathVariable("channelId") String channelId,
             @RequestBody Map<String, Object> body) {
         log.debug("Refund callback from {}: {}", channelId, body);
         String channelRefundId = safeString(body, "refund_id", null);

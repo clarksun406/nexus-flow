@@ -39,7 +39,7 @@ public class PaymentController {
      * Query payment by ID.
      */
     @GetMapping("/{paymentId}")
-    public ApiResponse<PaymentResponse> getPayment(@PathVariable String paymentId) {
+    public ApiResponse<PaymentResponse> getPayment(@PathVariable("paymentId") String paymentId) {
         PaymentResponse response = paymentService.getPayment(paymentId);
         return ApiResponse.ok(response);
     }
@@ -48,8 +48,9 @@ public class PaymentController {
      * Webhook: mark payment as confirmed (from NexusPay-Core or manual).
      */
     @PostMapping("/{paymentId}/confirm")
-    public ApiResponse<PaymentResponse> confirmPayment(@PathVariable String paymentId,
-                                                        @RequestParam(defaultValue = "12") int confirmations) {
+    public ApiResponse<PaymentResponse> confirmPayment(
+            @PathVariable("paymentId") String paymentId,
+            @RequestParam(value = "confirmations", defaultValue = "12") int confirmations) {
         paymentService.confirmPayment(paymentId, confirmations);
         PaymentResponse response = paymentService.getPayment(paymentId);
         return ApiResponse.ok(response);
@@ -59,8 +60,9 @@ public class PaymentController {
      * Webhook: mark payment as failed.
      */
     @PostMapping("/{paymentId}/fail")
-    public ApiResponse<PaymentResponse> failPayment(@PathVariable String paymentId,
-                                                     @RequestParam(defaultValue = "Unknown") String reason) {
+    public ApiResponse<PaymentResponse> failPayment(
+            @PathVariable("paymentId") String paymentId,
+            @RequestParam(value = "reason", defaultValue = "Unknown") String reason) {
         paymentService.failPayment(paymentId, reason);
         PaymentResponse response = paymentService.getPayment(paymentId);
         return ApiResponse.ok(response);

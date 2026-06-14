@@ -27,26 +27,26 @@ public class OrphanTransactionController {
 
     @GetMapping
     public ApiResponse<List<OrphanTransactionResponse>> list(
-            @RequestParam(defaultValue = "UNMATCHED") OrphanTransactionStatus status) {
+            @RequestParam(value = "status", defaultValue = "UNMATCHED") OrphanTransactionStatus status) {
         return ApiResponse.ok(orphanTransactionService.list(status));
     }
 
     @PostMapping("/{chain}/{txHash}/resolve")
-    public ApiResponse<OrphanTransactionResponse> resolve(@PathVariable Chain chain,
-                                                          @PathVariable String txHash,
+    public ApiResponse<OrphanTransactionResponse> resolve(@PathVariable("chain") Chain chain,
+                                                          @PathVariable("txHash") String txHash,
                                                           @Valid @RequestBody ResolveOrphanTransactionRequest request) {
         return ApiResponse.ok(orphanTransactionService.resolve(chain, txHash, request.getPaymentId()));
     }
 
     @PostMapping("/{chain}/{txHash}/ignore")
-    public ApiResponse<OrphanTransactionResponse> ignore(@PathVariable Chain chain,
-                                                         @PathVariable String txHash) {
+    public ApiResponse<OrphanTransactionResponse> ignore(@PathVariable("chain") Chain chain,
+                                                         @PathVariable("txHash") String txHash) {
         return ApiResponse.ok(orphanTransactionService.ignore(chain, txHash));
     }
 
     @PostMapping("/{chain}/{txHash}/compensate")
-    public ApiResponse<OrphanTransactionResponse> compensate(@PathVariable Chain chain,
-                                                             @PathVariable String txHash) {
+    public ApiResponse<OrphanTransactionResponse> compensate(@PathVariable("chain") Chain chain,
+                                                             @PathVariable("txHash") String txHash) {
         return ApiResponse.ok(orphanTransactionService.compensate(chain, txHash));
     }
 }

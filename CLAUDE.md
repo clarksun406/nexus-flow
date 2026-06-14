@@ -23,6 +23,10 @@ mvn -pl flow-api spring-boot:run
 default surefire (2.12.4) would silently run zero JUnit 5 tests. `maven-surefire-plugin`
 is pinned to 3.2.5 in the root `pom.xml` `pluginManagement` - keep it there or tests stop running.
 
+**Spring MVC gotcha:** the compiler is not configured with `-parameters`, so controller
+annotations must use explicit names, e.g. `@PathVariable("paymentId")` and
+`@RequestParam("status")`. Implicit names can fail at runtime with HTTP 500.
+
 CI (`.github/workflows/ci.yml`) runs `mvn -B verify` on push/PR to `main`.
 
 ## Architecture
@@ -40,7 +44,9 @@ that must not be conflated:
 These have **separate aggregates, state machines, and repositories**. Self-hosting nodes is wired
 as the optional `SELF_HOSTED_NODE` channel: when `nexusflow.self-hosted-channel.enabled=true`, an
 orchestration `PaymentOrder` can delegate deposit-address creation down to an execution
-`CryptoPayment`. Refunds for this channel are still not implemented.
+`CryptoPayment`. Refunds create deterministic processing tasks and emit
+`crypto.refund.requested`; an external signer/worker or live node integration must broadcast
+the outbound chain transaction before refund callbacks mark success/failure.
 
 ### Module dependency direction (strict)
 

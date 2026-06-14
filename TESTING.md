@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 172 | 168 | 0 | 0 | 4 |
+| 188 | 184 | 0 | 0 | 4 |
 
 The 4 skipped tests are `NexusFlowApplicationIT` Testcontainers cases. They require a working Docker environment and are skipped automatically when Docker is unavailable.
 
@@ -36,17 +36,20 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Module | Test class | Count | Coverage |
 |--------|------------|-------|----------|
 | `flow-common` | `AesGcmEncryptionTest` | 9 | AES-GCM key generation, encrypt/decrypt, invalid input handling |
+| `flow-common` | `ApiResponseTest` | 3 | API success/failure envelope defaults and JSON serialization |
 | `flow-domain` | `FlowStatusTest` | 7 | Payment flow status transitions |
 | `flow-domain` | `OrderStatusTest` | 18 | Order status transitions, terminal-state semantics, refund retry path |
 | `flow-domain` | `CryptoPaymentTest` | 5 | Crypto payment lifecycle and state transitions |
 | `flow-domain` | `RefundStatusTest` | 7 | Refund status transitions |
 | `flow-domain` | `ReconstituteBuilderTest` | 3 | Reconstitution builders preserve persisted aggregate fields |
+| `flow-domain` | `MoneyTest` | 3 | Positive/zero/negative/null amount behavior and plain decimal rendering |
 | `flow-application` | `BlockchainCircuitBreakerTest` | 1 | Circuit breaker opens after repeated chain RPC failures and recovers |
 | `flow-application` | `OrphanTransactionApplicationServiceTest` | 5 | Orphan transaction listing, resolve, ignore, compensate, not-found behavior |
 | `flow-application` | `OpsDashboardApplicationServiceTest` | 1 | Ops dashboard channel health, status counts, reconciliation summary, risk alerts |
 | `flow-application` | `PaymentApplicationServiceTest` | 14 | Create payment, request/response idempotency, address-pool allocation, duplicate order rejection, dust/underpayment handling, orphan alerting and compensation |
 | `flow-application` | `PaymentOrchestratorTest` | 17 | Fiat and crypto-denominated order creation, channel routing, refund flow, callback idempotency |
 | `flow-application` | `PaymentReconciliationJobTest` | 4 | Confirmation polling, expiry, retry/backoff |
+| `flow-application` | `RequestDtoJsonTest` | 4 | Jackson deserialization for immutable create-payment, create-order, refund, and cashier-submit request DTOs |
 | `flow-application` | `WebhookServiceTest` | 3 | Execution-layer merchant callback payload filtering and delivery |
 | `flow-infra` | `BitcoinAdapterTest` | 3 | Bitcoin Core RPC parsing, block scan, confirmations, failure behavior |
 | `flow-infra` | `CoinbaseCommerceAdapterTest` | 3 | Coinbase Commerce stub deposit address, supported currencies, exchange-rate quote |
@@ -68,6 +71,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-wallet` | `Base58Test` | 5 | Base58/Base58Check encoding |
 | `flow-wallet` | `KeyGeneratorTest` | 7 | BIP39/BIP44 derivation and ETH/TRON/BTC address derivation |
 | `flow-api` | `CallbackHmacFilterTest` | 1 | Callback HMAC verification keeps request body readable downstream |
+| `flow-api` | `PaymentControllerTest` | 6 | MockMvc HTTP contract for create/get/confirm/fail, idempotency headers, validation, and parameter binding |
 | `flow-api` | `NexusFlowApplicationIT` | 4 skipped locally | Spring Boot context, PostgreSQL Testcontainers, JPA round trips |
 
 ## Coverage by Area
@@ -76,11 +80,12 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 |------|---------|
 | Domain state machines | `OrderStatus`, `FlowStatus`, `RefundStatus`, `CryptoPayment` lifecycle |
 | Payment orchestration | Channel routing, fiat and crypto-denominated create-order flows, Coinbase/BitMart/Binance stubs, self-hosted node deposit/refund delegation, refund flow, callback deduplication |
-| Execution payments | Address allocation with row locking, payment detection, underpayment/dust rules, confirmation reconciliation, merchant callback delivery |
+| Execution payments | Address allocation with row locking, payment detection, underpayment/dust rules, confirmation reconciliation, merchant callback delivery, PaymentController HTTP contract |
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; scanner reorg behavior |
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check |
 | Reliability | Redis idempotency, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, Kafka domain-event publishing, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
+| API contracts | API envelope serialization, immutable request DTO JSON binding, MVC path/query parameter binding without `-parameters`, request validation for execution payment creation |
 | Integration | PostgreSQL Testcontainers test class exists but needs Docker to execute |
 
 ## Known Gaps
@@ -90,13 +95,12 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Docker-backed integration test run | Present but skipped locally without Docker |
 | Live ETH/BTC/TRON node verification | Not covered; adapter tests use mocked transports or parsed HTTP responses |
 | TRON live block scanning | `scanNewBlocks()` parsing is unit-tested with mocked TronGrid responses; not yet live-verified against TronGrid/full node |
-| `PaymentController` end-to-end API tests | Not yet covered with HTTP-level integration tests |
+| `PaymentController` full persistence-backed HTTP E2E | MockMvc controller contract is covered; full PostgreSQL/Redis-backed HTTP E2E still needs Docker/Testcontainers |
 | Kafka broker integration | Publisher payload and topic routing are unit-tested with a mocked `KafkaTemplate`; no live Kafka broker test yet |
 | Redis integration against a real Redis server | Cache/idempotency tests use mocked clients |
 | Address-pool concurrent allocation | Repository uses PostgreSQL `FOR UPDATE SKIP LOCKED`; still worth stress testing against a real database |
 | Missing-event catch-up live policy | Orphan transaction alerting, manual compensation, and configurable auto compensation exist; production auto-compensation policy still needs operator approval |
 | Self-hosted node refund broadcast | Refund tasks and `crypto.refund.requested` events are emitted; chain signing/broadcast remains an external worker/live-environment responsibility |
-| `Money` and `ApiResponse` edge cases | Still worth adding focused unit tests |
 
 ## Notes
 
