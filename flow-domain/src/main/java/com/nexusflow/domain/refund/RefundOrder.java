@@ -54,7 +54,7 @@ public class RefundOrder {
     /**
      * Full-args builder for reconstituting a RefundOrder from persistence.
      */
-    @Builder(builderMethodName = "reconstitute")
+    @Builder(builderMethodName = "reconstitute", builderClassName = "RefundOrderReconstituteBuilder")
     private RefundOrder(String refundOrderNo, String paymentId, String channelRefundId,
                         BigDecimal refundAmountFiat, BigDecimal refundAmountCrypto,
                         BigDecimal exchangeRate, String token, String network,

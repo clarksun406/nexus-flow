@@ -3,6 +3,7 @@ package com.nexusflow.infra.persistence;
 import com.nexusflow.domain.payment.CryptoPayment;
 import com.nexusflow.domain.payment.PaymentRepository;
 import com.nexusflow.domain.payment.PaymentStatus;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
 
 import java.util.Collection;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
  * Replace with JPA/MyBatis-Plus implementation for production.
  */
 @Repository
+@ConditionalOnProperty(name = "nexusflow.execution.persistence", havingValue = "memory")
 public class InMemoryPaymentRepository implements PaymentRepository {
 
     private final Map<String, CryptoPayment> byId = new ConcurrentHashMap<>();

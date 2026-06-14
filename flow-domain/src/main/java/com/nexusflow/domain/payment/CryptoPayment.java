@@ -29,8 +29,12 @@ public class CryptoPayment {
     private PaymentStatus status;
     private String receivingAddress;
     private String txHash;
+    private Long detectedBlockNumber;
     private Integer confirmations;
     private Integer requiredConfirmations;
+    private Integer retryCount;
+    private Instant nextRetryAt;
+    private String lastFailureReason;
 
     @Setter
     private String callbackUrl;
@@ -51,9 +55,42 @@ public class CryptoPayment {
         this.expected = expected;
         this.receivingAddress = receivingAddress;
         this.requiredConfirmations = requiredConfirmations != null ? requiredConfirmations : 12;
+        this.confirmations = 0;
+        this.retryCount = 0;
         this.callbackUrl = callbackUrl;
         this.status = PaymentStatus.CREATED;
         this.createdAt = Instant.now();
+    }
+
+    /**
+     * Full-args builder for reconstituting a CryptoPayment from persistence.
+     * Not for public use - only for repository mapping.
+     */
+    @Builder(builderMethodName = "reconstitute", builderClassName = "CryptoPaymentReconstituteBuilder")
+    private CryptoPayment(String id, String orderId, Money expected, Money received,
+                          PaymentStatus status, String receivingAddress, String txHash,
+                          Long detectedBlockNumber, Integer confirmations, Integer requiredConfirmations,
+                          Integer retryCount, Instant nextRetryAt, String lastFailureReason,
+                          String callbackUrl, Instant createdAt, Instant detectedAt,
+                          Instant confirmedAt, Instant expiredAt) {
+        this.id = id;
+        this.orderId = orderId;
+        this.expected = expected;
+        this.received = received;
+        this.status = status;
+        this.receivingAddress = receivingAddress;
+        this.txHash = txHash;
+        this.detectedBlockNumber = detectedBlockNumber;
+        this.confirmations = confirmations;
+        this.requiredConfirmations = requiredConfirmations;
+        this.retryCount = retryCount != null ? retryCount : 0;
+        this.nextRetryAt = nextRetryAt;
+        this.lastFailureReason = lastFailureReason;
+        this.callbackUrl = callbackUrl;
+        this.createdAt = createdAt;
+        this.detectedAt = detectedAt;
+        this.confirmedAt = confirmedAt;
+        this.expiredAt = expiredAt;
     }
 
     // ─── State transitions ───
@@ -69,9 +106,15 @@ public class CryptoPayment {
      * Mark payment as detected (transaction seen on-chain).
      */
     public void markDetected(String txHash, Money receivedAmount) {
+        markDetected(txHash, receivedAmount, null);
+    }
+
+    public void markDetected(String txHash, Money receivedAmount, Long blockNumber) {
         this.txHash = txHash;
         this.received = receivedAmount;
+        this.detectedBlockNumber = blockNumber;
         this.detectedAt = Instant.now();
+        resetRetryState();
         transitionTo(PaymentStatus.DETECTED, txHash, null);
     }
 
@@ -82,6 +125,7 @@ public class CryptoPayment {
      */
     public boolean updateConfirmations(int count) {
         this.confirmations = count;
+        resetRetryState();
         if (status == PaymentStatus.DETECTED && count > 0) {
             transitionTo(PaymentStatus.CONFIRMING, txHash, count);
         } else if (status == PaymentStatus.CONFIRMING && count >= requiredConfirmations) {
@@ -96,6 +140,7 @@ public class CryptoPayment {
      * Mark payment as failed.
      */
     public void markFailed(String reason) {
+        this.lastFailureReason = reason;
         transitionTo(PaymentStatus.FAILED, txHash, null);
     }
 
@@ -105,6 +150,32 @@ public class CryptoPayment {
     public void markExpired() {
         this.expiredAt = Instant.now();
         transitionTo(PaymentStatus.EXPIRED, null, null);
+    }
+
+    public void rollbackAfterReorg() {
+        this.txHash = null;
+        this.received = null;
+        this.detectedBlockNumber = null;
+        this.detectedAt = null;
+        this.confirmations = 0;
+        resetRetryState();
+        transitionTo(PaymentStatus.PENDING, null, null);
+    }
+
+    public void recordRetryFailure(String reason, Instant nextRetryAt) {
+        this.retryCount = (retryCount != null ? retryCount : 0) + 1;
+        this.lastFailureReason = reason;
+        this.nextRetryAt = nextRetryAt;
+    }
+
+    public boolean isRetryDue(Instant now) {
+        return nextRetryAt == null || !nextRetryAt.isAfter(now);
+    }
+
+    public void resetRetryState() {
+        this.retryCount = 0;
+        this.nextRetryAt = null;
+        this.lastFailureReason = null;
     }
 
     /**

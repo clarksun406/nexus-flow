@@ -27,7 +27,9 @@ public enum PaymentStatus {
     private static final Set<Transition> ALLOWED = Set.of(
             new Transition(CREATED, PENDING),
             new Transition(PENDING, DETECTED),
+            new Transition(DETECTED, PENDING),
             new Transition(DETECTED, CONFIRMING),
+            new Transition(CONFIRMING, PENDING),
             new Transition(CONFIRMING, CONFIRMED),
             new Transition(CONFIRMING, FAILED),
             new Transition(PENDING, EXPIRED)

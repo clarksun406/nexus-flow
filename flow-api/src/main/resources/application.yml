@@ -48,14 +48,35 @@ nexusflow:
   tron:
     node-url: ${TRON_NODE_URL:https://api.trongrid.io}
     usdt-contract: ${TRON_USDT_CONTRACT:TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t}
+  ethereum:
+    rpc-url: ${ETH_RPC_URL:http://localhost:8545}
+    usdt-contract: ${ETH_USDT_CONTRACT:0xdAC17F958D2ee523a2206206994597C13D831ec7}
+  bitcoin:
+    node-url: ${BTC_RPC_URL:http://localhost:8332}
+    username: ${BTC_RPC_USERNAME:}
+    password: ${BTC_RPC_PASSWORD:}
   scanner:
     interval-ms: 15000
+    reorg-rewind-blocks: ${SCANNER_REORG_REWIND_BLOCKS:12}
+  blockchain:
+    circuit-breaker:
+      failure-threshold: ${BLOCKCHAIN_CB_FAILURE_THRESHOLD:3}
+      cooldown-seconds: ${BLOCKCHAIN_CB_COOLDOWN_SECONDS:30}
   payment:
     expiry-minutes: 30        # PENDING payments older than this are marked EXPIRED
   reconciliation:
     interval-ms: 30000        # how often to re-check confirmations for DETECTED/CONFIRMING
+    max-backoff-seconds: ${RECONCILIATION_MAX_BACKOFF_SECONDS:300}
   expiry:
     interval-ms: 60000        # how often to scan for overdue PENDING payments
+  execution:
+    persistence: jpa          # jpa (default) | memory
+  address-pool:
+    seed-mnemonic: ${ADDRESS_POOL_SEED_MNEMONIC:} # BIP39 seed for deterministic address replenishment
+    chains: ${ADDRESS_POOL_CHAINS:TRON,ETH,BTC}
+    target-size: ${ADDRESS_POOL_TARGET_SIZE:20}
+    batch-size: ${ADDRESS_POOL_BATCH_SIZE:10}
+    replenish-interval-ms: ${ADDRESS_POOL_REPLENISH_INTERVAL_MS:60000}
   order:
     expiry:
       interval-ms: 60000    # how often to scan for overdue WAITING_PAYMENT orders

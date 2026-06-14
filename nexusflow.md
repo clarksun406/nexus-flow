@@ -533,14 +533,14 @@ Remaining: implement real `scanNewBlocks` and verify all calls against a live Tr
 
 ---
 
-#### P0-2: KeyGenerator — Address Derivation — ✅ DONE (ETH/TRON)
+#### P0-2: KeyGenerator — Address Derivation — ✅ DONE (ETH/TRON/BTC)
 
 **File:** `flow-wallet/.../wallet/KeyGenerator.java` (+ self-contained `Base58` util)
 
-> Implemented with web3j EC/keccak: **ETH** = keccak256(pubkey)[12:] → EIP-55 checksummed hex;
-> **TRON** = 0x41 ‖ keccak256(pubkey)[12:] → Base58Check. Verified against the secp256k1 private-key=1
-> test vector (`KeyGeneratorTest`, `Base58Test`). **BTC/SOLANA** throw `UnsupportedOperationException`
-> (BTC needs RIPEMD160 / bitcoinj, currently excluded from the build — do under P1).
+> Implemented with HD derivation: **ETH** = keccak256(pubkey)[12:] -> EIP-55 checksummed hex;
+> **TRON** = 0x41 + keccak256(pubkey)[12:] -> Base58Check; **BTC** = compressed secp256k1 pubkey
+> -> HASH160 -> Base58Check P2PKH. `KeyGeneratorTest` and `Base58Test` cover address derivation.
+> **SOLANA** remains explicitly unsupported.
 
 ---
 
@@ -619,15 +619,16 @@ Per init.md: "Blockchain is source of truth, system is derived state."
 > the chain adapter, re-queries `BlockchainAdapter.getConfirmations()`, and drives confirmation via
 > `confirmPayment()` (own transaction per payment; one failure does not abort the batch). Backed by
 > `PaymentRepository.findByStatusIn()`. Covered by `PaymentReconciliationJobTest`.
-> NOTE: only produces real progress once a real `BlockchainAdapter` is wired (TronAdapter still
-> returns 0 confirmations — see P0-1).
+> NOTE: ETH/BTC adapters are implemented and Tron confirmations are backed by `TronGridClient`,
+> but all chain adapters still need live-node environment verification before production use.
 
-**Still to do (items 4–5 below):**
+**Still to do:**
 1. ✅ Periodically scan unconfirmed payments (DETECTED, CONFIRMING)
 2. ✅ Re-query blockchain for latest confirmations via `BlockchainAdapter.getConfirmations()`
 3. ✅ Update payment confirmations, transition to CONFIRMED as appropriate
-4. ⬜ Transition to FAILED on reorg / failure detection
-5. ⬜ Detect missing events (tx seen on-chain but no payment record) and create catch-up payments
+4. ✅ Retry/backoff transient chain failures and gate noisy RPC failures with `BlockchainCircuitBreaker`
+5. ✅ Detect block-hash reorg in `BlockchainScanner` and roll affected payments back to `PENDING`
+6. ⬜ Detect missing events (tx seen on-chain but no payment record) and create catch-up payments
 
 ---
 
@@ -637,70 +638,86 @@ Per init.md: "Blockchain is source of truth, system is derived state."
 
 ---
 
-#### P1-1: EthereumAdapter — ERC20 Block Scanning
+#### P1-1: EthereumAdapter — ERC20 Block Scanning — ✅ DONE
 
 **File:** `flow-infra/.../blockchain/EthereumAdapter.java`
 
 | Method | Status | What to do |
 |--------|--------|-------------|
-| `scanNewBlocks()` (L28-31) | Returns `Collections.emptyList()` | Filter ERC20 `Transfer` event logs by `usdtContractAddress`, parse to/from/amount, return `List<ScannedTransaction>` |
-| `getConfirmations()` (L45-47) | Returns `0` | `currentBlock - txReceipt.blockNumber` |
+| `scanNewBlocks()` | ✅ done | Uses `eth_getLogs` with the ERC20 `Transfer` topic and configured USDT contract, parses from/to/amount/block/confirmations into `ScannedTransaction`. |
+| `getConfirmations()` | ✅ done | Reads transaction receipt block number and computes `currentBlock - txBlock + 1`. |
+| `getBlockHash()` | ✅ done | Reads canonical block hash for scanner reorg detection. |
+
+Note: implementation is offline-compiled and covered indirectly by module tests; live verification still requires an ETH RPC endpoint.
 
 ---
 
-#### P1-2: BitcoinAdapter — Full Implementation
+#### P1-2: BitcoinAdapter — Full Implementation — ✅ DONE
 
 **File:** `flow-infra/.../blockchain/BitcoinAdapter.java`
 
-Entire class is a stub. **What to do:**
-1. Integrate bitcoinj `PeerGroup` or connect to BTC RPC node
-2. Implement `scanNewBlocks()`: iterate blocks, parse UTXO outputs, match to wallet addresses
-3. Implement `getCurrentBlockHeight()`, `getConfirmations()`, `isHealthy()`
+Implemented via Bitcoin Core JSON-RPC:
+1. ✅ `getblockcount`, `getblockhash`, `getblock`, `getrawtransaction`
+2. ✅ `scanNewBlocks()` iterates blocks and parses UTXO outputs into `ScannedTransaction`
+3. ✅ `getCurrentBlockHeight()`, `getConfirmations()`, `getBlockHash()`, `isHealthy()`
+
+Covered by `BitcoinAdapterTest` with mocked RPC responses. Live verification still requires a Bitcoin Core node.
 
 ---
 
-#### P1-3: BIP32/BIP44 HD Wallet
+#### P1-3: BIP32/BIP44 HD Wallet — ✅ DONE
 
 **File:** `flow-wallet/.../wallet/KeyGenerator.java` (L13)
 
-**What to do:**
-1. Replace random key generation with BIP39 mnemonic → BIP32 seed → BIP44 derivation path
-2. Support derivation paths: `m/44'/60'/0'/0/0` (ETH), `m/44'/195'/0'/0/0` (TRON), `m/44'/0'/0'/0/0` (BTC)
-3. Add `MnemonicStore` for secure seed phrase backup
+**Done:**
+1. ✅ `KeyGenerator` now supports BIP39 mnemonic -> BIP32 seed -> BIP44 private-key derivation.
+2. ✅ Paths: `m/44'/60'/0'/0/i` (ETH), `m/44'/195'/0'/0/i` (TRON), `m/44'/0'/0'/0/i` (BTC).
+3. ✅ BTC P2PKH address derivation added; SOLANA remains explicitly unsupported.
+4. ✅ `MnemonicStore` port + JPA-backed encrypted mnemonic backup (`mnemonic_backups`).
+5. ✅ `WalletService.createHotWallet()` generates an HD mnemonic, derives index 0, stores encrypted private key, and stores encrypted mnemonic backup.
 
 ---
 
-#### P1-4: Persistence Layer — Replace InMemory Repositories
+#### P1-4: Persistence Layer — Replace InMemory Repositories — ✅ DONE
 
 **Files:**
 - `flow-infra/.../persistence/InMemoryPaymentRepository.java`
 - `flow-infra/.../persistence/InMemoryWalletRepository.java`
 
-**What to do:**
-1. Create JPA entities mapping to `crypto_payments` and `wallets` tables (already defined in V1__init_schema.sql)
-2. Implement `JpaPaymentRepository` and `JpaWalletRepository`
-3. Add MyBatis-Plus alternative if preferred (already in parent POM)
-4. Write integration tests with Testcontainers
+> Implemented 2026-06-13: execution-layer `crypto_payments` and `wallets` now have JPA entities,
+> Spring Data DAOs, domain repository adapters, and `V4__add_execution_version_columns.sql`.
+> Default wiring uses `nexusflow.execution.persistence=jpa`; the old in-memory repositories are
+> opt-in via `=memory`. Added mapper unit tests and extended `NexusFlowApplicationIT` for payment
+> and wallet round trips. Integration tests are present but were skipped locally when Docker was
+> unavailable.
+
+**Done:**
+1. ✅ Create JPA entities mapping to `crypto_payments` and `wallets` tables
+2. ✅ Implement `JpaPaymentRepository` and `JpaWalletRepository`
+3. ✅ Keep in-memory repositories as explicit opt-in fallback
+4. ✅ Add mapper tests and Testcontainers integration coverage
 
 ---
 
-#### P1-5: Address Pool Management
+#### P1-5: Address Pool Management — ✅ DONE
 
-**What to do:**
-1. Create `AddressPool` aggregate in `flow-domain`
-2. Pre-generate N addresses per chain, mark as available/assigned
-3. `PaymentApplicationService.createPayment()` pulls from pool instead of reusing single wallet address
-4. Background job replenishes pool when low
+**Done:**
+1. ✅ Added `AddressPoolEntry` aggregate, `AddressPoolRepository`, and JPA mapping (`address_pool`).
+2. ✅ Addresses move from `AVAILABLE` to `ASSIGNED` when allocated to a payment.
+3. ✅ `PaymentApplicationService.createPayment()` now allocates from the pool instead of reusing one wallet address.
+4. ✅ `AddressPoolProvisioningService` replenishes low pools from configured `ADDRESS_POOL_SEED_MNEMONIC`.
+5. ✅ `TransactionProcessor` recognizes both address-pool addresses and legacy wallet addresses.
 
 ---
 
-#### P1-6: Retry & Chain Reorg Handling
+#### P1-6: Retry & Chain Reorg Handling — ✅ DONE
 
-**What to do:**
-1. Detect chain reorgs: block hash mismatch on re-scan
-2. Rollback affected payments to PENDING, re-detect on new chain tip
-3. Add `retryCount` to `CryptoPayment`, exponential backoff for failed RPC calls
-4. Circuit breaker pattern on blockchain node connections (Resilience4j)
+**Done:**
+1. ✅ Added persistent `ChainScanCursor` with block hash tracking.
+2. ✅ `BlockchainScanner` detects block-hash mismatch and rewinds by configurable `nexusflow.scanner.reorg-rewind-blocks`.
+3. ✅ Affected `DETECTED` / `CONFIRMING` payments roll back to `PENDING` via `CryptoPayment.rollbackAfterReorg()`.
+4. ✅ Added `retryCount`, `nextRetryAt`, and `lastFailureReason` to `CryptoPayment`; reconciliation failures use exponential backoff.
+5. ✅ Added lightweight `BlockchainCircuitBreaker` for chain RPC failures.
 
 ---
 
@@ -758,19 +775,20 @@ Entire class is a stub. **What to do:**
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Added (27 tests, all passing): `CryptoPaymentTest` (state machine), `PaymentApplicationServiceTest`
-> (detection matching + expiry), `PaymentOrchestratorTest` (channel address resolution + callback
-> dedup), `PaymentReconciliationJobTest` (reconcile/expire), `InMemoryPaymentRepositoryTest`,
-> `InMemoryProcessedEventStoreTest`. Surefire pinned to 3.2.5 so JUnit 5 actually runs.
-> Still missing: `flow-common` (`AesGcmEncryption`, `ApiResponse`), orchestration JPA repos, `Money`.
+> Current local verification (2026-06-14): `mvn test` runs 134 passing tests
+> across common/domain/application/infra/listener/wallet and skips 4 API Testcontainers tests when Docker is
+> unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
+> execution-layer JPA repositories, HD wallet derivation, ETH/BTC adapter parsing, address pool storage,
+> mnemonic storage, reconciliation retry, scanner cursor/reorg behavior, and the blockchain circuit breaker.
 
 **Remaining priority test targets:**
 
 | Module | What to test |
 |--------|-------------|
-| `flow-domain` | `PaymentStatus` state machine transitions, `CryptoPayment` lifecycle, `Money` validation |
-| `flow-common` | `AesGcmEncryption` encrypt/decrypt round-trip, `ApiResponse` builder |
-| `flow-application` | `PaymentApplicationService` with mocked repositories, idempotency behavior |
+| `flow-domain` | `Money` validation edge cases and any new aggregate state transitions |
+| `flow-common` | `ApiResponse` builder/serialization helpers |
+| `flow-application` | Full request/response idempotency for `createPayment` once implemented |
+| `flow-listener` | Scheduled scanner wiring and transaction processor edge cases |
 
 ---
 
@@ -789,9 +807,9 @@ Entire class is a stub. **What to do:**
 | Priority | Count | Items | Status |
 |----------|-------|-------|--------|
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Expiry · 🟡 TronAdapter, Reconciliation, Idempotency · ⬜ Webhook |
-| P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ⬜ all |
+| P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ⬜ all |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (48, all green) · ⬜ Integration (needs Testcontainers/Docker) |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (134 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：
@@ -801,3 +819,19 @@ Entire class is a stub. **What to do:**
 >   TronAdapter 真实的 height/confirmations/health 查询，Redis 幂等存储（可选）。
 > - 工程化：GitHub Actions CI（`.github/workflows/ci.yml`，`mvn verify`）；测试 48 个全绿。
 > 详见 git 历史与 `README.md` / `CLAUDE.md`。
+
+> 进度更新 2026-06-13：
+> - 完成 P1-4 执行层持久化：新增 `CryptoPaymentEntity` / `WalletEntity`、JPA 仓储适配器、
+>   V4 Flyway 迁移和 `nexusflow.execution.persistence` 装配开关。
+> - 修正所有 `reconstitute` Lombok builder 的 class name 冲突，避免持久化恢复时字段被新建构造器覆盖。
+> - `mvn test` 通过；Testcontainers 用例因本机 Docker 不可用自动跳过。
+
+> 进度更新 2026-06-13（P1 完成）：
+> - 完成 `EthereumAdapter` ERC20 Transfer 扫描 / confirmations / block hash；完成 `BitcoinAdapter` Bitcoin Core JSON-RPC 扫块 / confirmations / health。
+> - 完成 BIP39/BIP44 HD 钱包、BTC 地址派生、`MnemonicStore` 加密备份、地址池分配和低水位补充。
+> - 完成扫描游标持久化、reorg 回退、支付 retry/backoff、链 RPC circuit breaker。
+> - `mvn test` 通过；Testcontainers 用例因本机 Docker 不可用自动跳过。真实 ETH/BTC/TRON 节点仍需环境级联调验证。
+
+> 测试补充 2026-06-14：
+> - 新增 `EthereumAdapterTest`，覆盖 ERC20 Transfer log 解析、确认数计算和 block hash 查询。
+> - 新增 `BlockchainScannerTest`，覆盖初始游标推进、交易分发、reorg rewind 和支付回滚调用。

@@ -22,6 +22,10 @@
         </dependency>
         <dependency>
             <groupId>com.nexusflow</groupId>
+            <artifactId>flow-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.nexusflow</groupId>
             <artifactId>flow-infra</artifactId>
         </dependency>
         <dependency>

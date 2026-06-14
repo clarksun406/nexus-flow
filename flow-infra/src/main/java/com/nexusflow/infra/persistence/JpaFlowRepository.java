@@ -13,7 +13,13 @@ import java.util.Optional;
 public interface JpaFlowRepository extends FlowRepository, JpaRepository<PaymentFlowEntity, String> {
 
     @Override
-    default void save(PaymentFlow flow) { save(toEntity(flow)); }
+    default void save(PaymentFlow flow) {
+        PaymentFlowEntity entity = toEntity(flow);
+        findById(flow.getFlowNo())
+                .map(PaymentFlowEntity::getVersion)
+                .ifPresent(entity::setVersion);
+        save(entity);
+    }
 
     @Override
     default Optional<PaymentFlow> findByFlowNo(String flowNo) {

@@ -10,9 +10,8 @@ import com.nexusflow.domain.payment.PaymentRepository;
 import com.nexusflow.domain.payment.PaymentStatus;
 import com.nexusflow.domain.shared.Chain;
 import com.nexusflow.domain.shared.Money;
-import com.nexusflow.domain.wallet.Wallet;
-import com.nexusflow.domain.wallet.WalletRepository;
-import com.nexusflow.domain.wallet.WalletType;
+import com.nexusflow.domain.wallet.AddressPoolEntry;
+import com.nexusflow.domain.wallet.AddressPoolRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -31,7 +30,7 @@ import static org.mockito.Mockito.when;
 class PaymentApplicationServiceTest {
 
     private PaymentRepository paymentRepository;
-    private WalletRepository walletRepository;
+    private AddressPoolRepository addressPoolRepository;
     private DomainEventPublisher eventPublisher;
 
     private PaymentApplicationService service;
@@ -39,9 +38,9 @@ class PaymentApplicationServiceTest {
     @BeforeEach
     void setUp() {
         paymentRepository = mock(PaymentRepository.class);
-        walletRepository = mock(WalletRepository.class);
+        addressPoolRepository = mock(AddressPoolRepository.class);
         eventPublisher = mock(DomainEventPublisher.class);
-        service = new PaymentApplicationService(paymentRepository, walletRepository, eventPublisher);
+        service = new PaymentApplicationService(paymentRepository, addressPoolRepository, eventPublisher);
     }
 
     private CryptoPayment pendingPaymentAt(String address) {
@@ -61,10 +60,11 @@ class PaymentApplicationServiceTest {
     @Test
     void createPaymentHappyPath() {
         when(paymentRepository.existsByOrderId("order-1")).thenReturn(false);
-        Wallet wallet = Wallet.builder()
-                .id("w-1").name("hot").chain(Chain.TRON).type(WalletType.HOT)
-                .address("TADDR").encryptedPrivateKey("enc").build();
-        when(walletRepository.findActiveByChain(Chain.TRON)).thenReturn(Optional.of(wallet));
+        AddressPoolEntry address = AddressPoolEntry.builder()
+                .id("addr-1").chain(Chain.TRON).address("TADDR")
+                .encryptedPrivateKey("enc").derivationPath("m/44'/195'/0'/0/0")
+                .derivationIndex(0).build();
+        when(addressPoolRepository.findFirstAvailableByChain(Chain.TRON)).thenReturn(Optional.of(address));
 
         CreatePaymentCommand cmd = CreatePaymentCommand.builder()
                 .orderId("order-1").currency("USDT_TRC20").amount("100").build();
@@ -76,6 +76,8 @@ class PaymentApplicationServiceTest {
         assertThat(resp.getReceivingAddress()).isEqualTo("TADDR");
         assertThat(resp.getStatus()).isEqualTo("PENDING");
         verify(paymentRepository).save(any(CryptoPayment.class));
+        verify(addressPoolRepository).save(address);
+        assertThat(address.getAssignedPaymentId()).isEqualTo(resp.getPaymentId());
         verify(eventPublisher).publish(any());
     }
 
@@ -91,9 +93,9 @@ class PaymentApplicationServiceTest {
     }
 
     @Test
-    void createPaymentFailsWhenNoWalletForChain() {
+    void createPaymentFailsWhenNoAddressForChain() {
         when(paymentRepository.existsByOrderId("order-1")).thenReturn(false);
-        when(walletRepository.findActiveByChain(Chain.TRON)).thenReturn(Optional.empty());
+        when(addressPoolRepository.findFirstAvailableByChain(Chain.TRON)).thenReturn(Optional.empty());
 
         CreatePaymentCommand cmd = CreatePaymentCommand.builder()
                 .orderId("order-1").currency("USDT_TRC20").amount("100").build();

@@ -51,6 +51,35 @@ class KeyGeneratorTest {
     }
 
     @Test
+    void derivesDeterministicHdKeysForSameMnemonicAndPath() {
+        String mnemonic = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+
+        String first = keyGenerator.derivePrivateKey(mnemonic, Chain.ETH, 0);
+        String second = keyGenerator.derivePrivateKey(mnemonic, Chain.ETH, 0);
+        String next = keyGenerator.derivePrivateKey(mnemonic, Chain.ETH, 1);
+
+        assertEquals(first, second);
+        assertEquals(64, first.length());
+        assertTrue(first.matches("[0-9a-f]{64}"));
+        assertTrue(!first.equals(next));
+        assertEquals("m/44'/60'/0'/0/0", keyGenerator.derivationPathText(Chain.ETH, 0, 0));
+        assertEquals("m/44'/195'/0'/0/0", keyGenerator.derivationPathText(Chain.TRON, 0, 0));
+        assertEquals("m/44'/0'/0'/0/0", keyGenerator.derivationPathText(Chain.BTC, 0, 0));
+    }
+
+    @Test
+    void btcDerivationProducesP2pkhAddress() {
+        String privateKey = keyGenerator.derivePrivateKey(
+                "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+                Chain.BTC,
+                0);
+        String address = keyGenerator.deriveAddress(privateKey, Chain.BTC);
+
+        assertTrue(address.startsWith("1"));
+        assertEquals(21, Base58.decodeChecked(address).length);
+    }
+
+    @Test
     void generatedKeyProducesUsableEthAddress() {
         String pk = keyGenerator.generatePrivateKey(Chain.ETH);
         String address = keyGenerator.deriveAddress(pk, Chain.ETH);
@@ -60,6 +89,9 @@ class KeyGeneratorTest {
     @Test
     void unsupportedChainThrows() {
         assertThrows(UnsupportedOperationException.class,
-                () -> keyGenerator.deriveAddress(PK_ONE, Chain.BTC));
+                () -> keyGenerator.derivePrivateKey(
+                        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+                        Chain.SOLANA,
+                        0));
     }
 }

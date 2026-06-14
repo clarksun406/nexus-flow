@@ -23,6 +23,7 @@ public enum ErrorCode {
     INSUFFICIENT_BALANCE("NF-2002", "Insufficient balance"),
     KEY_ENCRYPTION_FAILED("NF-2003", "Key encryption failed"),
     SIGNING_FAILED("NF-2004", "Transaction signing failed"),
+    ADDRESS_NOT_AVAILABLE("NF-2005", "No available receiving address"),
 
     // Blockchain
     CHAIN_UNREACHABLE("NF-3001", "Blockchain node unreachable"),

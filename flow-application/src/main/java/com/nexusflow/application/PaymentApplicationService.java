@@ -2,22 +2,27 @@ package com.nexusflow.application;
 
 import com.nexusflow.application.dto.CreatePaymentCommand;
 import com.nexusflow.application.dto.PaymentResponse;
+import com.nexusflow.common.ErrorCode;
 import com.nexusflow.common.IdempotencyViolationException;
+import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.common.PaymentNotFoundException;
 import com.nexusflow.domain.event.DomainEvent;
 import com.nexusflow.domain.event.DomainEventPublisher;
 import com.nexusflow.domain.payment.CryptoPayment;
 import com.nexusflow.domain.payment.PaymentRepository;
 import com.nexusflow.domain.payment.PaymentStatus;
+import com.nexusflow.domain.shared.Chain;
 import com.nexusflow.domain.shared.Money;
-import com.nexusflow.domain.wallet.Wallet;
-import com.nexusflow.domain.wallet.WalletRepository;
+import com.nexusflow.domain.wallet.AddressPoolEntry;
+import com.nexusflow.domain.wallet.AddressPoolRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,7 +35,7 @@ import java.util.UUID;
 public class PaymentApplicationService {
 
     private final PaymentRepository paymentRepository;
-    private final WalletRepository walletRepository;
+    private final AddressPoolRepository addressPoolRepository;
     private final DomainEventPublisher eventPublisher;
 
     /**
@@ -43,14 +48,14 @@ public class PaymentApplicationService {
             throw new IdempotencyViolationException(command.getOrderId());
         }
 
-        // Resolve wallet for the currency/chain
-        Wallet wallet = resolveWallet(command.getCurrency());
+        String paymentId = UUID.randomUUID().toString();
+        String receivingAddress = allocateReceivingAddress(command.getCurrency(), paymentId);
 
         CryptoPayment payment = CryptoPayment.builder()
-                .id(UUID.randomUUID().toString())
+                .id(paymentId)
                 .orderId(command.getOrderId())
                 .expected(Money.of(command.getCurrency(), new BigDecimal(command.getAmount())))
-                .receivingAddress(wallet.getAddress())
+                .receivingAddress(receivingAddress)
                 .callbackUrl(command.getCallbackUrl())
                 .build();
 
@@ -61,7 +66,7 @@ public class PaymentApplicationService {
         publishEvents(payment.collectEvents());
 
         log.info("Payment created: orderId={}, paymentId={}, address={}",
-                command.getOrderId(), payment.getId(), wallet.getAddress());
+                command.getOrderId(), payment.getId(), receivingAddress);
 
         return toResponse(payment);
     }
@@ -73,6 +78,11 @@ public class PaymentApplicationService {
      */
     @Transactional
     public void onPaymentDetected(String txHash, String toAddress, String amount, String currency) {
+        onPaymentDetected(txHash, toAddress, amount, currency, null);
+    }
+
+    @Transactional
+    public void onPaymentDetected(String txHash, String toAddress, String amount, String currency, Long blockNumber) {
         // Idempotency: skip transactions already linked to a payment
         if (paymentRepository.findByTxHash(txHash).isPresent()) {
             log.warn("Transaction already processed: txHash={}", txHash);
@@ -113,7 +123,7 @@ public class PaymentApplicationService {
             }
         }
 
-        payment.markDetected(txHash, received);
+        payment.markDetected(txHash, received, blockNumber);
         paymentRepository.save(payment);
         publishEvents(payment.collectEvents());
 
@@ -136,6 +146,38 @@ public class PaymentApplicationService {
 
         if (confirmed) {
             log.info("Payment confirmed: paymentId={}, confirmations={}", paymentId, confirmations);
+        }
+    }
+
+    @Transactional
+    public void recordReconciliationFailure(String paymentId, String reason, int maxBackoffSeconds) {
+        CryptoPayment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException(paymentId));
+        int currentRetries = payment.getRetryCount() != null ? payment.getRetryCount() : 0;
+        long delaySeconds = Math.min(maxBackoffSeconds, (long) Math.pow(2, currentRetries) * 5L);
+        payment.recordRetryFailure(reason, Instant.now().plus(Duration.ofSeconds(delaySeconds)));
+        paymentRepository.save(payment);
+        log.warn("Payment reconciliation retry scheduled: paymentId={}, retryCount={}, nextRetryAt={}",
+                paymentId, payment.getRetryCount(), payment.getNextRetryAt());
+    }
+
+    @Transactional
+    public void rollbackPaymentsAfterReorg(Chain chain, long forkBlock) {
+        List<CryptoPayment> candidates =
+                paymentRepository.findByStatusIn(List.of(PaymentStatus.DETECTED, PaymentStatus.CONFIRMING));
+        for (CryptoPayment payment : candidates) {
+            if (payment.getExpected() == null) {
+                continue;
+            }
+            Chain paymentChain = Chain.fromCurrency(payment.getExpected().getCurrency());
+            Long detectedBlock = payment.getDetectedBlockNumber();
+            if (paymentChain == chain && (detectedBlock == null || detectedBlock >= forkBlock)) {
+                payment.rollbackAfterReorg();
+                paymentRepository.save(payment);
+                publishEvents(payment.collectEvents());
+                log.warn("Rolled payment back after chain reorg: paymentId={}, chain={}, forkBlock={}",
+                        payment.getId(), chain, forkBlock);
+            }
         }
     }
 
@@ -180,12 +222,15 @@ public class PaymentApplicationService {
         return toResponse(payment);
     }
 
-    private Wallet resolveWallet(String currency) {
-        var chain = com.nexusflow.domain.shared.Chain.fromCurrency(currency);
-        return walletRepository.findActiveByChain(chain)
-                .orElseThrow(() -> new com.nexusflow.common.NexusFlowException(
-                        com.nexusflow.common.ErrorCode.WALLET_NOT_FOUND,
-                        "No active wallet for chain: " + chain));
+    private String allocateReceivingAddress(String currency, String paymentId) {
+        Chain chain = Chain.fromCurrency(currency);
+        AddressPoolEntry entry = addressPoolRepository.findFirstAvailableByChain(chain)
+                .orElseThrow(() -> new NexusFlowException(
+                        ErrorCode.ADDRESS_NOT_AVAILABLE,
+                        "No available address for chain: " + chain));
+        entry.assignTo(paymentId);
+        addressPoolRepository.save(entry);
+        return entry.getAddress();
     }
 
     private void publishEvents(List<DomainEvent> events) {

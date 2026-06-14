@@ -41,6 +41,26 @@ public class Wallet {
         this.updatedAt = Instant.now();
     }
 
+    /**
+     * Full-args builder for reconstituting a Wallet from persistence.
+     * Not for public use - only for repository mapping.
+     */
+    @Builder(builderMethodName = "reconstitute", builderClassName = "WalletReconstituteBuilder")
+    private Wallet(String id, String name, Chain chain, WalletType type,
+                   String address, String encryptedPrivateKey, String kmsKeyId,
+                   boolean active, Instant createdAt, Instant updatedAt) {
+        this.id = id;
+        this.name = name;
+        this.chain = chain;
+        this.type = type;
+        this.address = address;
+        this.encryptedPrivateKey = encryptedPrivateKey;
+        this.kmsKeyId = kmsKeyId;
+        this.active = active;
+        this.createdAt = createdAt;
+        this.updatedAt = updatedAt;
+    }
+
     public void deactivate() {
         this.active = false;
         this.updatedAt = Instant.now();

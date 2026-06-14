@@ -35,18 +35,24 @@ public class PaymentReconciliationJob {
 
     private final PaymentRepository paymentRepository;
     private final PaymentApplicationService paymentService;
+    private final BlockchainCircuitBreaker circuitBreaker;
     private final Map<Chain, BlockchainAdapter> adaptersByChain;
     private final long expiryMinutes;
+    private final int maxBackoffSeconds;
 
     public PaymentReconciliationJob(PaymentRepository paymentRepository,
                                     PaymentApplicationService paymentService,
+                                    BlockchainCircuitBreaker circuitBreaker,
                                     List<BlockchainAdapter> adapters,
-                                    @Value("${nexusflow.payment.expiry-minutes:30}") long expiryMinutes) {
+                                    @Value("${nexusflow.payment.expiry-minutes:30}") long expiryMinutes,
+                                    @Value("${nexusflow.reconciliation.max-backoff-seconds:300}") int maxBackoffSeconds) {
         this.paymentRepository = paymentRepository;
         this.paymentService = paymentService;
+        this.circuitBreaker = circuitBreaker;
         this.adaptersByChain = adapters.stream()
                 .collect(Collectors.toMap(BlockchainAdapter::supportedChain, Function.identity(), (a, b) -> a));
         this.expiryMinutes = expiryMinutes;
+        this.maxBackoffSeconds = maxBackoffSeconds;
     }
 
     /**
@@ -61,16 +67,37 @@ public class PaymentReconciliationJob {
                 if (payment.getTxHash() == null) {
                     continue;
                 }
+                if (!payment.isRetryDue(Instant.now())) {
+                    log.debug("Skipping payment {} until retry time {}", payment.getId(), payment.getNextRetryAt());
+                    continue;
+                }
                 Chain chain = Chain.fromCurrency(payment.getExpected().getCurrency());
                 BlockchainAdapter adapter = adaptersByChain.get(chain);
                 if (adapter == null) {
                     log.warn("No blockchain adapter for chain {} (payment {})", chain, payment.getId());
                     continue;
                 }
+                if (!circuitBreaker.allowRequest(chain)) {
+                    log.warn("Circuit breaker open for chain {}; skipping payment {}", chain, payment.getId());
+                    continue;
+                }
                 int confirmations = adapter.getConfirmations(payment.getTxHash());
+                circuitBreaker.recordSuccess(chain);
                 paymentService.confirmPayment(payment.getId(), confirmations);
             } catch (Exception e) {
                 log.error("Reconciliation failed for payment {}: {}", payment.getId(), e.getMessage(), e);
+                try {
+                    Chain chain = Chain.fromCurrency(payment.getExpected().getCurrency());
+                    circuitBreaker.recordFailure(chain);
+                } catch (Exception ignored) {
+                    // Keep retry recording independent from circuit-breaker bookkeeping.
+                }
+                try {
+                    paymentService.recordReconciliationFailure(payment.getId(), e.getMessage(), maxBackoffSeconds);
+                } catch (Exception retryError) {
+                    log.error("Failed to record reconciliation retry for payment {}: {}",
+                            payment.getId(), retryError.getMessage(), retryError);
+                }
             }
         }
     }

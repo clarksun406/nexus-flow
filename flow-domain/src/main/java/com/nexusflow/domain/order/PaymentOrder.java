@@ -148,7 +148,7 @@ public class PaymentOrder {
      * Full-args builder for reconstituting a PaymentOrder from persistence.
      * Not for public use — only for repository mapping.
      */
-    @Builder(builderMethodName = "reconstitute")
+    @Builder(builderMethodName = "reconstitute", builderClassName = "PaymentOrderReconstituteBuilder")
     private PaymentOrder(String paymentId, String merchantId, String merchantOrderNo,
                          BigDecimal amountFiat, String currencyFiat,
                          BigDecimal amountCrypto, String currencyCrypto, String network,

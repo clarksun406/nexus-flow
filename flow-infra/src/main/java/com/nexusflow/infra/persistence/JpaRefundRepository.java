@@ -14,7 +14,13 @@ import java.util.Optional;
 public interface JpaRefundRepository extends RefundRepository, JpaRepository<RefundOrderEntity, String> {
 
     @Override
-    default void save(RefundOrder order) { save(toEntity(order)); }
+    default void save(RefundOrder order) {
+        RefundOrderEntity entity = toEntity(order);
+        findById(order.getRefundOrderNo())
+                .map(RefundOrderEntity::getVersion)
+                .ifPresent(entity::setVersion);
+        save(entity);
+    }
 
     @Override
     default Optional<RefundOrder> findByRefundOrderNo(String refundOrderNo) {

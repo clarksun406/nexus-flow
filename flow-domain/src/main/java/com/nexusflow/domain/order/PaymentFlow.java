@@ -59,7 +59,7 @@ public class PaymentFlow {
     /**
      * Full-args builder for reconstituting a PaymentFlow from persistence.
      */
-    @Builder(builderMethodName = "reconstitute")
+    @Builder(builderMethodName = "reconstitute", builderClassName = "PaymentFlowReconstituteBuilder")
     private PaymentFlow(String flowNo, String paymentId, String channelId,
                         String token, String network, BigDecimal cryptoAmount,
                         BigDecimal fiatAmount, String fiatCurrency, BigDecimal exchangeRate,

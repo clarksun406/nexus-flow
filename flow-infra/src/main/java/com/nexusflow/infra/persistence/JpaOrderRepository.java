@@ -17,7 +17,11 @@ public interface JpaOrderRepository extends OrderRepository, JpaRepository<Payme
 
     @Override
     default void save(PaymentOrder order) {
-        save(toEntity(order));
+        PaymentOrderEntity entity = toEntity(order);
+        findById(order.getPaymentId())
+                .map(PaymentOrderEntity::getVersion)
+                .ifPresent(entity::setVersion);
+        save(entity);
     }
 
     @Override

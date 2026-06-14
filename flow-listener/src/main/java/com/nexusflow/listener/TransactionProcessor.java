@@ -3,6 +3,9 @@ package com.nexusflow.listener;
 import com.nexusflow.application.PaymentApplicationService;
 import com.nexusflow.domain.blockchain.ScannedTransaction;
 import com.nexusflow.domain.shared.Chain;
+import com.nexusflow.domain.wallet.AddressPoolEntry;
+import com.nexusflow.domain.wallet.AddressPoolRepository;
+import com.nexusflow.domain.wallet.AddressPoolStatus;
 import com.nexusflow.domain.wallet.Wallet;
 import com.nexusflow.domain.wallet.WalletRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,20 +25,27 @@ import java.util.Optional;
 public class TransactionProcessor {
 
     private final WalletRepository walletRepository;
+    private final AddressPoolRepository addressPoolRepository;
     private final PaymentApplicationService paymentService;
 
     public void process(ScannedTransaction tx, Chain chain) {
-        // Check if the recipient is one of our wallets
+        Optional<AddressPoolEntry> poolAddress = addressPoolRepository.findByAddress(tx.getToAddress());
         Optional<Wallet> targetWallet = walletRepository.findByAddress(tx.getToAddress());
-        if (targetWallet.isEmpty()) {
+        if (poolAddress.isEmpty() && targetWallet.isEmpty()) {
             log.trace("Ignoring tx {} - not to our wallet", tx.getTxHash());
             return;
         }
 
-        Wallet wallet = targetWallet.get();
-        if (!wallet.isActive()) {
-            log.trace("Ignoring tx {} - wallet {} is inactive", tx.getTxHash(), wallet.getId());
+        if (poolAddress.isPresent() && poolAddress.get().getStatus() == AddressPoolStatus.DISABLED) {
+            log.trace("Ignoring tx {} - address {} is disabled", tx.getTxHash(), tx.getToAddress());
             return;
+        }
+        if (targetWallet.isPresent()) {
+            Wallet wallet = targetWallet.get();
+            if (!wallet.isActive()) {
+                log.trace("Ignoring tx {} - wallet {} is inactive", tx.getTxHash(), wallet.getId());
+                return;
+            }
         }
 
         log.info("Detected incoming transaction: txHash={}, to={}, amount={}",
@@ -47,7 +57,8 @@ public class TransactionProcessor {
                 tx.getTxHash(),
                 tx.getToAddress(),
                 tx.getAmount(),
-                resolveCurrency(chain, tx.getContractAddress())
+                resolveCurrency(chain, tx.getContractAddress()),
+                tx.getBlockNumber()
         );
     }
 

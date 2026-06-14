@@ -24,6 +24,14 @@ public interface BlockchainAdapter {
     int getConfirmations(String txHash);
 
     /**
+     * Get the canonical block hash at a given height.
+     * Adapters that cannot query historical block hashes may return {@code null}.
+     */
+    default String getBlockHash(long blockNumber) {
+        return null;
+    }
+
+    /**
      * Check if node is healthy.
      */
     boolean isHealthy();
