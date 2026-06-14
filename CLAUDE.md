@@ -140,6 +140,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
 - Gas abstraction has a domain `GasEstimator` port and an infra `StaticGasEstimator` bean. Defaults
   are configurable under `nexusflow.gas.*`; live gas oracle and gas-bank funding automation remain
   follow-up work.
+- Fiat on/off ramp core is represented by the `FiatGateway` port plus `FiatRampOrder` conversion
+  tracking for fiat transfer ids, crypto tx hashes, and provider checkout/order ids. Real MoonPay,
+  Ramp, Banxa, KYC, settlement webhooks, and live smoke tests remain follow-up work.
 - `COINBASE_COMMERCE` is a REST-capable `ChannelAdapter` registered in `BlockchainConfig` when
   `COINBASE_COMMERCE_API_KEY` is set. It uses `COINBASE_COMMERCE_BASE_URL` (default
   `https://api.commerce.coinbase.com`) and `COINBASE_COMMERCE_API_VERSION` (default `2018-03-22`)

@@ -1,5 +1,8 @@
 package com.nexusflow.domain;
 
+import com.nexusflow.domain.fiat.FiatRampDirection;
+import com.nexusflow.domain.fiat.FiatRampOrder;
+import com.nexusflow.domain.fiat.FiatRampStatus;
 import com.nexusflow.domain.order.FlowStatus;
 import com.nexusflow.domain.order.OrderStatus;
 import com.nexusflow.domain.order.PaymentFlow;
@@ -101,5 +104,42 @@ class ReconstituteBuilderTest {
         assertThat(wallet.getMpcWalletId()).isEqualTo("mpc-wallet-1");
         assertThat(wallet.getChain()).isEqualTo(Chain.ETH);
         assertThat(wallet.getCreatedAt()).isEqualTo(created);
+    }
+
+    @Test
+    void fiatRampOrderReconstituteRestoresConversionTrackingFields() {
+        Instant created = Instant.parse("2026-06-13T00:00:00Z");
+        FiatRampOrder order = FiatRampOrder.reconstitute()
+                .rampOrderId("ramp-order-1")
+                .merchantId("merchant-1")
+                .merchantOrderNo("merchant-order-1")
+                .paymentId("pay-1")
+                .direction(FiatRampDirection.ON_RAMP)
+                .providerId("MOONPAY")
+                .providerOrderId("provider-order-1")
+                .quoteId("quote-1")
+                .fiatAmount(new BigDecimal("100.00"))
+                .fiatCurrency("USD")
+                .cryptoAmount(new BigDecimal("100.000000"))
+                .token("USDT")
+                .network("TRC20")
+                .exchangeRate(new BigDecimal("1.00"))
+                .feeAmountFiat(new BigDecimal("2.50"))
+                .walletAddress("TDEST")
+                .checkoutUrl("https://ramp.example/checkout/1")
+                .fiatTransferId("fiat-transfer-1")
+                .cryptoTxHash("0xtx")
+                .status(FiatRampStatus.COMPLETED)
+                .completeTime(created)
+                .createTime(created)
+                .updateTime(created)
+                .build();
+
+        assertThat(order.getStatus()).isEqualTo(FiatRampStatus.COMPLETED);
+        assertThat(order.getDirection()).isEqualTo(FiatRampDirection.ON_RAMP);
+        assertThat(order.getProviderOrderId()).isEqualTo("provider-order-1");
+        assertThat(order.getFiatTransferId()).isEqualTo("fiat-transfer-1");
+        assertThat(order.getCryptoTxHash()).isEqualTo("0xtx");
+        assertThat(order.getCompleteTime()).isEqualTo(created);
     }
 }
