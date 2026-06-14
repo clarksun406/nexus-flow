@@ -147,9 +147,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   tracking for fiat transfer ids, crypto tx hashes, and provider checkout/order ids. JPA persistence
   uses `fiat_ramp_orders`; `FiatRampApplicationService` and `/fiat/ramp` expose merchant quote,
   create-order, and get-order flows behind API key auth. `/callback/{gatewayId}/fiat-ramp` reuses
-  callback HMAC verification for normalized provider status updates. Real MoonPay/Ramp/Banxa
-  adapters, KYC, provider-specific payload/signature semantics, and live smoke tests remain
-  follow-up work.
+  callback HMAC verification for normalized provider status updates. An opt-in normalized HTTP
+  gateway is available with `FIAT_RAMP_HTTP_BASE_URL` / `FIAT_RAMP_HTTP_API_KEY`. Official
+  MoonPay/Ramp/Banxa payload/signature/KYC semantics and live smoke tests remain follow-up work.
 - `COINBASE_COMMERCE` is a REST-capable `ChannelAdapter` registered in `BlockchainConfig` when
   `COINBASE_COMMERCE_API_KEY` is set. It uses `COINBASE_COMMERCE_BASE_URL` (default
   `https://api.commerce.coinbase.com`) and `COINBASE_COMMERCE_API_VERSION` (default `2018-03-22`)

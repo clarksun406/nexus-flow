@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 265 | 251 | 0 | 0 | 14 |
+| 270 | 256 | 0 | 0 | 14 |
 
 The 14 skipped tests are 6 `NexusFlowApplicationIT` Testcontainers cases, 3 opt-in live blockchain smoke tests, 2 opt-in live messaging smoke tests, 2 opt-in Coinbase Commerce smoke tests, and 1 opt-in live webhook delivery smoke test. They require Docker or explicit live dependency environment variables and are skipped automatically when unavailable.
 
@@ -94,6 +94,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-infra` | `RedisCurrencyRateCacheTest` | 4 | Redis-backed exchange-rate and currency cache fallback behavior |
 | `flow-infra` | `StaticGasEstimatorTest` | 4 | Static ETH/TRON/BTC gas and miner-fee estimates plus unsupported-chain rejection |
 | `flow-infra` | `HttpWebhookClientTest` | 2 | Outbound webhook JSON delivery, HMAC signing, and injectable retry delays |
+| `flow-infra` | `HttpFiatRampGatewayTest` | 3 | Normalized HTTP fiat ramp quote/create/query request and response contract |
 | `flow-infra` | `HttpMpcSignerTest` | 2 | Custom HTTP MPC signer request headers/body, nested response parsing, and malformed response rejection |
 | `flow-infra` | `LiveWebhookDeliveryTest` | 1 skipped locally | Opt-in outbound webhook reachability smoke check against a configured HTTPS endpoint |
 | `flow-infra` | `InMemoryProcessedEventStoreTest` | 3 | In-memory callback idempotency |
@@ -115,6 +116,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-api` | `CallbackControllerTest` | 1 | Fiat ramp provider callback HTTP contract delegates to application service |
 | `flow-api` | `CallbackHmacFilterTest` | 1 | Callback HMAC verification keeps request body readable downstream |
 | `flow-api` | `BlockchainConfigTest` | 2 | Stubbed external BitMart/Binance channel beans are guarded out of the `prod` profile; Coinbase no-key stub is omitted in `prod` |
+| `flow-api` | `FiatRampGatewayConfigTest` | 2 | Opt-in normalized HTTP fiat ramp gateway Spring bean registration |
 | `flow-api` | `FiatRampControllerTest` | 4 | Merchant fiat ramp quote/create/get HTTP contract and request validation |
 | `flow-api` | `GasBankFundingConfigTest` | 2 | GasBank funding service is registered only when a real GasBank and gas estimator are present |
 | `flow-api` | `MpcSignerConfigTest` | 2 | Opt-in custom HTTP MPC signer Spring bean registration |
@@ -133,7 +135,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Persistence | Execution-layer JPA repositories, wallet persistence including optional MPC wallet ids, fiat ramp order tracking, mnemonic backups, address pool mappings, idempotency keys, orphan transactions, webhook dead letters |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; opt-in live-node smoke tests; scanner reorg behavior |
 | Gas abstraction | `GasEstimator` port, static ETH/TRON/BTC estimates, GasBank policy recommendations, funding-service top-up trigger, conditional registration, and self-hosted refund events carrying native gas budget fields |
-| Fiat on/off ramp | `FiatGateway` port, quote/order request value objects, merchant quote/order/get API orchestration, normalized HMAC callback endpoint, repository port/JPA mapping, and fiat↔crypto conversion tracking aggregate |
+| Fiat on/off ramp | `FiatGateway` port, quote/order request value objects, merchant quote/order/get API orchestration, opt-in normalized HTTP gateway, normalized HMAC callback endpoint, repository port/JPA mapping, and fiat↔crypto conversion tracking aggregate |
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check, MPC signer port, opt-in custom HTTP signer adapter, and wallet provider-id persistence |
 | Reliability | Redis idempotency, opt-in Redis live smoke, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter replay/ignore workflow, opt-in outbound webhook live smoke, Kafka domain-event publishing, opt-in Kafka live smoke, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
 | API contracts | API envelope serialization, immutable request DTO JSON binding, MVC path/query parameter binding without `-parameters`, request validation for execution payment and fiat ramp creation |
@@ -157,7 +159,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Self-hosted node refund broadcast | Refund tasks and `crypto.refund.requested` events are emitted; chain signing/broadcast remains an external worker/live-environment responsibility |
 | Live gas pricing | `StaticGasEstimator` provides configurable conservative defaults and `GasBankPolicy` can recommend top-up/batching actions; `GasBankFundingService` can call a configured `GasBank` for immediate or low-gas batch top-ups. Live fee oracle integration, a real funding adapter, alerting, and production scheduler/live smoke are still pending |
 | MPC provider integration | `MpcSigner` port, wallet `mpcWalletId` persistence, and opt-in custom HTTP signer adapter exist; Fireblocks/Copper-specific adapters, signing workflow integration, and live signing smoke tests remain pending |
-| Fiat on/off ramp provider integration | `FiatGateway` port, merchant API orchestration, HMAC callback endpoint, and persisted `FiatRampOrder` tracking exist; real MoonPay/Ramp/Banxa adapters, KYC/provider-specific payload mapping/signature semantics, and live settlement smoke tests remain pending |
+| Fiat on/off ramp provider integration | `FiatGateway` port, merchant API orchestration, HMAC callback endpoint, persisted `FiatRampOrder` tracking, and opt-in normalized HTTP gateway exist; official MoonPay/Ramp/Banxa payload mapping/signature/KYC semantics and live settlement smoke tests remain pending |
 
 ## Notes
 

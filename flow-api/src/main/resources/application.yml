@@ -77,6 +77,15 @@ nexusflow:
     http:
       sign-url: ${MPC_HTTP_SIGN_URL:} # opt-in custom MPC signer endpoint
       api-key: ${MPC_HTTP_API_KEY:}   # sent as X-API-Key when configured
+  fiat-ramp:
+    http:
+      gateway-id: ${FIAT_RAMP_HTTP_GATEWAY_ID:CUSTOM_HTTP_RAMP}
+      display-name: ${FIAT_RAMP_HTTP_DISPLAY_NAME:Custom HTTP Ramp}
+      base-url: ${FIAT_RAMP_HTTP_BASE_URL:} # opt-in normalized fiat ramp HTTP gateway
+      api-key: ${FIAT_RAMP_HTTP_API_KEY:}   # sent as X-API-Key when configured
+      quote-path: ${FIAT_RAMP_HTTP_QUOTE_PATH:/quotes}
+      order-path: ${FIAT_RAMP_HTTP_ORDER_PATH:/orders}
+      query-path: ${FIAT_RAMP_HTTP_QUERY_PATH:/orders}
   scanner:
     interval-ms: 15000
     reorg-rewind-blocks: ${SCANNER_REORG_REWIND_BLOCKS:12}
