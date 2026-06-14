@@ -117,7 +117,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
 - Execution-layer `CryptoPayment.callbackUrl` delivery is wired through `WebhookService` after
   payment state changes. The initial CREATED->PENDING setup event is not sent; DETECTED,
   CONFIRMING/CONFIRMED, FAILED, EXPIRED, and reorg rollback events use the shared webhook retry,
-  HMAC signing, and SSRF protections.
+  HMAC signing, and SSRF protections. `@EnableAsync` is enabled in `NexusFlowApplication`; exhausted
+  retries or SSRF-blocked deliveries are recorded in `webhook_dead_letters` via
+  `WebhookDeadLetterStore` / `JpaWebhookDeadLetterStore`.
 - `SELF_HOSTED_NODE` is a real `ChannelAdapter` backed by `PaymentApplicationService.createPayment`.
   It is disabled by default and currently supports USDT on TRC20/ERC20 with a USD/USDT parity rate.
   Refunds create deterministic `SELF_HOSTED_NODE_REFUND_*` processing tasks and publish

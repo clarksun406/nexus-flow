@@ -15,7 +15,9 @@ import org.springframework.stereotype.Service;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Service
@@ -23,6 +25,7 @@ import java.util.List;
 public class WebhookService {
 
     private final WebhookClient webhookClient;
+    private final WebhookDeadLetterStore deadLetterStore;
     private final ObjectMapper objectMapper;
 
     @Async
@@ -30,13 +33,16 @@ public class WebhookService {
         String url = order.getNotifyUrl();
         if (url == null || url.isBlank()) return;
 
+        String payload = buildPayload(order);
+        DomainEvent event = firstEvent(events);
         if (!isSafeUrl(url)) {
             log.warn("Blocked webhook to unsafe URL: {}", url);
+            saveDeadLetter("ORDER", url, payload, event, order.getPaymentId(), order.getMerchantOrderNo(),
+                    0, "Unsafe webhook URL");
             return;
         }
 
-        String payload = buildPayload(order);
-        webhookClient.sendWithRetry(url, payload);
+        deliverOrDeadLetter("ORDER", url, payload, event, order.getPaymentId(), order.getMerchantOrderNo());
     }
 
     @Async
@@ -45,16 +51,72 @@ public class WebhookService {
         if (url == null || url.isBlank()) {
             return;
         }
-        if (!isSafeUrl(url)) {
-            log.warn("Blocked execution callback to unsafe URL: {}", url);
-            return;
-        }
 
-        for (DomainEvent event : events) {
+        for (DomainEvent event : safeEvents(events)) {
             if (event instanceof PaymentStateChangedEvent stateChanged && shouldNotify(stateChanged)) {
-                webhookClient.sendWithRetry(url, buildCryptoPaymentPayload(payment, stateChanged));
+                String payload = buildCryptoPaymentPayload(payment, stateChanged);
+                if (!isSafeUrl(url)) {
+                    log.warn("Blocked execution callback to unsafe URL: {}", url);
+                    saveDeadLetter("CRYPTO_PAYMENT", url, payload, event, payment.getId(), payment.getOrderId(),
+                            0, "Unsafe webhook URL");
+                    continue;
+                }
+                deliverOrDeadLetter("CRYPTO_PAYMENT", url, payload, event, payment.getId(), payment.getOrderId());
             }
         }
+    }
+
+    private void deliverOrDeadLetter(String deliveryType,
+                                     String url,
+                                     String payload,
+                                     DomainEvent event,
+                                     String paymentId,
+                                     String orderId) {
+        try {
+            WebhookDeliveryResult result = webhookClient.sendWithRetry(url, payload);
+            if (result == null || !result.success()) {
+                int attempts = result != null ? result.attempts() : 0;
+                String reason = result != null ? result.lastError() : "Webhook client returned no delivery result";
+                saveDeadLetter(deliveryType, url, payload, event, paymentId, orderId, attempts, reason);
+            }
+        } catch (RuntimeException e) {
+            saveDeadLetter(deliveryType, url, payload, event, paymentId, orderId, 0, e.getMessage());
+        }
+    }
+
+    private void saveDeadLetter(String deliveryType,
+                                String url,
+                                String payload,
+                                DomainEvent event,
+                                String paymentId,
+                                String orderId,
+                                int attempts,
+                                String reason) {
+        try {
+            deadLetterStore.save(WebhookDeadLetter.builder()
+                    .id(UUID.randomUUID().toString())
+                    .deliveryType(deliveryType)
+                    .targetUrl(url)
+                    .payload(payload)
+                    .eventId(event != null ? event.getEventId() : null)
+                    .eventType(event != null ? event.eventType() : null)
+                    .paymentId(paymentId)
+                    .orderId(orderId)
+                    .failureReason(reason != null && !reason.isBlank() ? reason : "Webhook delivery failed")
+                    .attempts(Math.max(0, attempts))
+                    .createdAt(Instant.now())
+                    .build());
+        } catch (RuntimeException e) {
+            log.error("Failed to save webhook dead letter: {}", e.getMessage(), e);
+        }
+    }
+
+    private DomainEvent firstEvent(List<DomainEvent> events) {
+        return events != null && !events.isEmpty() ? events.get(0) : null;
+    }
+
+    private List<DomainEvent> safeEvents(List<DomainEvent> events) {
+        return events != null ? events : List.of();
     }
 
     private String buildPayload(PaymentOrder order) {

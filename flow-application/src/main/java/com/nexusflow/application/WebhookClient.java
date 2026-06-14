@@ -5,5 +5,5 @@ package com.nexusflow.application;
  * Implementation in flow-infra.
  */
 public interface WebhookClient {
-    void sendWithRetry(String url, String payload);
+    WebhookDeliveryResult sendWithRetry(String url, String payload);
 }

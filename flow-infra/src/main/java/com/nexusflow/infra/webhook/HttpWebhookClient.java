@@ -1,6 +1,7 @@
 package com.nexusflow.infra.webhook;
 
 import com.nexusflow.application.WebhookClient;
+import com.nexusflow.application.WebhookDeliveryResult;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -28,9 +29,12 @@ public class HttpWebhookClient implements WebhookClient {
     }
 
     @Override
-    public void sendWithRetry(String url, String payload) {
+    public WebhookDeliveryResult sendWithRetry(String url, String payload) {
+        String lastError = null;
+        int attempts = 0;
         for (int i = 0; i < RETRY_SECONDS.length; i++) {
             int delay = RETRY_SECONDS[i];
+            attempts = i + 1;
             try {
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
@@ -40,8 +44,9 @@ public class HttpWebhookClient implements WebhookClient {
                 HttpEntity<String> entity = new HttpEntity<>(payload, headers);
                 restTemplate.postForEntity(url, entity, String.class);
                 log.info("Webhook sent to {}", url);
-                return;
+                return WebhookDeliveryResult.succeeded(attempts);
             } catch (Exception e) {
+                lastError = e.getMessage();
                 log.warn("Webhook attempt {}/{} failed to {}: {}", i + 1, RETRY_SECONDS.length, url, e.getMessage());
                 if (i < RETRY_SECONDS.length - 1) {
                     try {
@@ -49,12 +54,13 @@ public class HttpWebhookClient implements WebhookClient {
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         log.warn("Webhook retry interrupted for {}", url);
-                        return;
+                        return WebhookDeliveryResult.failed(attempts, "Webhook retry interrupted");
                     }
                 }
             }
         }
         log.error("Webhook exhausted all {} retries for {}", RETRY_SECONDS.length, url);
+        return WebhookDeliveryResult.failed(attempts, lastError);
     }
 
     private static String hmacSha256(String data, String secret) {
