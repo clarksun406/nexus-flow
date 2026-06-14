@@ -37,7 +37,7 @@ public class JpaAddressPoolRepository implements AddressPoolRepository {
 
     @Override
     public Optional<AddressPoolEntry> findFirstAvailableByChain(Chain chain) {
-        return repository.findFirstByChainAndStatusOrderByDerivationIndexAsc(
+        return repository.lockFirstAvailableByChain(
                 chain.name(), AddressPoolStatus.AVAILABLE.name()).map(this::toDomain);
     }
 

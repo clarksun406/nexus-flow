@@ -563,36 +563,26 @@ Remaining: implement real `scanNewBlocks` and verify all calls against a live Tr
 
 ---
 
-#### P0-4: Webhook Callback to NexusPay-Core
+#### P0-4: Webhook Callback to NexusPay-Core — ✅ DONE
 
 **File:** `flow-application/.../application/PaymentApplicationService.java`
 
-`CryptoPayment.callbackUrl` is stored but never invoked. After each state transition (DETECTED, CONFIRMED, FAILED, EXPIRED), POST the `PaymentStateChangedEvent` payload to `callbackUrl`.
-
-**What to do:**
-1. Create `WebhookClient` in `flow-infra` (RestTemplate with retry)
-2. Call it after publishing domain events in `PaymentApplicationService`
-3. Handle failures gracefully (async, retry with backoff, dead-letter queue)
+Implemented: `PaymentApplicationService` now publishes domain events and calls
+`WebhookService.notifyCryptoPayment()` for execution-layer `PaymentStateChangedEvent`s.
+`WebhookService` reuses the existing `WebhookClient` retry/HMAC/SSRF protection and skips the
+initial CREATED→PENDING setup event. Covered by `WebhookServiceTest` and
+`PaymentApplicationServiceTest`.
 
 ---
 
-#### P0-5: Idempotency Key Persistence
+#### P0-5: Idempotency Key Persistence — ✅ DONE
 
 **DB migration already exists:** `flow-api/.../db/migration/V1__init_schema.sql` (`idempotency_keys` table)
 
-**Problem:** No code reads/writes the `idempotency_keys` table. Currently only `existsByOrderId` on in-memory repo provides idempotency.
-
-> 🟡 Partial: channel-callback idempotency is handled by `ProcessedEventStore` (port in `flow-domain`),
-> with TWO impls — `InMemoryProcessedEventStore` (default) and `RedisProcessedEventStore`
-> (`SET NX EX`, multi-instance safe), selected via `nexusflow.idempotency.store=memory|redis`
-> (`RedisIdempotencyConfig`). Redis logic unit-tested with a mocked Jedis (`RedisProcessedEventStoreTest`);
-> not yet verified against a live Redis. Still does NOT cover `createPayment` response caching or the
-> `idempotency_keys` table.
-
-**Remaining:**
+Implemented:
 1. ✅ Persistent, multi-instance dedup store (Redis) behind the existing `ProcessedEventStore` port
-2. ⬜ Wrap `createPayment` with: check key → if exists return cached response → if not, execute and store
-3. ⬜ Use the `idempotency_keys` table (or Redis) for full request/response idempotency, not just callbacks
+2. ✅ `createPayment` accepts `Idempotency-Key` / `X-Idempotency-Key`, reserves the key, checks request hash consistency, caches the full `PaymentResponse`, and replays matching retries
+3. ✅ `idempotency_keys` is wired via `PaymentIdempotencyStore` and `JpaPaymentIdempotencyStore`; `V6__add_idempotency_request_hash.sql` adds request fingerprinting
 
 ---
 
@@ -601,8 +591,8 @@ Remaining: implement real `scanNewBlocks` and verify all calls against a live Tr
 > Implemented as `PaymentReconciliationJob.expireOverduePayments()` (`flow-application`,
 > `@Scheduled`, TTL via `nexusflow.payment.expiry-minutes`, default 30 min). Queries PENDING
 > payments past TTL and calls the new `PaymentApplicationService.expirePayment()` (own transaction
-> per payment). Covered by `PaymentReconciliationJobTest`.
-> Not yet done: firing the merchant webhook on expiry (see P0-4).
+> per payment). Covered by `PaymentReconciliationJobTest`. Expiry now also flows through the
+> execution-layer merchant webhook path when `callbackUrl` is set.
 
 **File:** `flow-domain/.../domain/payment/CryptoPayment.java` (`markExpired()`)
 
@@ -628,7 +618,8 @@ Per init.md: "Blockchain is source of truth, system is derived state."
 3. ✅ Update payment confirmations, transition to CONFIRMED as appropriate
 4. ✅ Retry/backoff transient chain failures and gate noisy RPC failures with `BlockchainCircuitBreaker`
 5. ✅ Detect block-hash reorg in `BlockchainScanner` and roll affected payments back to `PENDING`
-6. ⬜ Detect missing events (tx seen on-chain but no payment record) and create catch-up payments
+6. 🟡 Detect missing events: tx seen on a managed address without a PENDING payment is now persisted
+   as an `orphan_transactions` record for follow-up; alerting and automatic/manual claim flows remain.
 
 ---
 
@@ -775,11 +766,12 @@ Covered by `BitcoinAdapterTest` with mocked RPC responses. Live verification sti
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Current local verification (2026-06-14): `mvn test` runs 134 passing tests
+> Current local verification (2026-06-14): `mvn test` runs 148 passing tests
 > across common/domain/application/infra/listener/wallet and skips 4 API Testcontainers tests when Docker is
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
 > execution-layer JPA repositories, HD wallet derivation, ETH/BTC adapter parsing, address pool storage,
-> mnemonic storage, reconciliation retry, scanner cursor/reorg behavior, and the blockchain circuit breaker.
+> mnemonic storage, createPayment idempotency, execution webhooks, orphan transaction storage,
+> reconciliation retry, scanner cursor/reorg behavior, and the blockchain circuit breaker.
 
 **Remaining priority test targets:**
 
@@ -787,7 +779,6 @@ Covered by `BitcoinAdapterTest` with mocked RPC responses. Live verification sti
 |--------|-------------|
 | `flow-domain` | `Money` validation edge cases and any new aggregate state transitions |
 | `flow-common` | `ApiResponse` builder/serialization helpers |
-| `flow-application` | Full request/response idempotency for `createPayment` once implemented |
 | `flow-listener` | Scheduled scanner wiring and transaction processor edge cases |
 
 ---
@@ -806,10 +797,10 @@ Covered by `BitcoinAdapterTest` with mocked RPC responses. Live verification sti
 
 | Priority | Count | Items | Status |
 |----------|-------|-------|--------|
-| P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Expiry · 🟡 TronAdapter, Reconciliation, Idempotency · ⬜ Webhook |
+| P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry · 🟡 TronAdapter, Reconciliation |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ⬜ all |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (134 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (148 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：

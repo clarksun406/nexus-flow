@@ -80,6 +80,9 @@ Kafka is a planned swap-in behind the same port.
   runs **after** the order lookup on purpose - so a callback for a not-yet-existing order
   throws without permanently consuming the `eventId`, letting a legitimate retry succeed.
 - **On-chain detection**: dedup by `txHash` before matching.
+- **Execution createPayment**: accepts `Idempotency-Key` / `X-Idempotency-Key`, fingerprints the
+  request, reserves/completes `idempotency_keys`, and replays the cached `PaymentResponse` for
+  matching retries. A reused key with different parameters is rejected.
 
 ### Phase-1 implementation status
 
@@ -97,7 +100,16 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
 - `KeyGenerator` uses BIP39/BIP44 HD derivation for ETH/TRON/BTC; SOLANA remains unsupported.
 - `createPayment` now allocates from `AddressPoolEntry`. Configure `ADDRESS_POOL_SEED_MNEMONIC`
   to let `AddressPoolProvisioningService` replenish addresses; without it, the pool must be seeded
-  manually or payment creation will fail with `ADDRESS_NOT_AVAILABLE`.
+  manually or payment creation will fail with `ADDRESS_NOT_AVAILABLE`. JPA address allocation uses
+  PostgreSQL `FOR UPDATE SKIP LOCKED` to avoid handing the same available address to concurrent
+  payment creations.
+- Execution-layer `CryptoPayment.callbackUrl` delivery is wired through `WebhookService` after
+  payment state changes. The initial CREATED->PENDING setup event is not sent; DETECTED,
+  CONFIRMING/CONFIRMED, FAILED, EXPIRED, and reorg rollback events use the shared webhook retry,
+  HMAC signing, and SSRF protections.
+- When a scanned transaction hits a managed address but no PENDING payment matches, the application
+  records an `orphan_transactions` row through `OrphanTransactionRepository`. Alerting and
+  manual/automatic claim flows are still follow-up work.
 - `StubAdapter` is a working fake `ChannelAdapter` used for routing/testing.
 
 Before relying on a feature end-to-end, verify the relevant adapter is actually implemented

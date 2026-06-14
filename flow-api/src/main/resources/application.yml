@@ -40,7 +40,7 @@ nexusflow:
       BITMART: ${CALLBACK_HMAC_SECRET_BITMART:}  # HMAC-SHA256 shared secret for BITMART channel
   encryption:
     key: ${ENCRYPTION_KEY:}                 # base64-encoded 32-byte AES-256 key; required in production
-    allow-generated-key: ${ALLOW_GENERATED_KEY:true}  # set to false (or omit) in production
+    allow-generated-key: ${ALLOW_GENERATED_KEY:false} # set true explicitly only for local development
   webhook:
     hmac-secret: ${WEBHOOK_HMAC_SECRET:}    # HMAC-SHA256 key for signing outbound webhooks to merchants
 

@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 138 | 134 | 0 | 0 | 4 |
+| 152 | 148 | 0 | 0 | 4 |
 
 The 4 skipped tests are `NexusFlowApplicationIT` Testcontainers cases. They require a working Docker environment and are skipped automatically when Docker is unavailable.
 
@@ -42,9 +42,10 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-domain` | `RefundStatusTest` | 7 | Refund status transitions |
 | `flow-domain` | `ReconstituteBuilderTest` | 3 | Reconstitution builders preserve persisted aggregate fields |
 | `flow-application` | `BlockchainCircuitBreakerTest` | 1 | Circuit breaker opens after repeated chain RPC failures and recovers |
-| `flow-application` | `PaymentApplicationServiceTest` | 10 | Create payment, address-pool allocation, duplicate order rejection, dust/underpayment handling |
+| `flow-application` | `PaymentApplicationServiceTest` | 13 | Create payment, request/response idempotency, address-pool allocation, duplicate order rejection, dust/underpayment handling, orphan transaction recording |
 | `flow-application` | `PaymentOrchestratorTest` | 14 | Order creation, channel routing, refund flow, callback idempotency |
 | `flow-application` | `PaymentReconciliationJobTest` | 4 | Confirmation polling, expiry, retry/backoff |
+| `flow-application` | `WebhookServiceTest` | 3 | Execution-layer merchant callback payload filtering and delivery |
 | `flow-infra` | `BitcoinAdapterTest` | 3 | Bitcoin Core RPC parsing, block scan, confirmations, failure behavior |
 | `flow-infra` | `EthereumAdapterTest` | 3 | ERC20 `Transfer` log parsing, confirmations, block hash lookup |
 | `flow-infra` | `TronAdapterTest` | 8 | TronGrid response parsing, confirmations, health, explicit scan stub |
@@ -54,6 +55,8 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-infra` | `InMemoryPaymentRepositoryTest` | 6 | In-memory payment repository matching and lookup |
 | `flow-infra` | `JpaAddressPoolRepositoryTest` | 2 | Address pool JPA mapping and available-address lookup |
 | `flow-infra` | `JpaMnemonicStoreTest` | 2 | Encrypted mnemonic backup persistence mapping |
+| `flow-infra` | `JpaPaymentIdempotencyStoreTest` | 5 | Persistent createPayment idempotency reserve/replay/delete behavior |
+| `flow-infra` | `JpaOrphanTransactionRepositoryTest` | 3 | Orphan transaction JPA mapping and lookup |
 | `flow-infra` | `JpaPaymentRepositoryTest` | 4 | Crypto payment JPA mapping, round-trip fields, status queries |
 | `flow-infra` | `JpaWalletRepositoryTest` | 4 | Wallet JPA mapping, active-wallet lookup |
 | `flow-listener` | `BlockchainScannerTest` | 2 | Scanner cursor advance, transaction dispatch, reorg rewind and rollback |
@@ -67,11 +70,11 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 |------|---------|
 | Domain state machines | `OrderStatus`, `FlowStatus`, `RefundStatus`, `CryptoPayment` lifecycle |
 | Payment orchestration | Channel routing, create-order flow, refund flow, callback deduplication |
-| Execution payments | Address allocation, payment detection, underpayment/dust rules, confirmation reconciliation |
-| Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings |
+| Execution payments | Address allocation with row locking, payment detection, underpayment/dust rules, confirmation reconciliation, merchant callback delivery |
+| Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; scanner reorg behavior |
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check |
-| Reliability | Redis idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker |
+| Reliability | Redis idempotency, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, orphan transaction deduplication |
 | Integration | PostgreSQL Testcontainers test class exists but needs Docker to execute |
 
 ## Known Gaps
@@ -83,10 +86,8 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | TRON `scanNewBlocks()` | Explicit stub; no automatic USDT_TRC20 block scanning test until implementation exists |
 | `PaymentController` end-to-end API tests | Not yet covered with HTTP-level integration tests |
 | Redis integration against a real Redis server | Cache/idempotency tests use mocked clients |
-| Address-pool concurrent allocation | No stress/concurrency test; repository currently lacks DB row locking |
-| `createPayment` full idempotency semantics | Partial duplicate-order protection exists; full idempotency-key behavior is not covered |
-| Missing-event catch-up | Not implemented or tested |
-| Execution-layer merchant callback delivery | Not implemented or tested |
+| Address-pool concurrent allocation | Repository uses PostgreSQL `FOR UPDATE SKIP LOCKED`; still worth stress testing against a real database |
+| Missing-event catch-up | Orphan transaction records are persisted; alerting and manual/automatic claim flow are still pending |
 | `Money` and `ApiResponse` edge cases | Still worth adding focused unit tests |
 
 ## Notes

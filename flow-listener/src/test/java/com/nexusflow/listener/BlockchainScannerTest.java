@@ -160,7 +160,7 @@ class BlockchainScannerTest {
         private long rollbackForkBlock = -1L;
 
         private RecordingPaymentService() {
-            super(null, null, null, null, null);
+            super(null, null, null, null, null, null);
         }
 
         @Override

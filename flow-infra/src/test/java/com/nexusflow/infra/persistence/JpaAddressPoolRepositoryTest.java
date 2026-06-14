@@ -68,7 +68,7 @@ class JpaAddressPoolRepositoryTest {
         entity.setStatus("AVAILABLE");
         entity.setCreatedAt(created);
         entity.setUpdatedAt(created);
-        when(springDataRepository.findFirstByChainAndStatusOrderByDerivationIndexAsc("TRON", "AVAILABLE"))
+        when(springDataRepository.lockFirstAvailableByChain("TRON", "AVAILABLE"))
                 .thenReturn(Optional.of(entity));
 
         Optional<AddressPoolEntry> found = repository.findFirstAvailableByChain(Chain.TRON);

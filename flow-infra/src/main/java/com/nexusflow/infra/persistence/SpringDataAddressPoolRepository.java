@@ -9,7 +9,16 @@ import java.util.Optional;
 
 public interface SpringDataAddressPoolRepository extends JpaRepository<AddressPoolEntryEntity, String> {
 
-    Optional<AddressPoolEntryEntity> findFirstByChainAndStatusOrderByDerivationIndexAsc(String chain, String status);
+    @Query(value = """
+            SELECT *
+            FROM address_pool
+            WHERE chain = :chain AND status = :status
+            ORDER BY derivation_index ASC
+            LIMIT 1
+            FOR UPDATE SKIP LOCKED
+            """, nativeQuery = true)
+    Optional<AddressPoolEntryEntity> lockFirstAvailableByChain(@Param("chain") String chain,
+                                                               @Param("status") String status);
 
     Optional<AddressPoolEntryEntity> findByAddress(String address);
 

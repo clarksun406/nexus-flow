@@ -8,6 +8,8 @@ import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.common.PaymentNotFoundException;
 import com.nexusflow.domain.event.DomainEvent;
 import com.nexusflow.domain.event.DomainEventPublisher;
+import com.nexusflow.domain.blockchain.OrphanTransaction;
+import com.nexusflow.domain.blockchain.OrphanTransactionRepository;
 import com.nexusflow.domain.payment.CryptoPayment;
 import com.nexusflow.domain.payment.PaymentRepository;
 import com.nexusflow.domain.payment.PaymentStatus;
@@ -42,6 +44,7 @@ public class PaymentApplicationService {
     private final DomainEventPublisher eventPublisher;
     private final WebhookService webhookService;
     private final PaymentIdempotencyStore idempotencyStore;
+    private final OrphanTransactionRepository orphanTransactionRepository;
 
     /**
      * Create a new payment and assign a receiving address.
@@ -164,6 +167,7 @@ public class PaymentApplicationService {
         CryptoPayment payment = paymentRepository.findPendingByReceivingAddress(toAddress).orElse(null);
         if (payment == null) {
             log.warn("No PENDING payment found for incoming tx: toAddress={}, txHash={}", toAddress, txHash);
+            recordOrphanTransaction(txHash, toAddress, amount, currency, blockNumber);
             return;
         }
 
@@ -302,6 +306,37 @@ public class PaymentApplicationService {
         entry.assignTo(paymentId);
         addressPoolRepository.save(entry);
         return entry.getAddress();
+    }
+
+    private void recordOrphanTransaction(String txHash, String toAddress, String amount,
+                                         String currency, Long blockNumber) {
+        Chain chain;
+        try {
+            chain = Chain.fromCurrency(currency);
+        } catch (RuntimeException e) {
+            log.warn("Unable to record orphan transaction with unknown currency: txHash={}, currency={}",
+                    txHash, currency);
+            return;
+        }
+
+        OrphanTransaction orphan = orphanTransactionRepository.findByChainAndTxHash(chain, txHash)
+                .map(existing -> {
+                    existing.markSeenAgain(blockNumber);
+                    return existing;
+                })
+                .orElseGet(() -> OrphanTransaction.builder()
+                        .id(UUID.randomUUID().toString())
+                        .chain(chain)
+                        .txHash(txHash)
+                        .toAddress(toAddress)
+                        .amount(amount)
+                        .currency(currency)
+                        .blockNumber(blockNumber)
+                        .build());
+
+        orphanTransactionRepository.save(orphan);
+        log.warn("Recorded orphan transaction: chain={}, txHash={}, toAddress={}, amount={}, currency={}",
+                chain, txHash, toAddress, amount, currency);
     }
 
     private void publishEvents(List<DomainEvent> events) {

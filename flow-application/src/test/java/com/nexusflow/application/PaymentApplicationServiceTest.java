@@ -4,6 +4,8 @@ import com.nexusflow.application.dto.CreatePaymentCommand;
 import com.nexusflow.application.dto.PaymentResponse;
 import com.nexusflow.common.IdempotencyViolationException;
 import com.nexusflow.common.NexusFlowException;
+import com.nexusflow.domain.blockchain.OrphanTransaction;
+import com.nexusflow.domain.blockchain.OrphanTransactionRepository;
 import com.nexusflow.domain.event.DomainEventPublisher;
 import com.nexusflow.domain.payment.CryptoPayment;
 import com.nexusflow.domain.payment.PaymentRepository;
@@ -14,6 +16,7 @@ import com.nexusflow.domain.wallet.AddressPoolEntry;
 import com.nexusflow.domain.wallet.AddressPoolRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.math.BigDecimal;
 import java.util.Optional;
@@ -36,6 +39,7 @@ class PaymentApplicationServiceTest {
     private DomainEventPublisher eventPublisher;
     private WebhookService webhookService;
     private PaymentIdempotencyStore idempotencyStore;
+    private OrphanTransactionRepository orphanTransactionRepository;
 
     private PaymentApplicationService service;
 
@@ -46,8 +50,10 @@ class PaymentApplicationServiceTest {
         eventPublisher = mock(DomainEventPublisher.class);
         webhookService = mock(WebhookService.class);
         idempotencyStore = mock(PaymentIdempotencyStore.class);
+        orphanTransactionRepository = mock(OrphanTransactionRepository.class);
         service = new PaymentApplicationService(
-                paymentRepository, addressPoolRepository, eventPublisher, webhookService, idempotencyStore);
+                paymentRepository, addressPoolRepository, eventPublisher, webhookService,
+                idempotencyStore, orphanTransactionRepository);
     }
 
     private CryptoPayment pendingPaymentAt(String address) {
@@ -196,10 +202,20 @@ class PaymentApplicationServiceTest {
     void skipsWhenNoPendingPaymentAtAddress() {
         when(paymentRepository.findByTxHash("tx-1")).thenReturn(Optional.empty());
         when(paymentRepository.findPendingByReceivingAddress("TADDR")).thenReturn(Optional.empty());
+        when(orphanTransactionRepository.findByChainAndTxHash(Chain.TRON, "tx-1")).thenReturn(Optional.empty());
 
-        service.onPaymentDetected("tx-1", "TADDR", "100", "USDT_TRC20");
+        service.onPaymentDetected("tx-1", "TADDR", "100", "USDT_TRC20", 123L);
 
         verify(paymentRepository, never()).save(any());
+        ArgumentCaptor<OrphanTransaction> captor = ArgumentCaptor.forClass(OrphanTransaction.class);
+        verify(orphanTransactionRepository).save(captor.capture());
+        OrphanTransaction orphan = captor.getValue();
+        assertThat(orphan.getChain()).isEqualTo(Chain.TRON);
+        assertThat(orphan.getTxHash()).isEqualTo("tx-1");
+        assertThat(orphan.getToAddress()).isEqualTo("TADDR");
+        assertThat(orphan.getAmount()).isEqualTo("100");
+        assertThat(orphan.getCurrency()).isEqualTo("USDT_TRC20");
+        assertThat(orphan.getBlockNumber()).isEqualTo(123L);
     }
 
     @Test
