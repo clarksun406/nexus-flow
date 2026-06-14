@@ -7,6 +7,7 @@ import com.nexusflow.common.InvalidStateTransitionException;
 import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.common.OrphanTransactionNotFoundException;
 import com.nexusflow.common.PaymentNotFoundException;
+import com.nexusflow.common.WebhookDeadLetterNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -31,6 +32,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(OrphanTransactionNotFoundException.class)
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ApiResponse<Void> handleOrphanNotFound(OrphanTransactionNotFoundException e) {
+        return ApiResponse.fail(e.getErrorCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(WebhookDeadLetterNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    public ApiResponse<Void> handleWebhookDeadLetterNotFound(WebhookDeadLetterNotFoundException e) {
         return ApiResponse.fail(e.getErrorCode(), e.getMessage());
     }
 

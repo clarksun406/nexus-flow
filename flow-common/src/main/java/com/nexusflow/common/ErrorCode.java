@@ -30,6 +30,7 @@ public enum ErrorCode {
     TX_VERIFICATION_FAILED("NF-3002", "Transaction verification failed"),
     UNSUPPORTED_CHAIN("NF-3003", "Unsupported blockchain"),
     ORPHAN_TRANSACTION_NOT_FOUND("NF-3004", "Orphan transaction not found"),
+    WEBHOOK_DEAD_LETTER_NOT_FOUND("NF-3005", "Webhook dead letter not found"),
 
     // Orchestration (Order / Channel)
     NO_AVAILABLE_CHANNEL("NF-4001", "No available channel for this request"),

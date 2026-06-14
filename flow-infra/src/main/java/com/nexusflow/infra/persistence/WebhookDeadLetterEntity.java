@@ -44,6 +44,12 @@ public class WebhookDeadLetterEntity {
     @Column(nullable = false)
     private Integer attempts;
 
+    @Column(length = 20, nullable = false)
+    private String status;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Column(name = "resolved_at")
+    private Instant resolvedAt;
 }

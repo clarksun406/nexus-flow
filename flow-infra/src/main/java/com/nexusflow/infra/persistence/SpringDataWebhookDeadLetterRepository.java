@@ -8,4 +8,6 @@ import java.util.List;
 public interface SpringDataWebhookDeadLetterRepository extends JpaRepository<WebhookDeadLetterEntity, String> {
 
     List<WebhookDeadLetterEntity> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    List<WebhookDeadLetterEntity> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
 }

@@ -367,6 +367,36 @@
 
         <section class="panel">
           <div class="panel-head">
+            <div class="panel-title">Webhook Dead Letters</div>
+            <div class="form-row" style="grid-template-columns: minmax(0, 140px) auto">
+              <select id="deadLetterStatus">
+                <option value="PENDING">Pending</option>
+                <option value="REPLAYED">Replayed</option>
+                <option value="IGNORED">Ignored</option>
+              </select>
+              <button class="btn small" id="loadDeadLettersBtn" type="button">Load</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table style="min-width:760px">
+              <thead>
+                <tr>
+                  <th>Type</th>
+                  <th>Target</th>
+                  <th>Event</th>
+                  <th>Status</th>
+                  <th>Attempts</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="deadLettersBody"></tbody>
+            </table>
+            <div class="empty" id="deadLettersEmpty">No webhook dead letters loaded</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head">
             <div class="panel-title">API Log</div>
             <button class="btn small" id="clearLogBtn" type="button">Clear</button>
           </div>
@@ -382,7 +412,7 @@
   <script>
     const configKey = "nexusflow.ops.config";
     const $ = (id) => document.getElementById(id);
-    const state = { config: { apiBase: "", apiKey: "" }, dashboard: null, orphans: [] };
+    const state = { config: { apiBase: "", apiKey: "" }, dashboard: null, orphans: [], deadLetters: [] };
 
     function loadConfig() {
       try {
@@ -417,6 +447,15 @@
       toast("Orphans loaded");
     }
 
+    async function loadDeadLetters() {
+      saveConfig();
+      const status = $("deadLetterStatus").value || "PENDING";
+      const rows = await request("/ops/webhook-dead-letters?status=" + encodeURIComponent(status) + "&limit=25");
+      state.deadLetters = Array.isArray(rows) ? rows : [];
+      renderDeadLetters();
+      toast("Dead letters loaded");
+    }
+
     async function resolveOrphan(chain, txHash, paymentId) {
       if (!paymentId) return toast("Payment ID required");
       await request("/crypto/orphan-transactions/" + encodeURIComponent(chain) + "/" + encodeURIComponent(txHash) + "/resolve", {
@@ -443,6 +482,22 @@
       });
       await loadOrphans();
       await refreshDashboard();
+    }
+
+    async function replayDeadLetter(id) {
+      await request("/ops/webhook-dead-letters/" + encodeURIComponent(id) + "/replay", {
+        method: "POST",
+        body: {}
+      });
+      await loadDeadLetters();
+    }
+
+    async function ignoreDeadLetter(id) {
+      await request("/ops/webhook-dead-letters/" + encodeURIComponent(id) + "/ignore", {
+        method: "POST",
+        body: {}
+      });
+      await loadDeadLetters();
     }
 
     async function request(path, options = {}) {
@@ -581,6 +636,34 @@
       });
     }
 
+    function renderDeadLetters() {
+      $("deadLettersEmpty").style.display = state.deadLetters.length ? "none" : "block";
+      $("deadLettersBody").innerHTML = state.deadLetters.map((row, index) => `
+        <tr>
+          <td>${safe(row.deliveryType)}</td>
+          <td class="mono">${safe(shorten(row.targetUrl, 44))}</td>
+          <td><span class="mono">${safe(row.eventType || "-")}</span><br><span class="muted">${safe(row.paymentId || row.orderId || "")}</span></td>
+          <td>${statusPill(row.status)}</td>
+          <td>${safe(row.attempts || 0)}</td>
+          <td>
+            <button class="btn small primary" type="button" data-replay-dlq="${index}" ${row.status !== "PENDING" ? "disabled" : ""}>Replay</button>
+            <button class="btn small danger" type="button" data-ignore-dlq="${index}" ${row.status !== "PENDING" ? "disabled" : ""}>Ignore</button>
+          </td>
+        </tr>`).join("");
+      $("deadLettersBody").querySelectorAll("[data-replay-dlq]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const row = state.deadLetters[Number(button.dataset.replayDlq)];
+          guard(replayDeadLetter(row.id));
+        });
+      });
+      $("deadLettersBody").querySelectorAll("[data-ignore-dlq]").forEach((button) => {
+        button.addEventListener("click", () => {
+          const row = state.deadLetters[Number(button.dataset.ignoreDlq)];
+          guard(ignoreDeadLetter(row.id));
+        });
+      });
+    }
+
     function statusPill(status) {
       const value = status || "-";
       let cls = "";
@@ -598,6 +681,10 @@
     function count(map, key) { return Number((map || {})[key] || 0); }
     function formatTime(value) { return value ? new Date(value).toLocaleString() : "-"; }
     function labelize(value) { return value.replace(/([A-Z])/g, " $1").replace(/^./, (char) => char.toUpperCase()); }
+    function shorten(value, size) {
+      const text = String(value || "");
+      return text.length > size ? text.slice(0, Math.max(0, size - 3)) + "..." : text;
+    }
     function safe(value) {
       return String(value ?? "").replace(/[&<>"']/g, (char) => ({
         "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
@@ -623,6 +710,7 @@
     $("saveBtn").addEventListener("click", saveConfig);
     $("refreshBtn").addEventListener("click", () => guard(refreshDashboard()));
     $("loadOrphansBtn").addEventListener("click", () => guard(loadOrphans()));
+    $("loadDeadLettersBtn").addEventListener("click", () => guard(loadDeadLetters()));
     $("clearLogBtn").addEventListener("click", () => { $("apiLog").textContent = ""; });
 
     loadConfig();

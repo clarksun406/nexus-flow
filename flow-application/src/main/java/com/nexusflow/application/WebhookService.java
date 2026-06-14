@@ -104,6 +104,7 @@ public class WebhookService {
                     .orderId(orderId)
                     .failureReason(reason != null && !reason.isBlank() ? reason : "Webhook delivery failed")
                     .attempts(Math.max(0, attempts))
+                    .status(WebhookDeadLetterStatus.PENDING)
                     .createdAt(Instant.now())
                     .build());
         } catch (RuntimeException e) {

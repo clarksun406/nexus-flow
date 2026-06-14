@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 192 | 188 | 0 | 0 | 4 |
+| 204 | 200 | 0 | 0 | 4 |
 
 The 4 skipped tests are `NexusFlowApplicationIT` Testcontainers cases. They require a working Docker environment and are skipped automatically when Docker is unavailable.
 
@@ -50,6 +50,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-application` | `PaymentOrchestratorTest` | 17 | Fiat and crypto-denominated order creation, channel routing, refund flow, callback idempotency |
 | `flow-application` | `PaymentReconciliationJobTest` | 4 | Confirmation polling, expiry, retry/backoff |
 | `flow-application` | `RequestDtoJsonTest` | 4 | Jackson deserialization for immutable create-payment, create-order, refund, and cashier-submit request DTOs |
+| `flow-application` | `WebhookDeadLetterApplicationServiceTest` | 7 | Dead-letter listing, replay success/failure/exception handling, ignore, not-found, and closed-state rejection |
 | `flow-application` | `WebhookServiceTest` | 5 | Merchant/execution callback payload filtering, SSRF blocking, and webhook dead-letter recording |
 | `flow-infra` | `BitcoinAdapterTest` | 3 | Bitcoin Core RPC parsing, block scan, confirmations, failure behavior |
 | `flow-infra` | `CoinbaseCommerceAdapterTest` | 3 | Coinbase Commerce stub deposit address, supported currencies, exchange-rate quote |
@@ -66,13 +67,14 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-infra` | `JpaPaymentIdempotencyStoreTest` | 5 | Persistent createPayment idempotency reserve/replay/delete behavior |
 | `flow-infra` | `JpaOrphanTransactionRepositoryTest` | 3 | Orphan transaction JPA mapping and lookup |
 | `flow-infra` | `JpaPaymentRepositoryTest` | 4 | Crypto payment JPA mapping, round-trip fields, status queries |
-| `flow-infra` | `JpaWebhookDeadLetterStoreTest` | 2 | Failed webhook dead-letter JPA mapping and recent-item lookup bounds |
+| `flow-infra` | `JpaWebhookDeadLetterStoreTest` | 3 | Failed webhook dead-letter JPA mapping, status lookup, and recent-item lookup bounds |
 | `flow-infra` | `JpaWalletRepositoryTest` | 4 | Wallet JPA mapping, active-wallet lookup |
 | `flow-listener` | `BlockchainScannerTest` | 2 | Scanner cursor advance, transaction dispatch, reorg rewind and rollback |
 | `flow-wallet` | `Base58Test` | 5 | Base58/Base58Check encoding |
 | `flow-wallet` | `KeyGeneratorTest` | 7 | BIP39/BIP44 derivation and ETH/TRON/BTC address derivation |
 | `flow-api` | `CallbackHmacFilterTest` | 1 | Callback HMAC verification keeps request body readable downstream |
 | `flow-api` | `PaymentControllerTest` | 6 | MockMvc HTTP contract for create/get/confirm/fail, idempotency headers, validation, and parameter binding |
+| `flow-api` | `WebhookDeadLetterControllerTest` | 4 | Ops dead-letter list/replay/ignore HTTP contract and not-found response |
 | `flow-api` | `NexusFlowApplicationIT` | 4 skipped locally | Spring Boot context, PostgreSQL Testcontainers, JPA round trips |
 
 ## Coverage by Area
@@ -85,7 +87,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions, webhook dead letters |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; scanner reorg behavior |
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check |
-| Reliability | Redis idempotency, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter handling, Kafka domain-event publishing, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
+| Reliability | Redis idempotency, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter replay/ignore workflow, Kafka domain-event publishing, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
 | API contracts | API envelope serialization, immutable request DTO JSON binding, MVC path/query parameter binding without `-parameters`, request validation for execution payment creation |
 | Integration | PostgreSQL Testcontainers test class exists but needs Docker to execute |
 

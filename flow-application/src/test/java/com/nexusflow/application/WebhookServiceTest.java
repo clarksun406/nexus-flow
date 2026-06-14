@@ -13,6 +13,7 @@ import org.mockito.ArgumentCaptor;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -94,6 +95,7 @@ class WebhookServiceTest {
         assertThat(deadLetters.get(0).getDeliveryType()).isEqualTo("CRYPTO_PAYMENT");
         assertThat(deadLetters.get(0).getFailureReason()).isEqualTo("Unsafe webhook URL");
         assertThat(deadLetters.get(0).getAttempts()).isZero();
+        assertThat(deadLetters.get(0).getStatus()).isEqualTo(WebhookDeadLetterStatus.PENDING);
         assertThat(deadLetters.get(0).getEventType()).isEqualTo("crypto.payment.detected");
         assertThat(deadLetters.get(0).getPaymentId()).isEqualTo("pay-1");
     }
@@ -115,6 +117,7 @@ class WebhookServiceTest {
         assertThat(deadLetter.getTargetUrl()).isEqualTo("https://8.8.8.8/callback");
         assertThat(deadLetter.getFailureReason()).isEqualTo("read timed out");
         assertThat(deadLetter.getAttempts()).isEqualTo(4);
+        assertThat(deadLetter.getStatus()).isEqualTo(WebhookDeadLetterStatus.PENDING);
         assertThat(deadLetter.getPayload()).contains("\"payment_id\":\"pay-1\"");
     }
 
@@ -174,6 +177,21 @@ class WebhookServiceTest {
         @Override
         public List<WebhookDeadLetter> findRecent(int limit) {
             return deadLetters.stream().limit(limit).toList();
+        }
+
+        @Override
+        public List<WebhookDeadLetter> findByStatus(WebhookDeadLetterStatus status, int limit) {
+            return deadLetters.stream()
+                    .filter(deadLetter -> deadLetter.getStatus() == status)
+                    .limit(limit)
+                    .toList();
+        }
+
+        @Override
+        public Optional<WebhookDeadLetter> findById(String id) {
+            return deadLetters.stream()
+                    .filter(deadLetter -> deadLetter.getId().equals(id))
+                    .findFirst();
         }
     }
 }

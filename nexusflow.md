@@ -602,8 +602,10 @@ Implemented: `PaymentApplicationService` now publishes domain events and calls
 `WebhookService.notifyCryptoPayment()` for execution-layer `PaymentStateChangedEvent`s.
 `WebhookService` reuses the existing `WebhookClient` retry/HMAC/SSRF protection, records failed
 or blocked deliveries in `webhook_dead_letters`, and skips the initial CREATED→PENDING setup event.
-`@EnableAsync` enables asynchronous delivery in the API application. Covered by
-`WebhookServiceTest`, `JpaWebhookDeadLetterStoreTest`, and `PaymentApplicationServiceTest`.
+`@EnableAsync` enables asynchronous delivery in the API application. Operators can list, replay,
+and ignore dead letters through `/ops/webhook-dead-letters` and `ops.html`. Covered by
+`WebhookServiceTest`, `WebhookDeadLetterApplicationServiceTest`, `WebhookDeadLetterControllerTest`,
+`JpaWebhookDeadLetterStoreTest`, and `PaymentApplicationServiceTest`.
 
 ---
 
@@ -800,12 +802,12 @@ Implemented:
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 188 passing tests
+> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 200 passing tests
 > across common/domain/application/infra/listener/wallet and skips 4 API Testcontainers tests when Docker is
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
 > execution-layer JPA repositories, HD wallet derivation, ETH/BTC adapter parsing, address pool storage,
 > mnemonic storage, createPayment idempotency, crypto-denominated order creation,
-> execution webhooks with dead-letter recording, Coinbase channel stub,
+> execution webhooks with dead-letter replay/ignore workflow, Coinbase channel stub,
 > self-hosted node channel deposit/refund delegation,
 > callback HMAC body caching, orphan transaction storage/resolution/compensation,
 > reconciliation retry, scanner cursor/reorg behavior, Kafka event publishing, ops dashboard aggregation,
@@ -839,7 +841,7 @@ Implemented:
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, TronAdapter · 🟡 Reconciliation live verification |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · ⬜ MPC/GasAbstraction/OnOffRamp |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (188 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (200 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：

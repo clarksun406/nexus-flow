@@ -119,7 +119,8 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   CONFIRMING/CONFIRMED, FAILED, EXPIRED, and reorg rollback events use the shared webhook retry,
   HMAC signing, and SSRF protections. `@EnableAsync` is enabled in `NexusFlowApplication`; exhausted
   retries or SSRF-blocked deliveries are recorded in `webhook_dead_letters` via
-  `WebhookDeadLetterStore` / `JpaWebhookDeadLetterStore`.
+  `WebhookDeadLetterStore` / `JpaWebhookDeadLetterStore`. Operators can query, replay, or ignore
+  entries through `/ops/webhook-dead-letters` and the static ops dashboard.
 - `SELF_HOSTED_NODE` is a real `ChannelAdapter` backed by `PaymentApplicationService.createPayment`.
   It is disabled by default and currently supports USDT on TRC20/ERC20 with a USD/USDT parity rate.
   Refunds create deterministic `SELF_HOSTED_NODE_REFUND_*` processing tasks and publish

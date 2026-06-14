@@ -1,13 +1,11 @@
-package com.nexusflow.application;
+package com.nexusflow.application.dto;
 
 import lombok.Builder;
 import lombok.Value;
 
-import java.time.Instant;
-
 @Value
 @Builder
-public class WebhookDeadLetter {
+public class WebhookDeadLetterResponse {
     String id;
     String deliveryType;
     String targetUrl;
@@ -18,7 +16,7 @@ public class WebhookDeadLetter {
     String orderId;
     String failureReason;
     int attempts;
-    WebhookDeadLetterStatus status;
-    Instant createdAt;
-    Instant resolvedAt;
+    String status;
+    Long createdAt;
+    Long resolvedAt;
 }
