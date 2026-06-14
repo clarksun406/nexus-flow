@@ -6,9 +6,9 @@ Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 218 | 205 | 0 | 0 | 13 |
+| 221 | 207 | 0 | 0 | 14 |
 
-The 13 skipped tests are 6 `NexusFlowApplicationIT` Testcontainers cases, 3 opt-in live blockchain smoke tests, 2 opt-in live messaging smoke tests, and 2 opt-in Coinbase Commerce smoke tests. They require Docker or explicit live dependency environment variables and are skipped automatically when unavailable.
+The 14 skipped tests are 6 `NexusFlowApplicationIT` Testcontainers cases, 3 opt-in live blockchain smoke tests, 2 opt-in live messaging smoke tests, 2 opt-in Coinbase Commerce smoke tests, and 1 opt-in live webhook delivery smoke test. They require Docker or explicit live dependency environment variables and are skipped automatically when unavailable.
 
 ## How to Run
 
@@ -36,6 +36,9 @@ mvn test -pl flow-infra -Dtest=LiveMessagingInfrastructureTest
 
 # Run opt-in Coinbase Commerce smoke tests after setting LIVE_* variables
 mvn test -pl flow-infra -Dtest=LiveCoinbaseCommerceAdapterTest
+
+# Run opt-in outbound webhook smoke test after setting LIVE_* variables
+mvn test -pl flow-infra -Dtest=LiveWebhookDeliveryTest
 ```
 
 JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `pom.xml`.
@@ -52,6 +55,8 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 `LIVE_COINBASE_COMMERCE_CHARGE_TOKEN`, `LIVE_COINBASE_COMMERCE_CHARGE_NETWORK`, and
 `LIVE_COINBASE_COMMERCE_CHARGE_AMOUNT`. The live charge test also requires
 `LIVE_COINBASE_COMMERCE_CREATE_CHARGE=true`.
+`LiveWebhookDeliveryTest` uses `LIVE_WEBHOOK_URL`. Optional variable:
+`LIVE_WEBHOOK_SIGNING_SECRET`.
 
 ## Test Classes
 
@@ -83,6 +88,8 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-infra` | `SelfHostedNodeAdapterTest` | 5 | Self-hosted channel delegation to execution payments, refund task creation, and stablecoin rate behavior |
 | `flow-infra` | `TronAdapterTest` | 8 | TronGrid response parsing, TRC20 Transfer event scanning, confirmations, health |
 | `flow-infra` | `RedisCurrencyRateCacheTest` | 4 | Redis-backed exchange-rate and currency cache fallback behavior |
+| `flow-infra` | `HttpWebhookClientTest` | 2 | Outbound webhook JSON delivery, HMAC signing, and injectable retry delays |
+| `flow-infra` | `LiveWebhookDeliveryTest` | 1 skipped locally | Opt-in outbound webhook reachability smoke check against a configured HTTPS endpoint |
 | `flow-infra` | `InMemoryProcessedEventStoreTest` | 3 | In-memory callback idempotency |
 | `flow-infra` | `KafkaDomainEventPublisherTest` | 1 | Kafka domain-event envelope, eventId key, and event-type topic routing |
 | `flow-infra` | `LiveMessagingInfrastructureTest` | 2 skipped locally | Opt-in Redis SET-NX idempotency and Kafka producer smoke checks against live dependencies |
@@ -113,7 +120,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions, webhook dead letters |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; opt-in live-node smoke tests; scanner reorg behavior |
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check |
-| Reliability | Redis idempotency, opt-in Redis live smoke, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter replay/ignore workflow, Kafka domain-event publishing, opt-in Kafka live smoke, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
+| Reliability | Redis idempotency, opt-in Redis live smoke, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter replay/ignore workflow, opt-in outbound webhook live smoke, Kafka domain-event publishing, opt-in Kafka live smoke, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
 | API contracts | API envelope serialization, immutable request DTO JSON binding, MVC path/query parameter binding without `-parameters`, request validation for execution payment creation |
 | Integration | PostgreSQL Testcontainers coverage includes Spring context/Flyway/JPA round trips, persistence-backed createPayment HTTP idempotency, and concurrent address allocation; opt-in live smoke coverage exists for blockchain nodes, Redis/Kafka, and Coinbase Commerce; needs Docker or live credentials to execute |
 
@@ -128,6 +135,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Kafka broker integration | Opt-in `LiveMessagingInfrastructureTest` can write a smoke event to `LIVE_KAFKA_TOPIC`; local run skips it until `LIVE_KAFKA_BOOTSTRAP_SERVERS` is configured |
 | Redis integration against a real Redis server | Opt-in `LiveMessagingInfrastructureTest` can verify Redis `SET NX EX`; local run skips it until `LIVE_REDIS_HOST` is configured |
 | Coinbase Commerce live verification | Opt-in `LiveCoinbaseCommerceAdapterTest` can verify live exchange rates with `LIVE_COINBASE_COMMERCE_API_KEY` or `COINBASE_COMMERCE_API_KEY`; guarded charge creation requires `LIVE_COINBASE_COMMERCE_CREATE_CHARGE=true`; webhook semantics and external refund operations still need environment verification |
+| Production webhook reachability | Opt-in `LiveWebhookDeliveryTest` can POST a signed smoke payload to `LIVE_WEBHOOK_URL`; production replay policy and merchant endpoint behavior still need environment validation |
 | Address-pool concurrent allocation | Docker-backed concurrent createPayment test covers distinct address assignment through `FOR UPDATE SKIP LOCKED`; local run still skips it without Docker |
 | Missing-event catch-up live policy | Orphan transaction alerting, manual compensation, and configurable auto compensation exist; production auto-compensation policy still needs operator approval |
 | Self-hosted node refund broadcast | Refund tasks and `crypto.refund.requested` events are emitted; chain signing/broadcast remains an external worker/live-environment responsibility |
@@ -138,6 +146,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 - `LiveBlockchainAdapterTest` runs only when live-node env vars are set. Optional tx confirmation checks use `LIVE_ETH_TX_HASH`, `LIVE_BTC_TX_HASH`, and `LIVE_TRON_TX_HASH`.
 - `LiveMessagingInfrastructureTest` runs only when Redis/Kafka env vars are set. If Kafka auto topic creation is disabled, set `LIVE_KAFKA_TOPIC` to an existing writable topic.
 - `LiveCoinbaseCommerceAdapterTest` runs only when Coinbase Commerce credentials are set. It never creates a live charge unless `LIVE_COINBASE_COMMERCE_CREATE_CHARGE=true`.
+- `LiveWebhookDeliveryTest` runs only when `LIVE_WEBHOOK_URL` is set. It uses the production `HttpWebhookClient` path with a single fast attempt.
 - Blockchain adapter tests validate request/response parsing and domain conversion. Without the live env vars, they do not prove behavior against real nodes or network-specific edge cases.
 - `flow-cashier` has no Java tests; `mvn -pl flow-cashier test` verifies static resource packaging, including `checkout.html`, `merchant.html`, and `ops.html`.
 - Roadmap status and production risks are tracked in `nexusflow-roadmap.md`, especially the "production preflight risk" section.

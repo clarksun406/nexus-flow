@@ -124,6 +124,8 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   retries or SSRF-blocked deliveries are recorded in `webhook_dead_letters` via
   `WebhookDeadLetterStore` / `JpaWebhookDeadLetterStore`. Operators can query, replay, or ignore
   entries through `/ops/webhook-dead-letters` and the static ops dashboard.
+  `LiveWebhookDeliveryTest` can exercise the real outbound `HttpWebhookClient` against
+  `LIVE_WEBHOOK_URL` with optional `LIVE_WEBHOOK_SIGNING_SECRET`.
 - `SELF_HOSTED_NODE` is a real `ChannelAdapter` backed by `PaymentApplicationService.createPayment`.
   It is disabled by default and currently supports USDT on TRC20/ERC20 with a USD/USDT parity rate.
   Refunds create deterministic `SELF_HOSTED_NODE_REFUND_*` processing tasks and publish

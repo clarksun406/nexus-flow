@@ -21,19 +21,25 @@ public class HttpWebhookClient implements WebhookClient {
 
     private final RestTemplate restTemplate;
     private final String signingSecret;
-    private static final int[] RETRY_SECONDS = {5, 15, 60, 300};
+    private final int[] retrySeconds;
+    private static final int[] DEFAULT_RETRY_SECONDS = {5, 15, 60, 300};
 
     public HttpWebhookClient(RestTemplate restTemplate, String signingSecret) {
+        this(restTemplate, signingSecret, DEFAULT_RETRY_SECONDS);
+    }
+
+    HttpWebhookClient(RestTemplate restTemplate, String signingSecret, int[] retrySeconds) {
         this.restTemplate = restTemplate;
         this.signingSecret = signingSecret;
+        this.retrySeconds = retrySeconds.clone();
     }
 
     @Override
     public WebhookDeliveryResult sendWithRetry(String url, String payload) {
         String lastError = null;
         int attempts = 0;
-        for (int i = 0; i < RETRY_SECONDS.length; i++) {
-            int delay = RETRY_SECONDS[i];
+        for (int i = 0; i < retrySeconds.length; i++) {
+            int delay = retrySeconds[i];
             attempts = i + 1;
             try {
                 HttpHeaders headers = new HttpHeaders();
@@ -47,10 +53,12 @@ public class HttpWebhookClient implements WebhookClient {
                 return WebhookDeliveryResult.succeeded(attempts);
             } catch (Exception e) {
                 lastError = e.getMessage();
-                log.warn("Webhook attempt {}/{} failed to {}: {}", i + 1, RETRY_SECONDS.length, url, e.getMessage());
-                if (i < RETRY_SECONDS.length - 1) {
+                log.warn("Webhook attempt {}/{} failed to {}: {}", i + 1, retrySeconds.length, url, e.getMessage());
+                if (i < retrySeconds.length - 1) {
                     try {
-                        Thread.sleep(delay * 1000L);
+                        if (delay > 0) {
+                            Thread.sleep(delay * 1000L);
+                        }
                     } catch (InterruptedException ie) {
                         Thread.currentThread().interrupt();
                         log.warn("Webhook retry interrupted for {}", url);
@@ -59,7 +67,7 @@ public class HttpWebhookClient implements WebhookClient {
                 }
             }
         }
-        log.error("Webhook exhausted all {} retries for {}", RETRY_SECONDS.length, url);
+        log.error("Webhook exhausted all {} retries for {}", retrySeconds.length, url);
         return WebhookDeliveryResult.failed(attempts, lastError);
     }
 
