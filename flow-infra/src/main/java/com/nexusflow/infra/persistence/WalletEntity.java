@@ -36,6 +36,9 @@ public class WalletEntity {
     @Column(name = "kms_key_id", length = 256)
     private String kmsKeyId;
 
+    @Column(name = "mpc_wallet_id", length = 256)
+    private String mpcWalletId;
+
     @Column(nullable = false)
     private boolean active;
 

@@ -112,6 +112,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   are unit-tested with mocked transports; `LiveBlockchainAdapterTest` can exercise them against
   `LIVE_ETH_RPC_URL` and `LIVE_BTC_RPC_URL`, but those live checks still need to be run before production.
 - `KeyGenerator` uses BIP39/BIP44 HD derivation for ETH/TRON/BTC; SOLANA remains unsupported.
+- `Wallet` can carry an optional `mpcWalletId`, persisted in `wallets.mpc_wallet_id`. `MpcSigner`
+  is the domain port for external provider signing; real Fireblocks/Copper/custom adapters and
+  transaction-signing workflow integration remain pending.
 - `createPayment` now allocates from `AddressPoolEntry`. Configure `ADDRESS_POOL_SEED_MNEMONIC`
   to let `AddressPoolProvisioningService` replenish addresses; without it, the pool must be seeded
   manually or payment creation will fail with `ADDRESS_NOT_AVAILABLE`. JPA address allocation uses

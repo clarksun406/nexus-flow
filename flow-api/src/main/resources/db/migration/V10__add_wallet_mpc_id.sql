@@ -1,0 +1,2 @@
+ALTER TABLE wallets
+    ADD COLUMN IF NOT EXISTS mpc_wallet_id VARCHAR(256);

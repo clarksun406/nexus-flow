@@ -161,6 +161,7 @@ class NexusFlowApplicationIT {
                 .address("TWALLETIT")
                 .encryptedPrivateKey("ciphertext")
                 .kmsKeyId("kms-key-1")
+                .mpcWalletId("mpc-wallet-it-1")
                 .build();
 
         walletRepository.save(wallet);
@@ -171,6 +172,7 @@ class NexusFlowApplicationIT {
         assertThat(found.get().getChain()).isEqualTo(Chain.TRON);
         assertThat(found.get().getType()).isEqualTo(WalletType.HOT);
         assertThat(found.get().getAddress()).isEqualTo("TWALLETIT");
+        assertThat(found.get().getMpcWalletId()).isEqualTo("mpc-wallet-it-1");
         assertThat(found.get().isActive()).isTrue();
     }
 

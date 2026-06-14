@@ -39,6 +39,7 @@ class JpaWalletRepositoryTest {
                 .address("TADDR")
                 .encryptedPrivateKey("ciphertext")
                 .kmsKeyId("kms-key-1")
+                .mpcWalletId("mpc-wallet-1")
                 .build();
 
         repository.save(wallet);
@@ -53,6 +54,7 @@ class JpaWalletRepositoryTest {
         assertEquals("TADDR", entity.getAddress());
         assertEquals("ciphertext", entity.getEncryptedPrivateKey());
         assertEquals("kms-key-1", entity.getKmsKeyId());
+        assertEquals("mpc-wallet-1", entity.getMpcWalletId());
         assertTrue(entity.isActive());
         assertNotNull(entity.getCreatedAt());
         assertNotNull(entity.getUpdatedAt());
@@ -92,6 +94,7 @@ class JpaWalletRepositoryTest {
         entity.setAddress("TADDR");
         entity.setEncryptedPrivateKey("ciphertext");
         entity.setKmsKeyId("kms-key-1");
+        entity.setMpcWalletId("mpc-wallet-1");
         entity.setActive(false);
         entity.setCreatedAt(createdAt);
         entity.setUpdatedAt(updatedAt);
@@ -108,6 +111,7 @@ class JpaWalletRepositoryTest {
         assertEquals("TADDR", wallet.getAddress());
         assertEquals("ciphertext", wallet.getEncryptedPrivateKey());
         assertEquals("kms-key-1", wallet.getKmsKeyId());
+        assertEquals("mpc-wallet-1", wallet.getMpcWalletId());
         assertFalse(wallet.isActive());
         assertEquals(createdAt, wallet.getCreatedAt());
         assertEquals(updatedAt, wallet.getUpdatedAt());

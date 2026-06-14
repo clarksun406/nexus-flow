@@ -59,6 +59,7 @@ public class JpaWalletRepository implements WalletRepository {
         entity.setAddress(wallet.getAddress());
         entity.setEncryptedPrivateKey(wallet.getEncryptedPrivateKey());
         entity.setKmsKeyId(wallet.getKmsKeyId());
+        entity.setMpcWalletId(wallet.getMpcWalletId());
         entity.setActive(wallet.isActive());
         entity.setCreatedAt(wallet.getCreatedAt());
         entity.setUpdatedAt(wallet.getUpdatedAt());
@@ -74,6 +75,7 @@ public class JpaWalletRepository implements WalletRepository {
                 .address(entity.getAddress())
                 .encryptedPrivateKey(entity.getEncryptedPrivateKey())
                 .kmsKeyId(entity.getKmsKeyId())
+                .mpcWalletId(entity.getMpcWalletId())
                 .active(entity.isActive())
                 .createdAt(entity.getCreatedAt())
                 .updatedAt(entity.getUpdatedAt())

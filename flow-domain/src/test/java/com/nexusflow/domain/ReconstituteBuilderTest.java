@@ -6,6 +6,9 @@ import com.nexusflow.domain.order.PaymentFlow;
 import com.nexusflow.domain.order.PaymentOrder;
 import com.nexusflow.domain.refund.RefundOrder;
 import com.nexusflow.domain.refund.RefundStatus;
+import com.nexusflow.domain.shared.Chain;
+import com.nexusflow.domain.wallet.Wallet;
+import com.nexusflow.domain.wallet.WalletType;
 import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
@@ -76,5 +79,27 @@ class ReconstituteBuilderTest {
         assertThat(refund.getChannelRefundId()).isEqualTo("channel-refund-1");
         assertThat(refund.getTxHash()).isEqualTo("tx-1");
         assertThat(refund.getConfirmTime()).isEqualTo(created);
+    }
+
+    @Test
+    void walletReconstituteRestoresMpcWalletId() {
+        Instant created = Instant.parse("2026-06-13T00:00:00Z");
+        Wallet wallet = Wallet.reconstitute()
+                .id("wallet-1")
+                .name("MPC ETH hot")
+                .chain(Chain.ETH)
+                .type(WalletType.HOT)
+                .address("0xabc")
+                .encryptedPrivateKey("ciphertext")
+                .kmsKeyId("kms-key-1")
+                .mpcWalletId("mpc-wallet-1")
+                .active(true)
+                .createdAt(created)
+                .updatedAt(created)
+                .build();
+
+        assertThat(wallet.getMpcWalletId()).isEqualTo("mpc-wallet-1");
+        assertThat(wallet.getChain()).isEqualTo(Chain.ETH);
+        assertThat(wallet.getCreatedAt()).isEqualTo(created);
     }
 }

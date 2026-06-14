@@ -22,13 +22,15 @@ public class Wallet {
     private String address;
     private String encryptedPrivateKey; // AES-256-GCM encrypted
     private String kmsKeyId;            // external KMS reference (optional)
+    private String mpcWalletId;         // external MPC provider wallet/vault id (optional)
     private boolean active;
     private Instant createdAt;
     private Instant updatedAt;
 
     @Builder
     public Wallet(String id, String name, Chain chain, WalletType type,
-                  String address, String encryptedPrivateKey, String kmsKeyId) {
+                  String address, String encryptedPrivateKey, String kmsKeyId,
+                  String mpcWalletId) {
         this.id = id;
         this.name = name;
         this.chain = chain;
@@ -36,6 +38,7 @@ public class Wallet {
         this.address = address;
         this.encryptedPrivateKey = encryptedPrivateKey;
         this.kmsKeyId = kmsKeyId;
+        this.mpcWalletId = mpcWalletId;
         this.active = true;
         this.createdAt = Instant.now();
         this.updatedAt = Instant.now();
@@ -48,7 +51,7 @@ public class Wallet {
     @Builder(builderMethodName = "reconstitute", builderClassName = "WalletReconstituteBuilder")
     private Wallet(String id, String name, Chain chain, WalletType type,
                    String address, String encryptedPrivateKey, String kmsKeyId,
-                   boolean active, Instant createdAt, Instant updatedAt) {
+                   String mpcWalletId, boolean active, Instant createdAt, Instant updatedAt) {
         this.id = id;
         this.name = name;
         this.chain = chain;
@@ -56,6 +59,7 @@ public class Wallet {
         this.address = address;
         this.encryptedPrivateKey = encryptedPrivateKey;
         this.kmsKeyId = kmsKeyId;
+        this.mpcWalletId = mpcWalletId;
         this.active = active;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;

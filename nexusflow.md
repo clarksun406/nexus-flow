@@ -767,11 +767,15 @@ Implemented:
 
 #### P2-2: MPC Wallet Integration
 
+**Status:** 🟡 PARTIAL — `MpcSigner` port, signing request/result value objects, `Wallet.mpcWalletId`,
+JPA mapping, and Flyway migration `V10__add_wallet_mpc_id.sql` are implemented. Provider adapters
+and transaction signing flow integration remain pending.
+
 **What to do:**
-1. Define `MpcSigner` port in `flow-domain`
-2. Integrate with MPC provider (Fireblocks / Copper / custom MPC)
-3. `Wallet` aggregate gains `mpcWalletId` field
-4. Transaction signing flows through MPC instead of local private key
+1. ✅ Define `MpcSigner` port in `flow-domain`
+2. ⬜ Integrate with MPC provider (Fireblocks / Copper / custom MPC)
+3. ✅ `Wallet` aggregate gains `mpcWalletId` field
+4. ⬜ Transaction signing flows through MPC instead of local private key
 
 ---
 
@@ -806,10 +810,10 @@ gas-bank funding automation, sweeping integration, and low-gas batching remain p
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 214 passing tests
+> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 215 passing tests
 > across common/domain/application/infra/listener/wallet and skips 14 opt-in integration/live tests when Docker or live dependency variables are
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
-> execution-layer JPA repositories, HD wallet derivation, ETH/BTC adapter parsing, address pool storage,
+> execution-layer JPA repositories, HD wallet derivation, MPC wallet-id persistence, ETH/BTC adapter parsing, address pool storage,
 > mnemonic storage, createPayment idempotency, crypto-denominated order creation,
 > execution webhooks with dead-letter replay/ignore workflow and opt-in live delivery smoke coverage, gas-estimated self-hosted refund events, Coinbase Commerce REST-capable channel with non-prod no-key stub fallback and opt-in live smoke coverage, BitMart/Binance stub beans guarded out of the `prod` profile,
 > self-hosted node channel deposit/refund delegation,
@@ -844,8 +848,8 @@ gas-bank funding automation, sweeping integration, and low-gas batching remain p
 |----------|-------|-------|--------|
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, TronAdapter · 🟡 Reconciliation live verification |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
-| P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · 🟡 GasEstimator core · ⬜ MPC/OnOffRamp |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (214 passing locally) · 🟡 Integration/live tests present, 14 skipped locally without Docker/live env |
+| P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · 🟡 MPC core/GasEstimator core · ⬜ OnOffRamp |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (215 passing locally) · 🟡 Integration/live tests present, 14 skipped locally without Docker/live env |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：
