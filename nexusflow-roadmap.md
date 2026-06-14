@@ -238,12 +238,12 @@ public interface ChannelRouter {
 | P1R-6 | 集成测试（Testcontainers/Docker）— `NexusFlowApplicationIT`（PostgreSQL 容器 + Spring Boot 上下文），无 Docker 时自动 skip；需在 Docker 环境实跑验证 | ✅/🟡 |
 
 ### ═══════════════════════════════════════════
-### 🟢 P2 — 扩展 (3/4)
+### 🟢 P2 — 扩展 (4/4)
 ### ═══════════════════════════════════════════
 
 | # | 任务 | 状态 |
 |---|------|------|
-| P2-1 | 数币版（商户用加密货币创建订单） | ⬜ |
+| P2-1 | 数币版（商户用加密货币创建订单） | ✅ `/pay/order` 支持 `amountCrypto` + `currencyCrypto` + `network`，默认 USD 报价并补算 fiat 展示值 |
 | P2-2 | 自建节点通道（PaymentOrder → CryptoPayment） | ✅ 充值委托链路完成；退款待实现 |
 | P2-3 | CoinbaseCommerceAdapter | ✅ stub 实现，注册为 Bean |
 | P2-4 | Kafka 事件总线 | ✅ `EVENT_PUBLISHER=kafka` 启用，按 `eventType()` 路由 topic，eventId 作为 key |
@@ -267,9 +267,9 @@ public interface ChannelRouter {
 | P1 | 10 | 10 | 100% |
 | P1-F | 6 | 6 | 100% |
 | P1-R | 6 | 6 | 100% |
-| P2 | 4 | 3 | 75% |
+| P2 | 4 | 4 | 100% |
 | P3 | 3 | 0 | 0% |
-| **合计** | **45** | **41** | **~91%** |
+| **合计** | **45** | **42** | **~93%** |
 
 ---
 

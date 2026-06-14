@@ -9,8 +9,11 @@ import lombok.Value;
 public class CreateOrderRequest {
     @NotBlank String merchantId;
     @NotBlank String merchantOrderNo;
-    @NotBlank @Pattern(regexp = "^[0-9]+(\\.[0-9]+)?$", message = "amountFiat must be a positive decimal") String amountFiat;
-    @NotBlank String currencyFiat;
+    @Pattern(regexp = "^[0-9]+(\\.[0-9]+)?$", message = "amountFiat must be a positive decimal") String amountFiat;
+    String currencyFiat;
+    @Pattern(regexp = "^[0-9]+(\\.[0-9]+)?$", message = "amountCrypto must be a positive decimal") String amountCrypto;
+    String currencyCrypto;
+    String network;
     String preferredChannel;
     String notifyUrl;
     String returnUrl;

@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 164 | 160 | 0 | 0 | 4 |
+| 167 | 163 | 0 | 0 | 4 |
 
 The 4 skipped tests are `NexusFlowApplicationIT` Testcontainers cases. They require a working Docker environment and are skipped automatically when Docker is unavailable.
 
@@ -44,7 +44,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-application` | `BlockchainCircuitBreakerTest` | 1 | Circuit breaker opens after repeated chain RPC failures and recovers |
 | `flow-application` | `OrphanTransactionApplicationServiceTest` | 4 | Orphan transaction listing, resolve, ignore, not-found behavior |
 | `flow-application` | `PaymentApplicationServiceTest` | 13 | Create payment, request/response idempotency, address-pool allocation, duplicate order rejection, dust/underpayment handling, orphan transaction recording |
-| `flow-application` | `PaymentOrchestratorTest` | 14 | Order creation, channel routing, refund flow, callback idempotency |
+| `flow-application` | `PaymentOrchestratorTest` | 17 | Fiat and crypto-denominated order creation, channel routing, refund flow, callback idempotency |
 | `flow-application` | `PaymentReconciliationJobTest` | 4 | Confirmation polling, expiry, retry/backoff |
 | `flow-application` | `WebhookServiceTest` | 3 | Execution-layer merchant callback payload filtering and delivery |
 | `flow-infra` | `BitcoinAdapterTest` | 3 | Bitcoin Core RPC parsing, block scan, confirmations, failure behavior |
@@ -74,7 +74,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Area | Covered |
 |------|---------|
 | Domain state machines | `OrderStatus`, `FlowStatus`, `RefundStatus`, `CryptoPayment` lifecycle |
-| Payment orchestration | Channel routing, create-order flow, Coinbase/BitMart/Binance stubs, self-hosted node deposit delegation, refund flow, callback deduplication |
+| Payment orchestration | Channel routing, fiat and crypto-denominated create-order flows, Coinbase/BitMart/Binance stubs, self-hosted node deposit delegation, refund flow, callback deduplication |
 | Execution payments | Address allocation with row locking, payment detection, underpayment/dust rules, confirmation reconciliation, merchant callback delivery |
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; scanner reorg behavior |

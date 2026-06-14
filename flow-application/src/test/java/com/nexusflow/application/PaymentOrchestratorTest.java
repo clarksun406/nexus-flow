@@ -79,6 +79,17 @@ class PaymentOrchestratorTest {
                 .build();
     }
 
+    private PaymentOrder waitingOrderWithRate(String amountFiat, String amountCrypto, String exchangeRate) {
+        return PaymentOrder.builder()
+                .paymentId("pay-1").merchantId("m-1").merchantOrderNo("ord-1")
+                .amountFiat(new BigDecimal(amountFiat)).currencyFiat("USD")
+                .amountCrypto(new BigDecimal(amountCrypto)).currencyCrypto("BTC")
+                .network("BTC").exchangeRate(new BigDecimal(exchangeRate))
+                .channelId("STUB").channelUserId("u-1")
+                .expireTime(Instant.now().plusSeconds(600))
+                .build();
+    }
+
     // ── Create Order ──
 
     @Test
@@ -106,6 +117,35 @@ class PaymentOrchestratorTest {
     }
 
     @Test
+    void createOrderWithCryptoAmountUsesRequestedAssetAndDerivesFiatAmount() {
+        when(orderRepository.existsByMerchantOrderNo("m-1", "ord-crypto")).thenReturn(false);
+        when(channelRouter.route(any())).thenReturn(List.of(stubChannel));
+        when(stubChannel.channelId()).thenReturn("STUB");
+        when(stubChannel.openUser("m-1", "ord-crypto")).thenReturn(
+                ChannelUser.builder().channelUserId("cu-1").channelId("STUB").newlyCreated(true).build());
+        when(currencyRateCache.getExchangeRate(stubChannel, "USDC", "ERC20", "USD")).thenReturn(
+                ExchangeRate.builder().token("USDC").network("ERC20")
+                        .price(new BigDecimal("1.0000")).quoteCurrency("USD").timestamp(Instant.now()).build());
+
+        CreateOrderRequest req = CreateOrderRequest.builder()
+                .merchantId("m-1").merchantOrderNo("ord-crypto")
+                .amountCrypto("25.5").currencyCrypto("usdc").network("erc20").build();
+
+        OrderResponse resp = orchestrator.createOrder(req);
+
+        ArgumentCaptor<ChannelRouter.RouteRequest> routeCaptor = ArgumentCaptor.forClass(ChannelRouter.RouteRequest.class);
+        verify(channelRouter).route(routeCaptor.capture());
+        assertThat(routeCaptor.getValue().getToken()).isEqualTo("USDC");
+        assertThat(routeCaptor.getValue().getNetwork()).isEqualTo("ERC20");
+        assertThat(routeCaptor.getValue().getCurrencyFiat()).isEqualTo("USD");
+
+        assertThat(resp.getAmountCrypto()).isEqualTo("25.5");
+        assertThat(new BigDecimal(resp.getAmountFiat())).isEqualByComparingTo("25.50");
+        assertThat(resp.getCurrencyCrypto()).isEqualTo("USDC");
+        assertThat(resp.getNetwork()).isEqualTo("ERC20");
+    }
+
+    @Test
     void createOrderRejectsDuplicate() {
         when(orderRepository.existsByMerchantOrderNo("m-1", "ord-1")).thenReturn(true);
 
@@ -115,6 +155,23 @@ class PaymentOrchestratorTest {
 
         assertThatThrownBy(() -> orchestrator.createOrder(req))
                 .isInstanceOf(NexusFlowException.class);
+    }
+
+    @Test
+    void createOrderRejectsMixedFiatAndCryptoAmountInputs() {
+        when(orderRepository.existsByMerchantOrderNo("m-1", "ord-mixed")).thenReturn(false);
+
+        CreateOrderRequest req = CreateOrderRequest.builder()
+                .merchantId("m-1").merchantOrderNo("ord-mixed")
+                .amountFiat("100").currencyFiat("USD")
+                .amountCrypto("100").currencyCrypto("USDT").network("TRC20").build();
+
+        assertThatThrownBy(() -> orchestrator.createOrder(req))
+                .isInstanceOf(NexusFlowException.class)
+                .hasMessageContaining("either amountFiat/currencyFiat or amountCrypto");
+
+        verify(channelRouter, never()).route(any());
+        verify(orderRepository, never()).save(any(PaymentOrder.class));
     }
 
     @Test
@@ -211,6 +268,19 @@ class PaymentOrchestratorTest {
 
         assertThat(order.getStatus()).isEqualTo(OrderStatus.PARTIALLY_PAID);
         assertThat(order.getPaidAmountCrypto()).isEqualByComparingTo("50");
+    }
+
+    @Test
+    void callbackWithoutPaidFiatDerivesFiatByMultiplyingExchangeRate() {
+        PaymentOrder order = waitingOrderWithRate("20000", "1", "20000");
+        when(orderRepository.findByChannelOrderId("STUB", "co-1")).thenReturn(Optional.of(order));
+        when(flowRepository.findActiveByPaymentId("pay-1")).thenReturn(Optional.empty());
+        when(processedEventStore.markProcessed("evt-3")).thenReturn(true);
+
+        orchestrator.handlePaymentCallback("STUB", "co-1", "tx-1", "1", null, "evt-3");
+
+        assertThat(order.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(order.getPaidAmountFiat()).isEqualByComparingTo("20000.00");
     }
 
     // ── Refund ──

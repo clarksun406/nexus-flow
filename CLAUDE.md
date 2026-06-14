@@ -74,7 +74,9 @@ routes each event to its `eventType()` topic and uses `eventId` as the message k
 
 ### Idempotency (required on all inbound paths)
 
-- **Order creation**: dedup by `(merchantId, merchantOrderNo)` / `orderId`.
+- **Order creation**: dedup by `(merchantId, merchantOrderNo)` / `orderId`. `/pay/order`
+  accepts either fiat-denominated `amountFiat`/`currencyFiat` or crypto-denominated
+  `amountCrypto`/`currencyCrypto`/`network`; do not mix both amount modes.
 - **Channel callbacks**: dedup by `eventId` via `ProcessedEventStore.markProcessed(eventId)`
   (returns `false` if already seen). Two impls selected by `nexusflow.idempotency.store`:
   `InMemoryProcessedEventStore` (default) and `RedisProcessedEventStore` (`SET NX EX`, wired by
@@ -119,6 +121,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
 - Kafka domain-event publishing is available behind the same `DomainEventPublisher` port. Default
   remains Spring in-process events; set `EVENT_PUBLISHER=kafka` and `KAFKA_BOOTSTRAP_SERVERS` to
   publish to event-type topics such as `crypto.payment.confirmed`.
+- Merchant orchestration orders can be crypto-denominated. `PaymentOrchestrator.createOrder` accepts
+  `amountCrypto` + `currencyCrypto` + `network`, routes with that asset, and derives the fiat display
+  amount from the channel exchange rate.
 - When a scanned transaction hits a managed address but no PENDING payment matches, the application
   records an `orphan_transactions` row through `OrphanTransactionRepository`. Operators can list,
   resolve, or ignore these via `/crypto/orphan-transactions`; alerting and automatic compensation

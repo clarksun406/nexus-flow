@@ -9,6 +9,7 @@ import com.nexusflow.domain.channel.ChannelRouter;
 import com.nexusflow.domain.channel.ChannelUser;
 import com.nexusflow.domain.channel.CurrencyRateCache;
 import com.nexusflow.domain.channel.DepositAddress;
+import com.nexusflow.domain.channel.ExchangeRate;
 import com.nexusflow.domain.event.DomainEventPublisher;
 import com.nexusflow.domain.event.ProcessedEventStore;
 import com.nexusflow.domain.order.*;
@@ -53,10 +54,14 @@ public class PaymentOrchestrator {
                     "Duplicate order: " + req.getMerchantOrderNo());
         }
 
+        OrderPricing pricing = resolvePricing(req);
+
         // Route to best channel
         var routeReq = ChannelRouter.RouteRequest.builder()
                 .merchantId(req.getMerchantId())
-                .currencyFiat(req.getCurrencyFiat())
+                .token(pricing.token)
+                .network(pricing.network)
+                .currencyFiat(pricing.quoteCurrency)
                 .preferredChannelId(req.getPreferredChannel()).build();
         List<ChannelAdapter> channels = channelRouter.route(routeReq);
         if (channels.isEmpty()) throw new NexusFlowException(ErrorCode.NO_AVAILABLE_CHANNEL, "No channel available");
@@ -68,8 +73,18 @@ public class PaymentOrchestrator {
         ChannelUser channelUser = channel.openUser(req.getMerchantId(), req.getMerchantOrderNo());
 
         // Get exchange rate (cached)
-        var rate = currencyRateCache.getExchangeRate(channel, "USDT", "TRC20", req.getCurrencyFiat());
-        BigDecimal amountCrypto = new BigDecimal(req.getAmountFiat()).divide(rate.getPrice(), 6, RoundingMode.HALF_UP);
+        ExchangeRate rate = currencyRateCache.getExchangeRate(
+                channel, pricing.token, pricing.network, pricing.quoteCurrency);
+        validateRate(rate, pricing.token, pricing.network, pricing.quoteCurrency);
+
+        BigDecimal amountCrypto = pricing.cryptoDenominated
+                ? pricing.amount
+                : pricing.amount.divide(rate.getPrice(), 6, RoundingMode.HALF_UP);
+        BigDecimal amountFiat = pricing.cryptoDenominated
+                ? pricing.amount.multiply(rate.getPrice()).setScale(2, RoundingMode.HALF_UP)
+                : pricing.amount;
+        String token = hasText(rate.getToken()) ? normalizeCode(rate.getToken()) : pricing.token;
+        String network = hasText(rate.getNetwork()) ? normalizeCode(rate.getNetwork()) : pricing.network;
 
         // Create order
         Instant expireTime = Instant.now().plusSeconds(30 * 60); // 30 min default
@@ -77,11 +92,11 @@ public class PaymentOrchestrator {
                 .paymentId(UUID.randomUUID().toString())
                 .merchantId(req.getMerchantId())
                 .merchantOrderNo(req.getMerchantOrderNo())
-                .amountFiat(new BigDecimal(req.getAmountFiat()))
-                .currencyFiat(req.getCurrencyFiat())
+                .amountFiat(amountFiat)
+                .currencyFiat(pricing.quoteCurrency)
                 .amountCrypto(amountCrypto)
-                .currencyCrypto(rate.getToken())
-                .network(rate.getNetwork())
+                .currencyCrypto(token)
+                .network(network)
                 .exchangeRate(rate.getPrice())
                 .channelId(channel.channelId())
                 .channelUserId(channelUser.getChannelUserId())
@@ -197,7 +212,7 @@ public class PaymentOrchestrator {
                 throw new NexusFlowException(ErrorCode.INVALID_REQUEST, "Invalid paidFiat value: " + paidFiat);
             }
         } else {
-            fiatAmt = cryptoAmt.divide(order.getExchangeRate(), 2, RoundingMode.HALF_UP);
+            fiatAmt = cryptoAmt.multiply(order.getExchangeRate()).setScale(2, RoundingMode.HALF_UP);
         }
 
         if (cryptoAmt.compareTo(order.getAmountCrypto()) >= 0) {
@@ -344,6 +359,71 @@ public class PaymentOrchestrator {
                         "No channel adapter for channelId: " + channelId));
     }
 
+    private OrderPricing resolvePricing(CreateOrderRequest req) {
+        boolean hasFiatAmount = hasText(req.getAmountFiat());
+        boolean hasCryptoAmount = hasText(req.getAmountCrypto());
+        boolean hasCryptoAsset = hasText(req.getCurrencyCrypto()) || hasText(req.getNetwork());
+
+        if (hasFiatAmount && (hasCryptoAmount || hasCryptoAsset)) {
+            throw invalidRequest("Provide either amountFiat/currencyFiat or amountCrypto/currencyCrypto/network, not both");
+        }
+        if (hasFiatAmount) {
+            if (!hasText(req.getCurrencyFiat())) {
+                throw invalidRequest("currencyFiat is required when amountFiat is provided");
+            }
+            return new OrderPricing(
+                    parsePositiveDecimal(req.getAmountFiat(), "amountFiat"),
+                    "USDT",
+                    "TRC20",
+                    normalizeCode(req.getCurrencyFiat()),
+                    false);
+        }
+        if (hasCryptoAmount) {
+            if (!hasText(req.getCurrencyCrypto()) || !hasText(req.getNetwork())) {
+                throw invalidRequest("currencyCrypto and network are required when amountCrypto is provided");
+            }
+            String quoteCurrency = hasText(req.getCurrencyFiat()) ? normalizeCode(req.getCurrencyFiat()) : "USD";
+            return new OrderPricing(
+                    parsePositiveDecimal(req.getAmountCrypto(), "amountCrypto"),
+                    normalizeCode(req.getCurrencyCrypto()),
+                    normalizeCode(req.getNetwork()),
+                    quoteCurrency,
+                    true);
+        }
+        throw invalidRequest("amountFiat or amountCrypto is required");
+    }
+
+    private void validateRate(ExchangeRate rate, String token, String network, String quoteCurrency) {
+        if (rate == null || rate.getPrice() == null || rate.getPrice().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new NexusFlowException(ErrorCode.NO_AVAILABLE_CHANNEL,
+                    "No valid exchange rate for " + token + "/" + network + " quoted in " + quoteCurrency);
+        }
+    }
+
+    private BigDecimal parsePositiveDecimal(String value, String fieldName) {
+        try {
+            BigDecimal parsed = new BigDecimal(value);
+            if (parsed.compareTo(BigDecimal.ZERO) <= 0) {
+                throw invalidRequest(fieldName + " must be greater than zero");
+            }
+            return parsed;
+        } catch (NumberFormatException e) {
+            throw invalidRequest(fieldName + " must be a valid decimal");
+        }
+    }
+
+    private String normalizeCode(String value) {
+        return value.trim().toUpperCase();
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
+    }
+
+    private NexusFlowException invalidRequest(String message) {
+        return new NexusFlowException(ErrorCode.INVALID_REQUEST, message);
+    }
+
     private OrderResponse toResponse(PaymentOrder o, String channelName, String payUrl) {
         return OrderResponse.builder()
                 .paymentId(o.getPaymentId()).merchantOrderNo(o.getMerchantOrderNo())
@@ -365,5 +445,22 @@ public class PaymentOrchestrator {
     private NexusFlowException logAndThrow(String msg) {
         log.error(msg);
         return new NexusFlowException(ErrorCode.PAYMENT_NOT_FOUND, msg);
+    }
+
+    private static class OrderPricing {
+        private final BigDecimal amount;
+        private final String token;
+        private final String network;
+        private final String quoteCurrency;
+        private final boolean cryptoDenominated;
+
+        private OrderPricing(BigDecimal amount, String token, String network,
+                             String quoteCurrency, boolean cryptoDenominated) {
+            this.amount = amount;
+            this.token = token;
+            this.network = network;
+            this.quoteCurrency = quoteCurrency;
+            this.cryptoDenominated = cryptoDenominated;
+        }
     }
 }

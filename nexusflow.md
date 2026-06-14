@@ -116,6 +116,23 @@ Request:
 }
 ```
 
+Orchestration orders can also be created directly in crypto units:
+
+```http
+POST /pay/order
+```
+
+```json
+{
+  "merchantId": "merchant-1",
+  "merchantOrderNo": "order-1001",
+  "amountCrypto": "25.5",
+  "currencyCrypto": "USDC",
+  "network": "ERC20",
+  "currencyFiat": "USD"
+}
+```
+
 ---
 
 ### Outbound (to Core)
@@ -767,11 +784,12 @@ Implemented:
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Current local verification (2026-06-14): `mvn test` runs 160 passing tests
+> Current local verification (2026-06-14): `mvn test` runs 163 passing tests
 > across common/domain/application/infra/listener/wallet and skips 4 API Testcontainers tests when Docker is
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
 > execution-layer JPA repositories, HD wallet derivation, ETH/BTC adapter parsing, address pool storage,
-> mnemonic storage, createPayment idempotency, execution webhooks, Coinbase channel stub,
+> mnemonic storage, createPayment idempotency, crypto-denominated order creation,
+> execution webhooks, Coinbase channel stub,
 > self-hosted node channel delegation,
 > callback HMAC body caching, orphan transaction storage/resolution,
 > reconciliation retry, scanner cursor/reorg behavior, Kafka event publishing, and the blockchain circuit breaker.
@@ -803,7 +821,7 @@ Implemented:
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry · 🟡 TronAdapter, Reconciliation |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · ⬜ MPC/GasAbstraction/OnOffRamp |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (160 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (163 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：
