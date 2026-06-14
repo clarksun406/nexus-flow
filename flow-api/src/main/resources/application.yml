@@ -38,6 +38,7 @@ nexusflow:
     hmac-secret:
       STUB: ${CALLBACK_HMAC_SECRET_STUB:}   # HMAC-SHA256 shared secret for STUB channel
       BITMART: ${CALLBACK_HMAC_SECRET_BITMART:}  # HMAC-SHA256 shared secret for BITMART channel
+      COINBASE_COMMERCE: ${CALLBACK_HMAC_SECRET_COINBASE_COMMERCE:} # Coinbase Commerce callback secret
       SELF_HOSTED_NODE: ${CALLBACK_HMAC_SECRET_SELF_HOSTED_NODE:${WEBHOOK_HMAC_SECRET:}} # internal execution callback
   encryption:
     key: ${ENCRYPTION_KEY:}                 # base64-encoded 32-byte AES-256 key; required in production

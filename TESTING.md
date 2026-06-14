@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 160 | 156 | 0 | 0 | 4 |
+| 163 | 159 | 0 | 0 | 4 |
 
 The 4 skipped tests are `NexusFlowApplicationIT` Testcontainers cases. They require a working Docker environment and are skipped automatically when Docker is unavailable.
 
@@ -48,6 +48,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-application` | `PaymentReconciliationJobTest` | 4 | Confirmation polling, expiry, retry/backoff |
 | `flow-application` | `WebhookServiceTest` | 3 | Execution-layer merchant callback payload filtering and delivery |
 | `flow-infra` | `BitcoinAdapterTest` | 3 | Bitcoin Core RPC parsing, block scan, confirmations, failure behavior |
+| `flow-infra` | `CoinbaseCommerceAdapterTest` | 3 | Coinbase Commerce stub deposit address, supported currencies, exchange-rate quote |
 | `flow-infra` | `EthereumAdapterTest` | 3 | ERC20 `Transfer` log parsing, confirmations, block hash lookup |
 | `flow-infra` | `SelfHostedNodeAdapterTest` | 3 | Self-hosted channel delegation to execution payments and stablecoin rate behavior |
 | `flow-infra` | `TronAdapterTest` | 8 | TronGrid response parsing, confirmations, health, explicit scan stub |
@@ -72,7 +73,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Area | Covered |
 |------|---------|
 | Domain state machines | `OrderStatus`, `FlowStatus`, `RefundStatus`, `CryptoPayment` lifecycle |
-| Payment orchestration | Channel routing, create-order flow, self-hosted node deposit delegation, refund flow, callback deduplication |
+| Payment orchestration | Channel routing, create-order flow, Coinbase/BitMart/Binance stubs, self-hosted node deposit delegation, refund flow, callback deduplication |
 | Execution payments | Address allocation with row locking, payment detection, underpayment/dust rules, confirmation reconciliation, merchant callback delivery |
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; scanner reorg behavior |

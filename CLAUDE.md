@@ -112,6 +112,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   It is disabled by default and currently supports USDT on TRC20/ERC20 with a USD/USDT parity rate.
   Its internal callback HMAC secret defaults to `WEBHOOK_HMAC_SECRET` via
   `CALLBACK_HMAC_SECRET_SELF_HOSTED_NODE`.
+- `COINBASE_COMMERCE` is currently a stub `ChannelAdapter` registered in `BlockchainConfig`, matching
+  the BitMart/Binance stub level. It returns fixed deposit/refund/rate data; real Coinbase Commerce
+  REST calls and webhook semantics are still follow-up work.
 - When a scanned transaction hits a managed address but no PENDING payment matches, the application
   records an `orphan_transactions` row through `OrphanTransactionRepository`. Operators can list,
   resolve, or ignore these via `/crypto/orphan-transactions`; alerting and automatic compensation

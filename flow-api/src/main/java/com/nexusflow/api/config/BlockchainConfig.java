@@ -4,6 +4,7 @@ import com.nexusflow.domain.blockchain.BlockchainAdapter;
 import com.nexusflow.domain.channel.ChannelAdapter;
 import com.nexusflow.infra.adapter.binance.BinancePayAdapter;
 import com.nexusflow.infra.adapter.bitmart.BitMartAdapter;
+import com.nexusflow.infra.adapter.coinbase.CoinbaseCommerceAdapter;
 import com.nexusflow.infra.blockchain.BitcoinAdapter;
 import com.nexusflow.infra.blockchain.EthereumAdapter;
 import com.nexusflow.infra.blockchain.HttpTronGridClient;
@@ -59,5 +60,10 @@ public class BlockchainConfig {
     @Bean
     public ChannelAdapter binancePayAdapter() {
         return new BinancePayAdapter();
+    }
+
+    @Bean
+    public ChannelAdapter coinbaseCommerceAdapter() {
+        return new CoinbaseCommerceAdapter();
     }
 }
