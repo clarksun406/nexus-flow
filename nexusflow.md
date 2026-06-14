@@ -795,15 +795,15 @@ gas-bank funding automation, sweeping integration, and low-gas batching remain p
 
 #### P2-4: On/Off Ramp Integration
 
-**Status:** 🟡 PARTIAL — `FiatGateway` port, quote/order request value objects, `FiatRampOrder`
-conversion tracking, status transitions, and `FiatRampRepository` port are implemented. Real
-MoonPay/Ramp/Banxa adapters, KYC/webhook handling, persistence mapping, and live settlement smoke
-tests remain pending.
+**Status:** 🟡 PARTIAL — `FiatGateway` port, quote/order request value objects, persisted
+`FiatRampOrder` conversion tracking, status transitions, `FiatRampRepository`, and Flyway migration
+`V11__add_fiat_ramp_orders.sql` are implemented. Real MoonPay/Ramp/Banxa adapters, KYC/webhook
+handling, API orchestration, and live settlement smoke tests remain pending.
 
 **What to do:**
 1. ⬜ Integrate with fiat on/off ramp providers (MoonPay, Ramp, Banxa)
 2. ✅ `FiatGateway` port in `flow-domain`
-3. 🟡 Handle fiat→crypto and crypto→fiat conversion tracking: domain lifecycle exists; persistence/API/provider callbacks remain pending
+3. 🟡 Handle fiat→crypto and crypto→fiat conversion tracking: domain lifecycle and JPA persistence exist; API/provider callbacks remain pending
 
 ---
 
@@ -815,13 +815,13 @@ tests remain pending.
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 222 passing tests
+> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 226 passing tests
 > across common/domain/application/infra/listener/wallet and skips 14 opt-in integration/live tests when Docker or live dependency variables are
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
 > execution-layer JPA repositories, HD wallet derivation, MPC wallet-id persistence, ETH/BTC adapter parsing, address pool storage,
 > mnemonic storage, createPayment idempotency, crypto-denominated order creation,
 > execution webhooks with dead-letter replay/ignore workflow and opt-in live delivery smoke coverage, gas-estimated self-hosted refund events, Coinbase Commerce REST-capable channel with non-prod no-key stub fallback and opt-in live smoke coverage, BitMart/Binance stub beans guarded out of the `prod` profile,
-> fiat on/off ramp gateway and conversion-tracking core,
+> persisted fiat on/off ramp gateway and conversion-tracking core,
 > self-hosted node channel deposit/refund delegation,
 > callback HMAC body caching, orphan transaction storage/resolution/compensation,
 > reconciliation retry, scanner cursor/reorg behavior, Kafka event publishing, ops dashboard aggregation,
@@ -855,7 +855,7 @@ tests remain pending.
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, TronAdapter · 🟡 Reconciliation live verification |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · 🟡 MPC core/GasEstimator core/OnOffRamp core |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (222 passing locally) · 🟡 Integration/live tests present, 14 skipped locally without Docker/live env |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (226 passing locally) · 🟡 Integration/live tests present, 14 skipped locally without Docker/live env |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：
