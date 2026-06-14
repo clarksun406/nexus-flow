@@ -5,6 +5,7 @@ import com.nexusflow.common.ErrorCode;
 import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.common.PaymentNotFoundException;
 import com.nexusflow.domain.channel.ChannelAdapter;
+import com.nexusflow.domain.channel.ChannelRefund;
 import com.nexusflow.domain.channel.ChannelRouter;
 import com.nexusflow.domain.channel.ChannelUser;
 import com.nexusflow.domain.channel.CurrencyRateCache;
@@ -12,6 +13,7 @@ import com.nexusflow.domain.channel.DepositAddress;
 import com.nexusflow.domain.channel.ExchangeRate;
 import com.nexusflow.domain.event.DomainEventPublisher;
 import com.nexusflow.domain.event.ProcessedEventStore;
+import com.nexusflow.domain.event.RefundRequestedEvent;
 import com.nexusflow.domain.order.*;
 import com.nexusflow.domain.refund.RefundOrder;
 import com.nexusflow.domain.refund.RefundRepository;
@@ -301,7 +303,26 @@ public class PaymentOrchestrator {
             throw new NexusFlowException(ErrorCode.REFUND_AMOUNT_EXCEEDED, "Refund exceeds paid amount");
         }
 
-        // Create refund order
+        ChannelAdapter channel = resolveChannel(order.getChannelId());
+        String requestedToAddress = hasText(req.getToAddress()) ? req.getToAddress().trim() : null;
+        String toAddress = requestedToAddress != null
+                ? requestedToAddress
+                : ("SELF_HOSTED_NODE".equalsIgnoreCase(channel.channelId()) ? null : order.getPayAddress());
+        ChannelRefund channelRefund = channel.refund(ChannelAdapter.RefundRequest.builder()
+                .channelOrderId(hasText(order.getChannelOrderId()) ? order.getChannelOrderId() : order.getPaymentId())
+                .channelUserId(order.getChannelUserId())
+                .refundCryptoAmount(refundCrypto)
+                .token(order.getCurrencyCrypto())
+                .network(order.getNetwork())
+                .toAddress(toAddress)
+                .notifyUrl(req.getNotifyUrl())
+                .refundOrderNo(req.getRefundOrderNo())
+                .build());
+        if (channelRefund == null || !hasText(channelRefund.getChannelRefundId())) {
+            throw new NexusFlowException(ErrorCode.INTERNAL_ERROR,
+                    "Channel refund did not return a channelRefundId");
+        }
+
         RefundOrder refund = RefundOrder.builder()
                 .refundOrderNo(req.getRefundOrderNo())
                 .paymentId(order.getPaymentId())
@@ -310,26 +331,38 @@ public class PaymentOrchestrator {
                 .exchangeRate(order.getExchangeRate())
                 .token(order.getCurrencyCrypto())
                 .network(order.getNetwork())
-                .toAddress(order.getPayAddress()) // channel will use original source address
+                .toAddress(toAddress)
                 .notifyUrl(req.getNotifyUrl())
                 .build();
+        refund.bindChannelRefund(channelRefund.getChannelRefundId());
         refundRepository.save(refund);
 
         order.markRefundProcessing();
         orderRepository.save(order);
         order.collectEvents().forEach(eventPublisher::publish);
+        eventPublisher.publish(new RefundRequestedEvent(
+                refund.getRefundOrderNo(),
+                refund.getPaymentId(),
+                channel.channelId(),
+                channelRefund.getChannelRefundId(),
+                refund.getToken(),
+                refund.getNetwork(),
+                refund.getRefundAmountCrypto().toPlainString(),
+                refund.getToAddress()));
 
         log.info("Refund initiated: refundOrderNo={}, amount={}", req.getRefundOrderNo(), refundFiat);
 
         return RefundResponseDto.builder()
                 .refundOrderNo(refund.getRefundOrderNo())
                 .paymentId(order.getPaymentId())
+                .channelRefundId(refund.getChannelRefundId())
                 .status(refund.getStatus().name())
                 .refundAmountFiat(refundFiat.toPlainString())
                 .refundAmountCrypto(refundCrypto.toPlainString())
                 .exchangeRate(order.getExchangeRate().toPlainString())
                 .token(order.getCurrencyCrypto())
                 .network(order.getNetwork())
+                .toAddress(refund.getToAddress())
                 .createTime(refund.getCreateTime().toEpochMilli())
                 .build();
     }

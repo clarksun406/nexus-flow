@@ -244,7 +244,7 @@ public interface ChannelRouter {
 | # | 任务 | 状态 |
 |---|------|------|
 | P2-1 | 数币版（商户用加密货币创建订单） | ✅ `/pay/order` 支持 `amountCrypto` + `currencyCrypto` + `network`，默认 USD 报价并补算 fiat 展示值 |
-| P2-2 | 自建节点通道（PaymentOrder → CryptoPayment） | ✅ 充值委托链路完成；退款待实现 |
+| P2-2 | 自建节点通道（PaymentOrder → CryptoPayment） | ✅ 充值委托链路完成；退款会生成 `SELF_HOSTED_NODE_REFUND_*` 任务并发布 `crypto.refund.requested`，链上签名/广播由外部 worker 或真实节点环境完成 |
 | P2-3 | CoinbaseCommerceAdapter | ✅ stub 实现，注册为 Bean |
 | P2-4 | Kafka 事件总线 | ✅ `EVENT_PUBLISHER=kafka` 启用，按 `eventType()` 路由 topic，eventId 作为 key |
 

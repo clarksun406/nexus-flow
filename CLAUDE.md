@@ -114,6 +114,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   HMAC signing, and SSRF protections.
 - `SELF_HOSTED_NODE` is a real `ChannelAdapter` backed by `PaymentApplicationService.createPayment`.
   It is disabled by default and currently supports USDT on TRC20/ERC20 with a USD/USDT parity rate.
+  Refunds create deterministic `SELF_HOSTED_NODE_REFUND_*` processing tasks and publish
+  `crypto.refund.requested`; chain signing/broadcast is expected to be handled by an external worker
+  or live node integration before refund callbacks mark success/failure.
   Its internal callback HMAC secret defaults to `WEBHOOK_HMAC_SECRET` via
   `CALLBACK_HMAC_SECRET_SELF_HOSTED_NODE`.
 - `COINBASE_COMMERCE` is currently a stub `ChannelAdapter` registered in `BlockchainConfig`, matching

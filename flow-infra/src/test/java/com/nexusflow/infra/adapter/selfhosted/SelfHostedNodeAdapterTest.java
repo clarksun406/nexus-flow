@@ -76,4 +76,34 @@ class SelfHostedNodeAdapterTest {
         assertThrows(IllegalArgumentException.class,
                 () -> adapter.getExchangeRate("BTC", "BTC", "USD"));
     }
+
+    @Test
+    void refundCreatesProcessingTaskForExternalSigner() {
+        ChannelAdapter.RefundRequest request = ChannelAdapter.RefundRequest.builder()
+                .refundOrderNo("ref-1")
+                .refundCryptoAmount(new BigDecimal("12.34"))
+                .token("USDT")
+                .network("TRC20")
+                .toAddress("TREFUND")
+                .notifyUrl("https://api.example/callback/SELF_HOSTED_NODE/refund")
+                .build();
+
+        var refund = adapter.refund(request);
+
+        assertEquals("SELF_HOSTED_NODE_REFUND_ref-1", refund.getChannelRefundId());
+        assertEquals("PROCESSING", refund.getStatus());
+        assertEquals(0, new BigDecimal("12.34").compareTo(refund.getRefundAmount()));
+    }
+
+    @Test
+    void refundRequiresDestinationAddress() {
+        ChannelAdapter.RefundRequest request = ChannelAdapter.RefundRequest.builder()
+                .refundOrderNo("ref-1")
+                .refundCryptoAmount(new BigDecimal("12.34"))
+                .token("USDT")
+                .network("TRC20")
+                .build();
+
+        assertThrows(IllegalArgumentException.class, () -> adapter.refund(request));
+    }
 }

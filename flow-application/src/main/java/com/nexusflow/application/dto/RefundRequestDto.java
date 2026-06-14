@@ -11,5 +11,6 @@ public class RefundRequestDto {
     @NotBlank String merchantOrderNo;
     @NotBlank String refundOrderNo;
     @NotBlank @Pattern(regexp = "^[0-9]+(\\.[0-9]+)?$", message = "refundAmountFiat must be a positive decimal") String refundAmountFiat;
+    String toAddress;
     String notifyUrl;
 }

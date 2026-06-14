@@ -401,6 +401,10 @@
                   <input id="refundAmountFiat" required inputmode="decimal" placeholder="50.00" />
                 </div>
                 <div class="field span-2">
+                  <label for="refundToAddress">Refund To Address</label>
+                  <input id="refundToAddress" autocomplete="off" />
+                </div>
+                <div class="field span-2">
                   <label for="refundNotifyUrl">Refund Callback URL</label>
                   <input id="refundNotifyUrl" autocomplete="off" />
                 </div>
@@ -567,6 +571,7 @@
         merchantOrderNo: $("refundMerchantOrderNo").value.trim(),
         refundOrderNo: $("refundOrderNo").value.trim(),
         refundAmountFiat: $("refundAmountFiat").value.trim(),
+        toAddress: emptyToNull($("refundToAddress").value.trim()),
         notifyUrl: emptyToNull($("refundNotifyUrl").value.trim())
       };
       const refund = await request("/refund/order", { method: "POST", body: payload });

@@ -71,12 +71,27 @@ public class SelfHostedNodeAdapter implements ChannelAdapter {
 
     @Override
     public ChannelRefund refund(RefundRequest req) {
-        throw new UnsupportedOperationException("Self-hosted node refunds are not implemented");
+        toExecutionCurrency(req.getToken(), req.getNetwork());
+        if (req.getToAddress() == null || req.getToAddress().isBlank()) {
+            throw new IllegalArgumentException("Self-hosted refund requires a destination address");
+        }
+        String channelRefundId = CHANNEL_ID + "_REFUND_" + req.getRefundOrderNo();
+        log.warn("Self-hosted refund requested for external signer: refundOrderNo={}, channelRefundId={}, token={}, network={}, amount={}, toAddress={}",
+                req.getRefundOrderNo(), channelRefundId, req.getToken(), req.getNetwork(),
+                req.getRefundCryptoAmount(), req.getToAddress());
+        return ChannelRefund.builder()
+                .channelRefundId(channelRefundId)
+                .status("PROCESSING")
+                .refundAmount(req.getRefundCryptoAmount())
+                .build();
     }
 
     @Override
     public ChannelRefund queryRefund(String channelRefundId) {
-        throw new UnsupportedOperationException("Self-hosted node refunds are not implemented");
+        return ChannelRefund.builder()
+                .channelRefundId(channelRefundId)
+                .status("PROCESSING")
+                .build();
     }
 
     @Override

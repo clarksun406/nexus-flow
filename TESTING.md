@@ -6,7 +6,7 @@ Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 170 | 166 | 0 | 0 | 4 |
+| 172 | 168 | 0 | 0 | 4 |
 
 The 4 skipped tests are `NexusFlowApplicationIT` Testcontainers cases. They require a working Docker environment and are skipped automatically when Docker is unavailable.
 
@@ -51,7 +51,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-infra` | `BitcoinAdapterTest` | 3 | Bitcoin Core RPC parsing, block scan, confirmations, failure behavior |
 | `flow-infra` | `CoinbaseCommerceAdapterTest` | 3 | Coinbase Commerce stub deposit address, supported currencies, exchange-rate quote |
 | `flow-infra` | `EthereumAdapterTest` | 3 | ERC20 `Transfer` log parsing, confirmations, block hash lookup |
-| `flow-infra` | `SelfHostedNodeAdapterTest` | 3 | Self-hosted channel delegation to execution payments and stablecoin rate behavior |
+| `flow-infra` | `SelfHostedNodeAdapterTest` | 5 | Self-hosted channel delegation to execution payments, refund task creation, and stablecoin rate behavior |
 | `flow-infra` | `TronAdapterTest` | 8 | TronGrid response parsing, TRC20 Transfer event scanning, confirmations, health |
 | `flow-infra` | `RedisCurrencyRateCacheTest` | 4 | Redis-backed exchange-rate and currency cache fallback behavior |
 | `flow-infra` | `InMemoryProcessedEventStoreTest` | 3 | In-memory callback idempotency |
@@ -75,7 +75,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Area | Covered |
 |------|---------|
 | Domain state machines | `OrderStatus`, `FlowStatus`, `RefundStatus`, `CryptoPayment` lifecycle |
-| Payment orchestration | Channel routing, fiat and crypto-denominated create-order flows, Coinbase/BitMart/Binance stubs, self-hosted node deposit delegation, refund flow, callback deduplication |
+| Payment orchestration | Channel routing, fiat and crypto-denominated create-order flows, Coinbase/BitMart/Binance stubs, self-hosted node deposit/refund delegation, refund flow, callback deduplication |
 | Execution payments | Address allocation with row locking, payment detection, underpayment/dust rules, confirmation reconciliation, merchant callback delivery |
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions |
 | Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; scanner reorg behavior |
@@ -95,7 +95,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Redis integration against a real Redis server | Cache/idempotency tests use mocked clients |
 | Address-pool concurrent allocation | Repository uses PostgreSQL `FOR UPDATE SKIP LOCKED`; still worth stress testing against a real database |
 | Missing-event catch-up live policy | Orphan transaction alerting, manual compensation, and configurable auto compensation exist; production auto-compensation policy still needs operator approval |
-| Self-hosted node refunds | Deposit delegation to execution payments exists; refund flow is not implemented |
+| Self-hosted node refund broadcast | Refund tasks and `crypto.refund.requested` events are emitted; chain signing/broadcast remains an external worker/live-environment responsibility |
 | `Money` and `ApiResponse` edge cases | Still worth adding focused unit tests |
 
 ## Notes

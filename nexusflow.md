@@ -799,13 +799,13 @@ Implemented:
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 166 passing tests
+> Current local verification (2026-06-14): `mvn -pl flow-api,flow-cashier -am test` runs 168 passing tests
 > across common/domain/application/infra/listener/wallet and skips 4 API Testcontainers tests when Docker is
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
 > execution-layer JPA repositories, HD wallet derivation, ETH/BTC adapter parsing, address pool storage,
 > mnemonic storage, createPayment idempotency, crypto-denominated order creation,
 > execution webhooks, Coinbase channel stub,
-> self-hosted node channel delegation,
+> self-hosted node channel deposit/refund delegation,
 > callback HMAC body caching, orphan transaction storage/resolution/compensation,
 > reconciliation retry, scanner cursor/reorg behavior, Kafka event publishing, ops dashboard aggregation,
 > and the blockchain circuit breaker.
@@ -837,7 +837,7 @@ Implemented:
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, TronAdapter · 🟡 Reconciliation live verification |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · ⬜ MPC/GasAbstraction/OnOffRamp |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (166 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (168 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：

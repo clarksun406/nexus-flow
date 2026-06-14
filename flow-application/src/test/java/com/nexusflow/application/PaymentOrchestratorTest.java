@@ -3,6 +3,7 @@ package com.nexusflow.application;
 import com.nexusflow.application.dto.*;
 import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.domain.channel.ChannelAdapter;
+import com.nexusflow.domain.channel.ChannelRefund;
 import com.nexusflow.domain.channel.ChannelRouter;
 import com.nexusflow.domain.channel.ChannelUser;
 import com.nexusflow.domain.channel.CurrencyRateCache;
@@ -294,18 +295,35 @@ class PaymentOrchestratorTest {
         order.collectEvents(); // clear events
 
         when(orderRepository.findByMerchantOrderNo("m-1", "ord-1")).thenReturn(Optional.of(order));
+        when(stubChannel.channelId()).thenReturn("STUB");
+        when(stubChannel.refund(any())).thenReturn(ChannelRefund.builder()
+                .channelRefundId("STUB_REFUND_ref-1")
+                .status("PROCESSING")
+                .refundAmount(new BigDecimal("50"))
+                .build());
 
         RefundRequestDto req = RefundRequestDto.builder()
                 .merchantId("m-1").merchantOrderNo("ord-1")
                 .refundOrderNo("ref-1").refundAmountFiat("50")
+                .toAddress("TREFUND")
                 .notifyUrl("https://example.com/callback").build();
 
         RefundResponseDto resp = orchestrator.refund(req);
 
         assertThat(resp.getRefundOrderNo()).isEqualTo("ref-1");
+        assertThat(resp.getChannelRefundId()).isEqualTo("STUB_REFUND_ref-1");
         assertThat(resp.getStatus()).isEqualTo("PROCESSING");
         assertThat(resp.getRefundAmountFiat()).isEqualTo("50");
-        verify(refundRepository).save(any(RefundOrder.class));
+        assertThat(resp.getToAddress()).isEqualTo("TREFUND");
+        ArgumentCaptor<ChannelAdapter.RefundRequest> refundRequestCaptor =
+                ArgumentCaptor.forClass(ChannelAdapter.RefundRequest.class);
+        verify(stubChannel).refund(refundRequestCaptor.capture());
+        assertThat(refundRequestCaptor.getValue().getRefundOrderNo()).isEqualTo("ref-1");
+        assertThat(refundRequestCaptor.getValue().getToAddress()).isEqualTo("TREFUND");
+        assertThat(refundRequestCaptor.getValue().getRefundCryptoAmount()).isEqualByComparingTo("50.000000");
+        ArgumentCaptor<RefundOrder> refundCaptor = ArgumentCaptor.forClass(RefundOrder.class);
+        verify(refundRepository).save(refundCaptor.capture());
+        assertThat(refundCaptor.getValue().getChannelRefundId()).isEqualTo("STUB_REFUND_ref-1");
         assertThat(order.getStatus()).isEqualTo(OrderStatus.REFUND_PROCESSING);
     }
 
