@@ -68,8 +68,9 @@ State changes flow through three coupled mechanisms - replicate this when adding
    calls `aggregate.collectEvents()` (which clears the buffer) and pushes each to
    `DomainEventPublisher`. `collectEvents()` is single-shot - call it once per unit of work.
 
-`DomainEventPublisher` is currently `SpringDomainEventPublisher` (in-process Spring events);
-Kafka is a planned swap-in behind the same port.
+`DomainEventPublisher` is configurable: `SpringDomainEventPublisher` is the default in-process
+publisher, and `KafkaDomainEventPublisher` is enabled with `EVENT_PUBLISHER=kafka`. Kafka publishing
+routes each event to its `eventType()` topic and uses `eventId` as the message key.
 
 ### Idempotency (required on all inbound paths)
 
@@ -115,6 +116,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
 - `COINBASE_COMMERCE` is currently a stub `ChannelAdapter` registered in `BlockchainConfig`, matching
   the BitMart/Binance stub level. It returns fixed deposit/refund/rate data; real Coinbase Commerce
   REST calls and webhook semantics are still follow-up work.
+- Kafka domain-event publishing is available behind the same `DomainEventPublisher` port. Default
+  remains Spring in-process events; set `EVENT_PUBLISHER=kafka` and `KAFKA_BOOTSTRAP_SERVERS` to
+  publish to event-type topics such as `crypto.payment.confirmed`.
 - When a scanned transaction hits a managed address but no PENDING payment matches, the application
   records an `orphan_transactions` row through `OrphanTransactionRepository`. Operators can list,
   resolve, or ignore these via `/crypto/orphan-transactions`; alerting and automatic compensation

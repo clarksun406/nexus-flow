@@ -4,6 +4,7 @@ import com.nexusflow.domain.event.DomainEvent;
 import com.nexusflow.domain.event.DomainEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "nexusflow.events.publisher", havingValue = "spring", matchIfMissing = true)
 @RequiredArgsConstructor
 public class SpringDomainEventPublisher implements DomainEventPublisher {
 

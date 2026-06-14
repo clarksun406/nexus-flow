@@ -719,14 +719,14 @@ Covered by `BitcoinAdapterTest` with mocked RPC responses. Live verification sti
 
 ---
 
-#### P2-1: Kafka Event Publishing
+#### P2-1: Kafka Event Publishing — ✅ DONE
 
 **File:** `flow-infra/.../event/SpringDomainEventPublisher.java` (L15)
 
-**What to do:**
-1. Create `KafkaDomainEventPublisher` implementing `DomainEventPublisher`
-2. Publish to topics: `crypto.payment.detected`, `crypto.payment.confirmed`, `crypto.payment.failed`
-3. Ensure at-least-once delivery with idempotent consumers on NexusPay-Core side
+Implemented:
+1. ✅ `KafkaDomainEventPublisher` implements `DomainEventPublisher` and is enabled with `EVENT_PUBLISHER=kafka`.
+2. ✅ Events publish to `event.eventType()` topics such as `crypto.payment.detected`, `crypto.payment.confirmed`, and `crypto.payment.failed`.
+3. ✅ Kafka messages use `eventId` as the key and include an envelope with `event_id`, `event_type`, `event_class`, `occurred_at`, and the original payload. Producer config uses `acks=all` and idempotence.
 
 ---
 
@@ -767,14 +767,14 @@ Covered by `BitcoinAdapterTest` with mocked RPC responses. Live verification sti
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Current local verification (2026-06-14): `mvn test` runs 159 passing tests
+> Current local verification (2026-06-14): `mvn test` runs 160 passing tests
 > across common/domain/application/infra/listener/wallet and skips 4 API Testcontainers tests when Docker is
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
 > execution-layer JPA repositories, HD wallet derivation, ETH/BTC adapter parsing, address pool storage,
 > mnemonic storage, createPayment idempotency, execution webhooks, Coinbase channel stub,
 > self-hosted node channel delegation,
 > callback HMAC body caching, orphan transaction storage/resolution,
-> reconciliation retry, scanner cursor/reorg behavior, and the blockchain circuit breaker.
+> reconciliation retry, scanner cursor/reorg behavior, Kafka event publishing, and the blockchain circuit breaker.
 
 **Remaining priority test targets:**
 
@@ -802,8 +802,8 @@ Covered by `BitcoinAdapterTest` with mocked RPC responses. Live verification sti
 |----------|-------|-------|--------|
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry · 🟡 TronAdapter, Reconciliation |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
-| P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ⬜ all |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (159 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
+| P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · ⬜ MPC/GasAbstraction/OnOffRamp |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (160 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：
