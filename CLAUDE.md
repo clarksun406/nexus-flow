@@ -104,10 +104,13 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   `nexusflow.execution.persistence=memory`.
 - `TronAdapter`: `getCurrentBlockHeight`/`getConfirmations`/`isHealthy` are real (via `TronGridClient`,
   parsing unit-tested). `scanNewBlocks` uses TronGrid contract events to scan confirmed TRC20
-  `Transfer` events by block and convert them to `ScannedTransaction`; still **not live-verified**.
+  `Transfer` events by block and convert them to `ScannedTransaction`. `LiveBlockchainAdapterTest`
+  provides opt-in smoke coverage when `LIVE_TRON_NODE_URL` is configured; it is skipped locally
+  unless a live node is provided.
 - `EthereumAdapter` implements ERC20 Transfer log scanning / confirmations / block hash via web3j.
   `BitcoinAdapter` implements Bitcoin Core JSON-RPC block scanning / confirmations / health. Both
-  are unit-tested with mocked transports but still require live-node verification before production.
+  are unit-tested with mocked transports; `LiveBlockchainAdapterTest` can exercise them against
+  `LIVE_ETH_RPC_URL` and `LIVE_BTC_RPC_URL`, but those live checks still need to be run before production.
 - `KeyGenerator` uses BIP39/BIP44 HD derivation for ETH/TRON/BTC; SOLANA remains unsupported.
 - `createPayment` now allocates from `AddressPoolEntry`. Configure `ADDRESS_POOL_SEED_MNEMONIC`
   to let `AddressPoolProvisioningService` replenish addresses; without it, the pool must be seeded

@@ -6,9 +6,9 @@ Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 206 | 200 | 0 | 0 | 6 |
+| 209 | 200 | 0 | 0 | 9 |
 
-The 6 skipped tests are `NexusFlowApplicationIT` Testcontainers cases. They require a working Docker environment and are skipped automatically when Docker is unavailable.
+The 9 skipped tests are 6 `NexusFlowApplicationIT` Testcontainers cases plus 3 opt-in live blockchain smoke tests. They require Docker or explicit live-node environment variables and are skipped automatically when unavailable.
 
 ## How to Run
 
@@ -27,9 +27,16 @@ mvn test -pl flow-application -Dtest=PaymentOrchestratorTest
 
 # Run one test method
 mvn test -pl flow-domain -Dtest=CryptoPaymentTest#fullHappyPathTransitionsToConfirmed
+
+# Run opt-in live node smoke tests after setting LIVE_* variables
+mvn test -pl flow-infra -Dtest=LiveBlockchainAdapterTest
 ```
 
 JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `pom.xml`.
+
+`LiveBlockchainAdapterTest` uses `LIVE_ETH_RPC_URL`, `LIVE_BTC_RPC_URL`, and `LIVE_TRON_NODE_URL`.
+Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_BTC_RPC_USERNAME`,
+`LIVE_BTC_RPC_PASSWORD`, `LIVE_ETH_TX_HASH`, `LIVE_BTC_TX_HASH`, and `LIVE_TRON_TX_HASH`.
 
 ## Test Classes
 
@@ -55,6 +62,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | `flow-infra` | `BitcoinAdapterTest` | 3 | Bitcoin Core RPC parsing, block scan, confirmations, failure behavior |
 | `flow-infra` | `CoinbaseCommerceAdapterTest` | 3 | Coinbase Commerce stub deposit address, supported currencies, exchange-rate quote |
 | `flow-infra` | `EthereumAdapterTest` | 3 | ERC20 `Transfer` log parsing, confirmations, block hash lookup |
+| `flow-infra` | `LiveBlockchainAdapterTest` | 3 skipped locally | Opt-in ETH/BTC/TRON live-node smoke checks for height, health, block hash where supported, one-block scan, and optional tx confirmations |
 | `flow-infra` | `SelfHostedNodeAdapterTest` | 5 | Self-hosted channel delegation to execution payments, refund task creation, and stablecoin rate behavior |
 | `flow-infra` | `TronAdapterTest` | 8 | TronGrid response parsing, TRC20 Transfer event scanning, confirmations, health |
 | `flow-infra` | `RedisCurrencyRateCacheTest` | 4 | Redis-backed exchange-rate and currency cache fallback behavior |
@@ -85,7 +93,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Payment orchestration | Channel routing, fiat and crypto-denominated create-order flows, Coinbase/BitMart/Binance stubs, self-hosted node deposit/refund delegation, refund flow, callback deduplication |
 | Execution payments | Address allocation with row locking, Docker-backed concurrent allocation test, payment detection, underpayment/dust rules, confirmation reconciliation, merchant callback delivery, PaymentController HTTP contract |
 | Persistence | Execution-layer JPA repositories, wallet persistence, mnemonic backups, address pool mappings, idempotency keys, orphan transactions, webhook dead letters |
-| Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; scanner reorg behavior |
+| Blockchain adapters | ETH/BTC mocked transport parsing; TRON height/confirmation parsing; opt-in live-node smoke tests; scanner reorg behavior |
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check |
 | Reliability | Redis idempotency, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter replay/ignore workflow, Kafka domain-event publishing, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
 | API contracts | API envelope serialization, immutable request DTO JSON binding, MVC path/query parameter binding without `-parameters`, request validation for execution payment creation |
@@ -96,8 +104,8 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 | Gap | Status |
 |-----|--------|
 | Docker-backed integration test run | Present but skipped locally without Docker |
-| Live ETH/BTC/TRON node verification | Not covered; adapter tests use mocked transports or parsed HTTP responses |
-| TRON live block scanning | `scanNewBlocks()` parsing is unit-tested with mocked TronGrid responses; not yet live-verified against TronGrid/full node |
+| Live ETH/BTC/TRON node verification | Opt-in `LiveBlockchainAdapterTest` exists; local run skips it until `LIVE_ETH_RPC_URL`, `LIVE_BTC_RPC_URL`, and/or `LIVE_TRON_NODE_URL` are configured |
+| TRON live block scanning | `scanNewBlocks()` parsing is unit-tested with mocked TronGrid responses; opt-in live smoke can exercise one-block scanning when `LIVE_TRON_NODE_URL` is set |
 | `PaymentController` full persistence-backed HTTP E2E | PostgreSQL-backed createPayment idempotency is covered in `NexusFlowApplicationIT`; local run still skips it without Docker |
 | Kafka broker integration | Publisher payload and topic routing are unit-tested with a mocked `KafkaTemplate`; no live Kafka broker test yet |
 | Redis integration against a real Redis server | Cache/idempotency tests use mocked clients |
@@ -108,6 +116,7 @@ JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `po
 ## Notes
 
 - `NexusFlowApplicationIT` uses `@Testcontainers(disabledWithoutDocker = true)`, so local no-Docker runs can still show a green build while skipping integration coverage.
-- Blockchain adapter tests validate request/response parsing and domain conversion. They do not prove behavior against real nodes or network-specific edge cases.
+- `LiveBlockchainAdapterTest` runs only when live-node env vars are set. Optional tx confirmation checks use `LIVE_ETH_TX_HASH`, `LIVE_BTC_TX_HASH`, and `LIVE_TRON_TX_HASH`.
+- Blockchain adapter tests validate request/response parsing and domain conversion. Without the live env vars, they do not prove behavior against real nodes or network-specific edge cases.
 - `flow-cashier` has no Java tests; `mvn -pl flow-cashier test` verifies static resource packaging, including `checkout.html`, `merchant.html`, and `ops.html`.
 - Roadmap status and production risks are tracked in `nexusflow-roadmap.md`, especially the "production preflight risk" section.
