@@ -30,6 +30,21 @@ public class SecurityConfig {
     @Value("${nexusflow.callback.hmac-secret.BITMART:}")
     private String bitmartHmacSecret;
 
+    @Value("${nexusflow.callback.hmac-secret.COINBASE_COMMERCE:}")
+    private String coinbaseCommerceHmacSecret;
+
+    @Value("${nexusflow.callback.hmac-secret.SELF_HOSTED_NODE:}")
+    private String selfHostedNodeHmacSecret;
+
+    @Value("${nexusflow.callback.hmac-secret.MOONPAY:}")
+    private String moonPayHmacSecret;
+
+    @Value("${nexusflow.callback.hmac-secret.RAMP:}")
+    private String rampHmacSecret;
+
+    @Value("${nexusflow.callback.hmac-secret.BANXA:}")
+    private String banxaHmacSecret;
+
     @Value("${nexusflow.api.rate-limit.per-minute:120}")
     private int rateLimitPerMinute;
 
@@ -59,7 +74,12 @@ public class SecurityConfig {
     public FilterRegistrationBean<Filter> callbackHmacFilterRegistration() {
         Map<String, String> secrets = Map.of(
                 "STUB", stubHmacSecret,
-                "BITMART", bitmartHmacSecret
+                "BITMART", bitmartHmacSecret,
+                "COINBASE_COMMERCE", coinbaseCommerceHmacSecret,
+                "SELF_HOSTED_NODE", selfHostedNodeHmacSecret,
+                "MOONPAY", moonPayHmacSecret,
+                "RAMP", rampHmacSecret,
+                "BANXA", banxaHmacSecret
         );
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
         registration.setFilter(new CallbackHmacFilter(secrets, objectMapper));

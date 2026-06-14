@@ -1,7 +1,11 @@
 package com.nexusflow.api.controller;
 
+import com.nexusflow.application.FiatRampApplicationService;
 import com.nexusflow.application.PaymentOrchestrator;
+import com.nexusflow.application.dto.FiatRampCallbackRequestDto;
+import com.nexusflow.application.dto.FiatRampOrderResponseDto;
 import com.nexusflow.common.ApiResponse;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
@@ -19,6 +23,7 @@ import java.util.Map;
 public class CallbackController {
 
     private final PaymentOrchestrator orchestrator;
+    private final FiatRampApplicationService fiatRampService;
 
     @PostMapping("/{channelId}/payment")
     public ApiResponse<Void> handlePaymentCallback(
@@ -48,6 +53,15 @@ public class CallbackController {
         log.info("Refund callback: channel={}, channelRefundId={}, status={}", channelId, channelRefundId, status);
         orchestrator.handleRefundCallback(channelRefundId, status, txHash);
         return ApiResponse.ok(null);
+    }
+
+    @PostMapping("/{gatewayId}/fiat-ramp")
+    public ApiResponse<FiatRampOrderResponseDto> handleFiatRampCallback(
+            @PathVariable("gatewayId") String gatewayId,
+            @Valid @RequestBody FiatRampCallbackRequestDto body) {
+        log.info("Fiat ramp callback: gateway={}, providerOrderId={}, status={}",
+                gatewayId, body.getProviderOrderId(), body.getStatus());
+        return ApiResponse.ok(fiatRampService.handleProviderCallback(gatewayId, body));
     }
 
     private static String safeString(Map<String, Object> body, String key, String fallback) {
