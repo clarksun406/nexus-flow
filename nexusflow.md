@@ -137,6 +137,10 @@ The static merchant console is available at `flow-cashier/src/main/resources/sta
 It stores API base, `X-API-Key`, and callback URLs locally in the browser and calls `/pay/order`,
 `/pay/order/{paymentId}`, and `/refund/order`.
 
+The static ops dashboard is available at `flow-cashier/src/main/resources/static/ops.html`. It calls
+`/ops/dashboard` for channel health, order-board counts, reconciliation backlog, and risk alerts, and
+uses `/crypto/orphan-transactions` for orphan resolve/ignore actions.
+
 ---
 
 ### Outbound (to Core)
@@ -788,7 +792,7 @@ Implemented:
 
 #### P3-1: Unit Tests — 🟡 IN PROGRESS
 
-> Current local verification (2026-06-14): `mvn test` runs 163 passing tests
+> Current local verification (2026-06-14): `mvn test` runs 164 passing tests
 > across common/domain/application/infra/listener/wallet and skips 4 API Testcontainers tests when Docker is
 > unavailable. Coverage now includes state machines, orchestration flows, Redis/idempotency helpers,
 > execution-layer JPA repositories, HD wallet derivation, ETH/BTC adapter parsing, address pool storage,
@@ -796,7 +800,8 @@ Implemented:
 > execution webhooks, Coinbase channel stub,
 > self-hosted node channel delegation,
 > callback HMAC body caching, orphan transaction storage/resolution,
-> reconciliation retry, scanner cursor/reorg behavior, Kafka event publishing, and the blockchain circuit breaker.
+> reconciliation retry, scanner cursor/reorg behavior, Kafka event publishing, ops dashboard aggregation,
+> and the blockchain circuit breaker.
 
 **Remaining priority test targets:**
 
@@ -825,7 +830,7 @@ Implemented:
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry · 🟡 TronAdapter, Reconciliation |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · ⬜ MPC/GasAbstraction/OnOffRamp |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (163 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (164 passing locally) · 🟡 Integration present, Docker-dependent tests skip without Docker |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：
