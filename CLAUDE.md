@@ -141,6 +141,9 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   external refund operations still need environment verification. `LiveCoinbaseCommerceAdapterTest`
   provides opt-in live rate coverage and only creates a live charge when
   `LIVE_COINBASE_COMMERCE_CREATE_CHARGE=true`.
+- BitMart and Binance Pay adapters are still stubs. Their `BlockchainConfig` beans are guarded with
+  `@Profile("!prod")`, so do not rely on them in a production profile until real REST adapters are
+  implemented and live-verified.
 - Kafka domain-event publishing is available behind the same `DomainEventPublisher` port. Default
   remains Spring in-process events; set `EVENT_PUBLISHER=kafka` and `KAFKA_BOOTSTRAP_SERVERS` to
   publish to event-type topics such as `crypto.payment.confirmed`. `LiveMessagingInfrastructureTest`

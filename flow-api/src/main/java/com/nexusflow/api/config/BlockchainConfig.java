@@ -12,6 +12,7 @@ import com.nexusflow.infra.blockchain.TronAdapter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 @Configuration
 public class BlockchainConfig {
@@ -62,11 +63,13 @@ public class BlockchainConfig {
     }
 
     @Bean
+    @Profile("!prod")
     public ChannelAdapter bitMartAdapter() {
         return new BitMartAdapter();
     }
 
     @Bean
+    @Profile("!prod")
     public ChannelAdapter binancePayAdapter() {
         return new BinancePayAdapter();
     }
