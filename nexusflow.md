@@ -2,25 +2,33 @@
 
 **nexusflow** is a digital asset payment engine designed for scalable, multi-chain crypto payment processing.
 
-It serves as the **execution layer (Data Plane)** in the NexusPay ecosystem, handling on-chain transactions, wallet operations, and blockchain integrations.
+The current implementation has evolved from a pure execution layer into an **execution + embedded orchestration engine**. It handles on-chain payment execution, wallet operations, blockchain integrations, merchant payment orders, cashier pages, channel routing, refunds, and selected fiat-ramp integration points.
 
 ---
 
 ## 🧠 Positioning
 
-nexusflow is **NOT** a checkout system and **NOT** an orchestration layer.
+nexusflow now contains two layers:
+
+* **Execution layer:** `CryptoPayment`, wallet/address management, blockchain scanning, confirmations, reconciliation, webhooks.
+* **Orchestration layer:** `PaymentOrder`, channel routing, channel callbacks, refunds, cashier/merchant/ops static consoles, and fiat-ramp tracking.
 
 It is responsible for:
 
 * Executing crypto payments
 * Managing blockchain interactions
 * Tracking on-chain transaction states
+* Creating and routing merchant payment orders
+* Exposing buyer checkout, merchant console, and ops dashboard surfaces
+* Tracking provider callbacks, refunds, webhooks, and fiat-ramp conversion states
 
 ```text
-NexusPay-Core (Control Plane)
+Merchant / NexusPay-Core
         ↓
-   nexusflow (Data Plane - Crypto)
+   nexusflow (Execution + Orchestration)
 ```
+
+Production readiness is tracked separately from code completion. Some capabilities are implemented only as ports, generic HTTP adapters, stubs, or opt-in live smoke tests. See `nexusflow-roadmap.md` and `TESTING.md` before treating a feature as production-ready.
 
 ---
 
@@ -74,7 +82,7 @@ nexusflow emits domain events:
 * `crypto.payment.confirmed`
 * `crypto.payment.failed`
 
-These events are consumed by **NexusPay-Core**.
+These events are consumed by **NexusPay-Core**, merchant webhook endpoints, Kafka consumers, or internal operations workflows depending on deployment.
 
 ---
 
@@ -218,12 +226,13 @@ docker-compose up flow-api flow-listener flow-wallet
 
 ## ⚠️ Non-Goals
 
-nexusflow does NOT:
+nexusflow does NOT currently aim to:
 
-* Provide checkout UI
-* Handle fiat payments
-* Perform orchestration / routing decisions
-* Replace NexusPay-Core
+* Replace the full NexusPay-Core control plane, merchant lifecycle, pricing, risk, compliance, or settlement operations.
+* Provide official provider-specific implementations unless an adapter is explicitly implemented and live-verified.
+* Provide KYC/AML decisioning for fiat-ramp providers.
+* Custody or account for merchant balances beyond the payment/refund/ramp tracking records represented in this repository.
+* Guarantee production readiness for stubbed or opt-in integrations without live environment validation.
 
 ---
 
@@ -238,7 +247,7 @@ nexusflow is built as a **modular, chain-agnostic execution engine**.
 
 ## 📌 Summary
 
-> nexusflow is the crypto execution engine powering digital asset payments in the Nexus ecosystem.
+> nexusflow is the payment engine powering digital asset execution plus embedded payment orchestration in the Nexus ecosystem.
 
 ---
 
@@ -279,16 +288,19 @@ nexusflow is built as a **modular, chain-agnostic execution engine**.
 
 ## 🧠 Domain Boundaries
 
-### Flow Domain (Crypto Core)
+### Flow Domain
 Responsible for:
 - Crypto payment lifecycle
 - On-chain transaction tracking
 - Wallet abstraction
+- Merchant payment order orchestration
+- Channel routing ports
+- Refund and fiat-ramp tracking state machines
 
 NOT responsible for:
-- Checkout UI
-- Payment orchestration
-- Fiat payments
+- Provider REST clients, database access, Kafka, Redis, or other infrastructure implementation details
+- UI rendering logic beyond serving static assets from the API/cashier modules
+- KYC/AML, compliance decisions, and provider settlement operations
 
 ---
 
@@ -469,7 +481,8 @@ All external APIs MUST be idempotent.
 - BTC node (future)
 
 ### External Systems:
-- NexusPay-Core (orchestration layer)
+- NexusPay-Core / merchant systems
+- Channel providers and payment processors
 - Monitoring system
 - KMS (optional)
 
@@ -509,12 +522,15 @@ nexusflow is:
 - wallet
 - blockchain tracking
 - crypto payment lifecycle
+- embedded payment order orchestration
+- cashier, merchant, and ops static consoles
+- provider callback ingestion and webhook delivery records
 
-### NexusPay-Core owns:
-- checkout
-- orchestration
-- routing
-- merchant logic
+### NexusPay-Core or external merchant systems may own:
+- broader merchant lifecycle and account management
+- product/order systems
+- pricing, risk, compliance, and settlement policy
+- cross-product orchestration outside this repository
 
 ### Shared only via:
 - events
@@ -861,7 +877,7 @@ smoke tests remain pending.
 | P0 (MVP must-have) | 7 | TronAdapter, KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, Reconciliation | ✅ KeyGenerator, PaymentMatching, Webhook, Idempotency, Expiry, TronAdapter · 🟡 Reconciliation live verification |
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · 🟡 MPC core/GasEstimator+GasBank core/OnOffRamp core |
-| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (246 passing locally) · 🟡 Integration/live tests present, 14 skipped locally without Docker/live env |
+| P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (256 passing locally) · 🟡 Integration/live tests present, 14 skipped locally without Docker/live env |
 | **Total** | **19** | | |
 
 > 进度更新 2026-06-07：

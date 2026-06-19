@@ -5,17 +5,19 @@
 NexusFlow 是 Nexus 生态中的加密支付引擎。它同时承担两层职责：
 
 - **执行层（Data Plane）** — 链上交易执行、钱包抽象、交易状态跟踪（ETH / TRON / BTC 适配器）
-- **编排层（Orchestration）** — 商户法币/数币订单编排，对接收单通道（交易所 / 支付商，如 BitMart）
+- **编排层（Orchestration）** — 商户法币/数币订单编排，对接收单通道（交易所 / 支付商 / 自建节点通道）
 
 ```
                           ┌──────────────────────────────┐
-   商户 ──法币/数币订单──→ │  编排层  PaymentOrder/Router   │──→  收单通道 (BitMart/...)
+   商户 ──法币/数币订单──→ │  编排层  PaymentOrder/Router   │──→  收单通道 / 自建节点通道
                           │  ────────────────────────────│
    买家 ←── 收银台页面 ──  │  执行层  CryptoPayment/Wallet  │──→  区块链节点 (ETH/TRON/BTC)
                           └──────────────────────────────┘
 ```
 
-详细设计见 [`nexusflow.md`](./nexusflow.md)，路线图见 [`nexusflow-roadmap.md`](./nexusflow-roadmap.md)。
+详细设计见 [`nexusflow.md`](./nexusflow.md)，路线图见 [`nexusflow-roadmap.md`](./nexusflow-roadmap.md)，商户体系设计见 [`nexusflow-merchant-design.md`](./nexusflow-merchant-design.md)，前端产品规划见 [`nexusflow-frontend-design.md`](./nexusflow-frontend-design.md)。
+
+> 当前状态口径：核心代码、端口、持久化、API 和离线测试已大量落地；生产可用性仍取决于真实节点、真实通道、Docker/Testcontainers、Redis/Kafka、MPC、GasBank 和 fiat-ramp provider 的 live 验证。不要把 roadmap 中的代码完成度直接等同于生产闭环完成。
 
 ---
 
@@ -30,7 +32,8 @@ NexusFlow 是 Nexus 生态中的加密支付引擎。它同时承担两层职责
 | `flow-listener` | 区块扫描 / 索引 / 对账 |
 | `flow-wallet` | 钱包服务、地址派生 |
 | `flow-api` | REST API、收银台 / 回调入口、Flyway 迁移 |
-| `flow-cashier` | 收银台前端静态资源 |
+| `flow-cashier` | 收银台、商户、运营静态页面资源；当前不是完整产品级前端应用 |
+| `frontend` | 早期收银台静态页面 / Demo；正式前端 workspace 规划见 `nexusflow-frontend-design.md` |
 
 ### 架构约束（DDD）
 
@@ -64,7 +67,7 @@ mvn install
 
 ### 本地运行
 
-需要 PostgreSQL（`nexusflow` 库）与 Redis。敏感配置通过环境变量注入：
+需要 PostgreSQL（`nexusflow` 库）。Redis 仅在启用缓存、Redis 幂等或相关 live smoke 时需要。敏感配置通过环境变量注入：
 
 ```bash
 export DB_PASSWORD=...
@@ -99,9 +102,11 @@ WAITING_PAYMENT → CONFIRMED → REFUND_PROCESSING → REFUNDED / REFUND_FAILED
 
 ## 当前进度
 
-- **编排引擎核心 (P0)**：✅ 已完成（订单/退款/通道领域模型、编排服务、桩通道适配器、JPA 持久化、商户/收银台 API、收银台前端）
-- **执行层 (P0)**：🚧 进行中——链上适配器、HD 钱包地址派生、对账/过期调度等仍在建设
-- 详见 [`nexusflow-roadmap.md`](./nexusflow-roadmap.md)
+- **编排引擎核心**：✅ 代码已落地（订单/退款/通道领域模型、编排服务、JPA 持久化、商户/收银台 API、收银台/商户/运营静态页面）
+- **执行层核心**：✅ 代码已落地（ETH/BTC/TRON 适配器、HD 钱包、地址池、对账/过期调度、幂等、orphan transaction、Webhook dead letter）
+- **真实通道**：🟡 Coinbase Commerce 有 REST charge/rate 实现但待 live 验证；BitMart/Binance 仍为非 prod stub
+- **生产前缺口**：🟡 产品级前端/控制台体系（Checkout、Merchant Portal、Ops Console、Admin Console）、商户级认证/多租户、RBAC 权限服务接入、Docker-backed 集成测试、真实链节点、Redis/Kafka、生产 Webhook、Coinbase live、MPC provider、GasBank/live fee oracle、MoonPay/Ramp/Banxa 官方适配仍需补齐或验证
+- 详见 [`nexusflow-roadmap.md`](./nexusflow-roadmap.md) 的“生产就绪度摘要”和“生产前剩余风险 / 未验证项”，[`nexusflow-merchant-design.md`](./nexusflow-merchant-design.md) 的商户体系规划，以及 [`nexusflow-frontend-design.md`](./nexusflow-frontend-design.md) 的前端分端规划
 
 ---
 
