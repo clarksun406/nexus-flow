@@ -22,7 +22,7 @@
 | 商户配置 | `merchant.html` 把 API key / callback URL 存在 `localStorage` | Webhook、品牌、回调 secret、IP allowlist 等都未持久化 |
 | 商户用户 | 无 | Merchant Portal 无登录主体、团队成员和角色 |
 | 数据隔离 | 订单表有 `merchant_id`，查询接口未从认证上下文约束 | 商户可以传任意 `merchantId`；运营/商户查询边界未区分 |
-| RBAC | `nexus-flow-permission` 是独立原型 | 主系统没有 `userId` / `merchantId` request attributes，无法安全接入 |
+| RBAC | `flow-permission` 是已纳入根 Maven 的独立权限模块 | 主系统没有 `userId` / `merchantId` request attributes，仍无法安全接入业务接口 |
 
 ## 3. 身份模型
 
@@ -259,7 +259,7 @@ R-18 的 permission client 需要 request attributes 中已有 `userId` 和 `mer
 | Ops Console | 内部用户 ID | 可为空或目标商户 | `INTERNAL_USER` |
 | Admin Console | 内部管理员 ID | 可为空或目标商户 | `INTERNAL_USER` |
 
-权限点建议先内置在主工程枚举中，待 `nexus-flow-permission` 修正鉴权、scope 唯一约束、测试和版本后再接入。
+权限点建议先内置在主工程枚举中，待商户身份上下文落地后再接入 `flow-permission`。
 
 ## 10. 迁移阶段
 
@@ -291,4 +291,4 @@ R-18 的 permission client 需要 request attributes 中已有 `userId` 和 `mer
 - API key hash 方案：建议用不可逆 hash，并加服务端 pepper；不能加密后可逆保存。
 - Merchant Portal 是否自建账号密码：短期可自建，长期最好支持 SSO/OIDC。
 - Webhook secret 是否每个 URL 一个：建议是，方便轮换和多 endpoint 管理。
-- `nexus-flow-permission` 是否并入根 Maven：必须等商户上下文和服务间鉴权明确后再并。
+- `flow-permission` 接入业务接口的时机：必须等商户上下文明确后再启用 `@CheckPermission`。

@@ -2,6 +2,9 @@
 
 Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
 
+Permission module last verified: 2026-06-24 with
+`mvn -pl flow-permission/flow-permission-server,flow-permission/flow-permission-client -am test`.
+
 ## Current Result
 
 | Total | Passed | Failed | Errors | Skipped |
@@ -21,6 +24,9 @@ mvn -DskipTests compile
 
 # Run a module
 mvn test -pl flow-application
+
+# Run permission server/client tests
+mvn -pl flow-permission/flow-permission-server,flow-permission/flow-permission-client -am test
 
 # Run one test class
 mvn test -pl flow-application -Dtest=PaymentOrchestratorTest
@@ -62,6 +68,12 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 
 | Module | Test class | Count | Coverage |
 |--------|------------|-------|----------|
+| `flow-permission-server` | `ServiceTokenFilterTest` | 3 | Permission server bearer service-token allow/deny and local auth-disable behavior |
+| `flow-permission-server` | `PermissionExceptionHandlerTest` | 1 | Stable validation error envelope for permission admin APIs |
+| `flow-permission-server` | `PermissionRequestValidationTest` | 4 | Bean validation for role creation, permission checks, and role grants |
+| `flow-permission-server` | `UserRoleMappingTest` | 1 | `UserRole` mapping does not declare misleading nullable unique constraint |
+| `flow-permission-client` | `PermissionCodesTest` | 2 | Permission code catalog uniqueness, naming format, and current flow-api coverage |
+| `flow-permission-client` | `RoleCodesTest` | 2 | Role template code catalog uniqueness and system/merchant grouping |
 | `flow-common` | `AesGcmEncryptionTest` | 9 | AES-GCM key generation, encrypt/decrypt, invalid input handling |
 | `flow-common` | `ApiResponseTest` | 3 | API success/failure envelope defaults and JSON serialization |
 | `flow-domain` | `FlowStatusTest` | 7 | Payment flow status transitions |
@@ -139,6 +151,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check, MPC signer port, opt-in custom HTTP signer adapter, and wallet provider-id persistence |
 | Reliability | Redis idempotency, opt-in Redis live smoke, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter replay/ignore workflow, opt-in outbound webhook live smoke, Kafka domain-event publishing, opt-in Kafka live smoke, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
 | API contracts | API envelope serialization, immutable request DTO JSON binding, MVC path/query parameter binding without `-parameters`, request validation for execution payment and fiat ramp creation |
+| Permission module | Permission and role code catalogs, service-token filter, request validation, stable validation error envelope, and nullable-scope user-role uniqueness mapping |
 | Integration | PostgreSQL Testcontainers coverage includes Spring context/Flyway/JPA round trips, persistence-backed createPayment HTTP idempotency, and concurrent address allocation; opt-in live smoke coverage exists for blockchain nodes, Redis/Kafka, and Coinbase Commerce; needs Docker or live credentials to execute |
 
 ## Known Gaps

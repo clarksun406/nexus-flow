@@ -21,6 +21,7 @@
         <module>flow-wallet</module>
         <module>flow-api</module>
         <module>flow-cashier</module>
+        <module>flow-permission</module>
     </modules>
 
     <properties>
@@ -97,6 +98,11 @@
             <dependency>
                 <groupId>com.nexusflow</groupId>
                 <artifactId>flow-wallet</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.nexusflow</groupId>
+                <artifactId>flow-permission-client</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
