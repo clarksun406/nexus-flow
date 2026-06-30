@@ -188,6 +188,19 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   `CryptoPayment` records automatically for unmatched inbound transactions.
 - `StubAdapter` is a working fake `ChannelAdapter` used for routing/testing.
 
+- Merchant identity is partially implemented following `nexusflow-merchant-design.md` (M1-M3
+  of M0-M7). `ApiKeyAuthFilter` resolves merchant-scoped API keys via SHA-256 hash lookup
+  against `MerchantCredentialRepository`, setting `merchantId`, `merchantCode`, and
+  `authSource` request attributes. `MerchantRequestGuard.requireMatchingMerchant()` validates
+  POST body `merchantId` and GET response `merchantId` against the authenticated merchant
+  context; for global API key requests (no merchant attributes), the guard is a no-op.
+  Merchant-scoped keys are rejected on `/ops/*` and `/crypto/*` endpoints via inline filter
+  check and reusable `MerchantRequestGuard.requireGlobalAccess()`. `OrderResponse` includes
+  `merchantId` for GET ownership checks. `GlobalExceptionHandler` maps UNAUTHORIZED to HTTP
+  401. Domain value objects (`MerchantProfile`, `MerchantCredential`, `MerchantWebhookConfig`)
+  and JPA entities exist as scaffolding for M4-M7. Global `nexusflow.api.key` remains as
+  dev/test fallback.
+
 Before relying on a feature end-to-end, verify the relevant adapter is actually implemented
 rather than a stub.
 

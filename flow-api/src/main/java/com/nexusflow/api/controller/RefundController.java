@@ -3,6 +3,7 @@ package com.nexusflow.api.controller;
 import com.nexusflow.application.PaymentOrchestrator;
 import com.nexusflow.application.dto.*;
 import com.nexusflow.common.ApiResponse;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -15,7 +16,9 @@ public class RefundController {
     private final PaymentOrchestrator orchestrator;
 
     @PostMapping("/order")
-    public ApiResponse<RefundResponseDto> refund(@Valid @RequestBody RefundRequestDto req) {
+    public ApiResponse<RefundResponseDto> refund(HttpServletRequest request,
+                                                 @Valid @RequestBody RefundRequestDto req) {
+        MerchantRequestGuard.requireMatchingMerchant(request, req.getMerchantId());
         return ApiResponse.ok(orchestrator.refund(req));
     }
 }

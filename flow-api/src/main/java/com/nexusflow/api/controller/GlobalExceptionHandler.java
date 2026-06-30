@@ -8,6 +8,7 @@ import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.common.OrphanTransactionNotFoundException;
 import com.nexusflow.common.PaymentNotFoundException;
 import com.nexusflow.common.WebhookDeadLetterNotFoundException;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -54,9 +55,11 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(NexusFlowException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public ApiResponse<Void> handleNexusFlow(NexusFlowException e) {
+    public ApiResponse<Void> handleNexusFlow(NexusFlowException e, HttpServletResponse response) {
         log.error("NexusFlow error: code={}, message={}", e.getErrorCode(), e.getMessage(), e);
+        HttpStatus status = e.getErrorCode() == ErrorCode.UNAUTHORIZED
+                ? HttpStatus.UNAUTHORIZED : HttpStatus.INTERNAL_SERVER_ERROR;
+        response.setStatus(status.value());
         return ApiResponse.fail(e.getErrorCode(), e.getMessage());
     }
 

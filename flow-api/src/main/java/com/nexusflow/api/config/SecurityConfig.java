@@ -1,9 +1,11 @@
 package com.nexusflow.api.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nexusflow.api.security.ApiKeyHasher;
 import com.nexusflow.api.security.ApiKeyAuthFilter;
 import com.nexusflow.api.security.CallbackHmacFilter;
 import com.nexusflow.api.security.RateLimitFilter;
+import com.nexusflow.domain.merchant.MerchantCredentialRepository;
 import jakarta.servlet.Filter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -49,9 +51,14 @@ public class SecurityConfig {
     private int rateLimitPerMinute;
 
     private final ObjectMapper objectMapper;
+    private final MerchantCredentialRepository merchantCredentialRepository;
+    private final ApiKeyHasher apiKeyHasher;
 
-    public SecurityConfig(ObjectMapper objectMapper) {
+    public SecurityConfig(ObjectMapper objectMapper, MerchantCredentialRepository merchantCredentialRepository,
+                          ApiKeyHasher apiKeyHasher) {
         this.objectMapper = objectMapper;
+        this.merchantCredentialRepository = merchantCredentialRepository;
+        this.apiKeyHasher = apiKeyHasher;
     }
 
     /**
@@ -60,7 +67,7 @@ public class SecurityConfig {
     @Bean
     public FilterRegistrationBean<Filter> apiKeyFilterRegistration() {
         FilterRegistrationBean<Filter> registration = new FilterRegistrationBean<>();
-        registration.setFilter(new ApiKeyAuthFilter(apiKey, objectMapper));
+        registration.setFilter(new ApiKeyAuthFilter(apiKey, merchantCredentialRepository, apiKeyHasher, objectMapper));
         registration.addUrlPatterns("/pay/*", "/crypto/*", "/refund/*", "/ops/*", "/fiat/*");
         registration.setOrder(1);
         registration.setName("apiKeyAuthFilter");

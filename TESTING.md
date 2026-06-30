@@ -9,7 +9,7 @@ Permission module last verified: 2026-06-24 with
 
 | Total | Passed | Failed | Errors | Skipped |
 |-------|--------|--------|--------|---------|
-| 270 | 256 | 0 | 0 | 14 |
+| 280 | 266 | 0 | 0 | 14 |
 
 The 14 skipped tests are 6 `NexusFlowApplicationIT` Testcontainers cases, 3 opt-in live blockchain smoke tests, 2 opt-in live messaging smoke tests, 2 opt-in Coinbase Commerce smoke tests, and 1 opt-in live webhook delivery smoke test. They require Docker or explicit live dependency environment variables and are skipped automatically when unavailable.
 
@@ -116,6 +116,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-infra` | `InMemoryPaymentRepositoryTest` | 6 | In-memory payment repository matching and lookup |
 | `flow-infra` | `JpaAddressPoolRepositoryTest` | 2 | Address pool JPA mapping and available-address lookup |
 | `flow-infra` | `JpaFiatRampRepositoryTest` | 4 | Fiat ramp JPA mapping, provider/merchant/payment lookup, and optimistic-version preservation |
+| `flow-infra` | `JpaMerchantCredentialRepositoryTest` | 2 | Merchant credential hash lookup mapping and not-found behavior |
 | `flow-infra` | `JpaMnemonicStoreTest` | 2 | Encrypted mnemonic backup persistence mapping |
 | `flow-infra` | `JpaPaymentIdempotencyStoreTest` | 5 | Persistent createPayment idempotency reserve/replay/delete behavior |
 | `flow-infra` | `JpaOrphanTransactionRepositoryTest` | 3 | Orphan transaction JPA mapping and lookup |
@@ -127,11 +128,15 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | `flow-wallet` | `KeyGeneratorTest` | 7 | BIP39/BIP44 derivation and ETH/TRON/BTC address derivation |
 | `flow-api` | `CallbackControllerTest` | 1 | Fiat ramp provider callback HTTP contract delegates to application service |
 | `flow-api` | `CallbackHmacFilterTest` | 1 | Callback HMAC verification keeps request body readable downstream |
+| `flow-api` | `ApiKeyAuthFilterTest` | 6 | Merchant-scoped API key context, global fallback, invalid key rejection, hash-before-lookup, ops/crypto path restriction |
+| `flow-api` | `ApiKeyHasherTest` | 1 | SHA-256 hex hash of presented API key |
 | `flow-api` | `BlockchainConfigTest` | 2 | Stubbed external BitMart/Binance channel beans are guarded out of the `prod` profile; Coinbase no-key stub is omitted in `prod` |
 | `flow-api` | `FiatRampGatewayConfigTest` | 2 | Opt-in normalized HTTP fiat ramp gateway Spring bean registration |
-| `flow-api` | `FiatRampControllerTest` | 4 | Merchant fiat ramp quote/create/get HTTP contract and request validation |
+| `flow-api` | `FiatRampControllerTest` | 5 | Merchant fiat ramp quote/create/get HTTP contract, request validation, and cross-merchant IDOR guard |
 | `flow-api` | `GasBankFundingConfigTest` | 2 | GasBank funding service is registered only when a real GasBank and gas estimator are present |
+| `flow-api` | `MerchantRequestGuardTest` | 6 | POST body merchantId match, mismatch rejection, global key pass-through, requireGlobalAccess for ops/crypto restriction |
 | `flow-api` | `MpcSignerConfigTest` | 2 | Opt-in custom HTTP MPC signer Spring bean registration |
+| `flow-api` | `PayControllerTest` | 3 | Merchant pay order GET contract, cross-merchant IDOR guard, global-key pass-through |
 | `flow-api` | `PaymentControllerTest` | 6 | MockMvc HTTP contract for create/get/confirm/fail, idempotency headers, validation, and parameter binding |
 | `flow-api` | `SecurityConfigTest` | 2 | API key filter protects `/fiat/*` endpoints; callback HMAC filter includes fiat ramp providers |
 | `flow-api` | `WebhookDeadLetterControllerTest` | 4 | Ops dead-letter list/replay/ignore HTTP contract and not-found response |
@@ -151,6 +156,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Wallet/key management | BIP39/BIP44 derivation, ETH/TRON/BTC address derivation, Base58Check, MPC signer port, opt-in custom HTTP signer adapter, and wallet provider-id persistence |
 | Reliability | Redis idempotency, opt-in Redis live smoke, persistent createPayment idempotency, Redis cache fallback, retry/backoff, blockchain circuit breaker, callback HMAC verification, outbound webhook HMAC/retry/SSRF/dead-letter replay/ignore workflow, opt-in outbound webhook live smoke, Kafka domain-event publishing, opt-in Kafka live smoke, orphan transaction deduplication/manual resolution/compensation, ops risk dashboard |
 | API contracts | API envelope serialization, immutable request DTO JSON binding, MVC path/query parameter binding without `-parameters`, request validation for execution payment and fiat ramp creation |
+| Merchant identity | Per-merchant API key SHA-256 hash auth, merchant context request attributes, POST body merchantId guard, GET response ownership guard, ops/crypto path restriction for merchant-scoped keys |
 | Permission module | Permission and role code catalogs, service-token filter, request validation, stable validation error envelope, and nullable-scope user-role uniqueness mapping |
 | Integration | PostgreSQL Testcontainers coverage includes Spring context/Flyway/JPA round trips, persistence-backed createPayment HTTP idempotency, and concurrent address allocation; opt-in live smoke coverage exists for blockchain nodes, Redis/Kafka, and Coinbase Commerce; needs Docker or live credentials to execute |
 
@@ -173,6 +179,7 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 | Live gas pricing | `StaticGasEstimator` provides configurable conservative defaults and `GasBankPolicy` can recommend top-up/batching actions; `GasBankFundingService` can call a configured `GasBank` for immediate or low-gas batch top-ups. Live fee oracle integration, a real funding adapter, alerting, and production scheduler/live smoke are still pending |
 | MPC provider integration | `MpcSigner` port, wallet `mpcWalletId` persistence, and opt-in custom HTTP signer adapter exist; Fireblocks/Copper-specific adapters, signing workflow integration, and live signing smoke tests remain pending |
 | Fiat on/off ramp provider integration | `FiatGateway` port, merchant API orchestration, HMAC callback endpoint, persisted `FiatRampOrder` tracking, and opt-in normalized HTTP gateway exist; official MoonPay/Ramp/Banxa payload mapping/signature/KYC semantics and live settlement smoke tests remain pending |
+| Merchant identity M4-M7 | M1 (merchant master data), M2 (merchant API key hash auth), and M3 (business API isolation) are implemented; M4 (webhook persistence), M5 (merchant portal sessions), M6 (ops/admin + RBAC), and M7 (global key deprecation) remain pending per `nexusflow-merchant-design.md` |
 
 ## Notes
 

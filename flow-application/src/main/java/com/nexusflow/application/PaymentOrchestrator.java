@@ -502,6 +502,7 @@ public class PaymentOrchestrator {
 
     private OrderResponse toResponse(PaymentOrder o, String channelName, String payUrl) {
         return OrderResponse.builder()
+                .merchantId(o.getMerchantId())
                 .paymentId(o.getPaymentId()).merchantOrderNo(o.getMerchantOrderNo())
                 .status(o.getStatus().name())
                 .amountFiat(o.getAmountFiat().toPlainString()).currencyFiat(o.getCurrencyFiat())

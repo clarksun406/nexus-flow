@@ -1,6 +1,8 @@
 package com.nexusflow.api.config;
 
+import com.nexusflow.api.security.ApiKeyHasher;
 import com.nexusflow.api.security.CallbackHmacFilter;
+import com.nexusflow.domain.merchant.MerchantCredentialRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.Filter;
 import org.junit.jupiter.api.Test;
@@ -16,6 +18,8 @@ class SecurityConfigTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
             .withBean(ObjectMapper.class, ObjectMapper::new)
+            .withBean(MerchantCredentialRepository.class, () -> org.mockito.Mockito.mock(MerchantCredentialRepository.class))
+            .withBean(ApiKeyHasher.class, ApiKeyHasher::new)
             .withUserConfiguration(SecurityConfig.class);
 
     @Test

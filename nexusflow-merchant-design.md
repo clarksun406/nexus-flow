@@ -265,14 +265,14 @@ R-18 的 permission client 需要 request attributes 中已有 `userId` 和 `mer
 
 | 阶段 | 目标 | 说明 |
 |------|------|------|
-| M0 | 文档和模型确认 | 本设计文档进入 roadmap；确认 merchant code / UUID 策略 |
-| M1 | 商户主数据 | 新增 `merchant_profiles`、迁移默认商户、建立 code 到 UUID 映射 |
-| M2 | 商户级 API key | 新增 `merchant_api_keys`，替换 `ApiKeyAuthFilter` 为商户 key 解析 |
-| M3 | 业务接口隔离 | `/pay`、`/refund`、`/fiat/ramp` 从认证上下文校验商户 |
-| M4 | Webhook 持久化 | 新增 `merchant_webhook_configs`，订单回调默认走商户配置 |
-| M5 | Merchant Portal 会话 | 商户用户、登录、membership、API key/Webhook 管理页面 |
-| M6 | Ops/Admin + RBAC | 内部登录、商户管理、权限接入、审计全覆盖 |
-| M7 | 清理全局 key | 生产禁用全局 `nexusflow.api.key`，仅 dev/test fallback |
+| M0 | 文档和模型确认 | ✅ 本设计文档进入 roadmap；确认 merchant code / UUID 策略 |
+| M1 | 商户主数据 | 🟡 新增 `merchant_profiles` 表和 V12 Flyway 迁移；`MerchantProfile` 值对象和 `MerchantProfileEntity` JPA 实体已落地；商户管理 CRUD API 待实现 |
+| M2 | 商户级 API key | 🟡 新增 `merchant_credentials` 表和迁移；`MerchantApiKey` DTO、`MerchantCredentialRepository` 端口、`JpaMerchantCredentialRepository` 适配器、`ApiKeyHasher` (SHA-256) 已实现；`ApiKeyAuthFilter` 改造为商户 key 解析，设置 request attributes；key 轮换/禁用/管理 API 待实现 |
+| M3 | 业务接口隔离 | 🟡 `/pay`、`/refund`、`/fiat/ramp` POST 接口通过 `MerchantRequestGuard.requireMatchingMerchant()` 校验请求 body `merchantId`；GET 查询接口通过 response `merchantId` 校验所有权；`/ops/*` 和 `/crypto/*` 限制商户 key 访问；`OrderResponse` 新增 `merchantId` 字段；`GlobalExceptionHandler` UNAUTHORIZED 返回 401 |
+| M4 | Webhook 持久化 | 新增 `merchant_webhook_configs` 表和迁移已落地，但 webhook dispatch 仍走 per-order `notifyUrl`，尚未接入商户级 webhook 配置 |
+| M5 | Merchant Portal 会话 | 商户用户、登录、membership、API key/Webhook 管理页面（待实现） |
+| M6 | Ops/Admin + RBAC | 内部登录、商户管理、权限接入、审计全覆盖（待实现） |
+| M7 | 清理全局 key | 生产禁用全局 `nexusflow.api.key`，仅 dev/test fallback（待实现） |
 
 ## 11. 第一批实现任务
 

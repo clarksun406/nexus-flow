@@ -6,6 +6,7 @@ import com.nexusflow.application.dto.FiatRampCreateOrderRequestDto;
 import com.nexusflow.application.dto.FiatRampOrderResponseDto;
 import com.nexusflow.application.dto.FiatRampQuoteRequestDto;
 import com.nexusflow.application.dto.FiatRampQuoteResponseDto;
+import com.nexusflow.api.security.MerchantAuthContext;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -93,6 +94,17 @@ class FiatRampControllerTest {
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"));
 
         verify(service).getOrder("ramp-order-1");
+    }
+
+    @Test
+    void getOrderRejectsCrossMerchantAccess() throws Exception {
+        when(service.getOrder("ramp-order-1")).thenReturn(orderResponse("COMPLETED"));
+
+        mockMvc.perform(get("/fiat/ramp/orders/ramp-order-1")
+                        .requestAttr(MerchantAuthContext.MERCHANT_ID_ATTRIBUTE, "merchant-2"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("NF-0004"));
     }
 
     @Test

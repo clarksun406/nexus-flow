@@ -5,6 +5,7 @@ import lombok.Value;
 
 @Value @Builder
 public class OrderResponse {
+    String merchantId;
     String paymentId;
     String merchantOrderNo;
     String status;
