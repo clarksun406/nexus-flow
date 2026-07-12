@@ -11,6 +11,7 @@ public enum ErrorCode {
     IDEMPOTENCY_VIOLATION("NF-0003", "Duplicate request detected"),
     UNAUTHORIZED("NF-0004", "Unauthorized"),
     INVALID_SIGNATURE("NF-0005", "Invalid callback signature"),
+    FORBIDDEN("NF-0006", "Forbidden"),
 
     // Payment
     PAYMENT_NOT_FOUND("NF-1001", "Payment not found"),

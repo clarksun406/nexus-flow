@@ -3,6 +3,8 @@ package com.nexusflow.api.controller;
 import com.nexusflow.application.PaymentOrchestrator;
 import com.nexusflow.application.dto.*;
 import com.nexusflow.common.ApiResponse;
+import com.nexusflow.permission.client.CheckPermission;
+import com.nexusflow.permission.client.PermissionCodes;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +18,7 @@ public class PayController {
     private final PaymentOrchestrator orchestrator;
 
     @PostMapping("/order")
+    @CheckPermission(PermissionCodes.PaymentOrder.CREATE)
     public ApiResponse<OrderResponse> createOrder(HttpServletRequest request,
                                                   @Valid @RequestBody CreateOrderRequest req) {
         MerchantRequestGuard.requireMatchingMerchant(request, req.getMerchantId());
@@ -23,6 +26,7 @@ public class PayController {
     }
 
     @GetMapping("/order/{paymentId}")
+    @CheckPermission(PermissionCodes.PaymentOrder.READ)
     public ApiResponse<OrderResponse> getOrder(HttpServletRequest request,
                                                @PathVariable("paymentId") String paymentId) {
         OrderResponse order = orchestrator.getOrder(paymentId);

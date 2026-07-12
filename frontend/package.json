@@ -1,0 +1,40 @@
+{
+  "name": "nexusflow-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "npm@10.9.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:checkout": "npm run dev -w @nexusflow/checkout",
+    "dev:merchant": "npm run dev -w @nexusflow/merchant",
+    "dev:ops": "npm run dev -w @nexusflow/ops",
+    "dev:admin": "npm run dev -w @nexusflow/admin",
+    "build": "npm run build:checkout && npm run build:merchant && npm run build:ops && npm run build:admin",
+    "build:checkout": "npm run build -w @nexusflow/checkout",
+    "build:merchant": "npm run build -w @nexusflow/merchant",
+    "build:ops": "npm run build -w @nexusflow/ops",
+    "build:admin": "npm run build -w @nexusflow/admin",
+    "typecheck": "npm run typecheck:checkout && npm run typecheck:merchant && npm run typecheck:ops && npm run typecheck:admin",
+    "typecheck:checkout": "npm run typecheck -w @nexusflow/checkout",
+    "typecheck:merchant": "npm run typecheck -w @nexusflow/merchant",
+    "typecheck:ops": "npm run typecheck -w @nexusflow/ops",
+    "typecheck:admin": "npm run typecheck -w @nexusflow/admin",
+    "prune:dist": "node scripts/prune-dist-app.mjs",
+    "test:smoke": "node --test tests/*.test.mjs",
+    "test:e2e": "playwright test",
+    "verify": "npm run typecheck && npm run build && npm run prune:dist && npm run test:smoke",
+    "verify:e2e": "npm run verify && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@types/node": "^22.10.2",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5",
+    "vue": "^3.5.13",
+    "vue-tsc": "^2.1.10"
+  }
+}

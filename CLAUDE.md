@@ -54,6 +54,8 @@ the outbound chain transaction before refund callbacks mark success/failure.
 flow-api / flow-listener
 flow-application        -> flow-domain -> flow-common
 flow-infra / flow-wallet
+
+frontend-checkout / frontend-merchant / frontend-ops / frontend-admin   # static frontend modules (no Java deps)
 ```
 
 `flow-domain` depends only on `flow-common` - never on infrastructure. Ports (interfaces) live
@@ -171,16 +173,21 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
 - Merchant orchestration orders can be crypto-denominated. `PaymentOrchestrator.createOrder` accepts
   `amountCrypto` + `currencyCrypto` + `network`, routes with that asset, and derives the fiat display
   amount from the channel exchange rate.
-- `flow-cashier/src/main/resources/static/checkout.html` is the static buyer Checkout. It accepts
-  `payment_id`/`paymentId` from the URL, calls `/cashier/order/status` and `/cashier/pay/submit`,
-  renders the deposit address and Canvas QR code, and polls status until terminal states.
-  `nexusflow.cashier.base-url` controls the returned `payUrl`; the default is `/checkout.html`.
-- `flow-cashier/src/main/resources/static/merchant.html` is the static Merchant Portal. It stores API
-  base, API key, and callback URLs in browser localStorage and calls `/pay/order`,
-  `/pay/order/{paymentId}`, and `/refund/order`; it is not a server-side merchant settings store.
-- `flow-cashier/src/main/resources/static/ops.html` is the static Ops Dashboard. It calls
-  `/ops/dashboard` for channel/order/reconciliation/risk data and `/crypto/orphan-transactions`
-  for orphan resolve/ignore/compensate actions; `/ops/*` is protected by the same `X-API-Key` filter.
+- Frontend is split into 4 independent Maven modules (FR-0/FR-1, 2026-07-10):
+  - `frontend-checkout` — buyer checkout (`checkout.html`, legacy demo pages)
+  - `frontend-merchant` — merchant portal (`merchant.html`, `merchant-login.html`)
+  - `frontend-ops` — ops console (`ops.html`, `ops-login.html`)
+  - `frontend-admin` — platform admin (`admin-permissions.html`, `admin-users.html`, `admin-login.html`)
+  The old `flow-cashier` module has been deleted.
+- `checkout.html` accepts `payment_id`/`paymentId` from the URL, calls `/cashier/order/status`
+  and `/cashier/pay/submit`, renders the deposit address and Canvas QR code, and polls status
+  until terminal states. `nexusflow.cashier.base-url` controls the returned `payUrl`.
+- `merchant.html` stores API base, API key, and callback URLs in browser localStorage and calls
+  `/pay/order`, `/pay/order/{paymentId}`, and `/refund/order`; it is not a server-side merchant
+  settings store. Session-based auth is available via `merchant-login.html` → `/auth/login`.
+- `ops.html` calls `/ops/dashboard` for channel/order/reconciliation/risk data and
+  `/crypto/orphan-transactions` for orphan resolve/ignore/compensate actions; `/ops/*` is
+  protected by the same `X-API-Key` filter. Session-based auth is available via `ops-login.html`.
 - When a scanned transaction hits a managed address but no PENDING payment matches, the application
   records an `orphan_transactions` row through `OrphanTransactionRepository` and publishes
   `crypto.orphan.detected`. Operators can list, resolve, ignore, or compensate these via
@@ -188,18 +195,40 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   `CryptoPayment` records automatically for unmatched inbound transactions.
 - `StubAdapter` is a working fake `ChannelAdapter` used for routing/testing.
 
-- Merchant identity is partially implemented following `nexusflow-merchant-design.md` (M1-M3
+- Merchant identity is partially implemented following `nexusflow-merchant-design.md` (M1-M5
   of M0-M7). `ApiKeyAuthFilter` resolves merchant-scoped API keys via SHA-256 hash lookup
-  against `MerchantCredentialRepository`, setting `merchantId`, `merchantCode`, and
-  `authSource` request attributes. `MerchantRequestGuard.requireMatchingMerchant()` validates
-  POST body `merchantId` and GET response `merchantId` against the authenticated merchant
-  context; for global API key requests (no merchant attributes), the guard is a no-op.
-  Merchant-scoped keys are rejected on `/ops/*` and `/crypto/*` endpoints via inline filter
-  check and reusable `MerchantRequestGuard.requireGlobalAccess()`. `OrderResponse` includes
-  `merchantId` for GET ownership checks. `GlobalExceptionHandler` maps UNAUTHORIZED to HTTP
-  401. Domain value objects (`MerchantProfile`, `MerchantCredential`, `MerchantWebhookConfig`)
-  and JPA entities exist as scaffolding for M4-M7. Global `nexusflow.api.key` remains as
-  dev/test fallback.
+  against `MerchantCredentialRepository`, setting `merchantId`, `merchantCode`, `authSource`,
+  and `userId` request attributes. The `userId` is a deterministic UUID v5 derived from the
+  merchantId via `UserIdMapper.toUuid()`; the global API key sets `userId` to a fixed ops
+  UUID (`00000000-0000-0000-0000-000000000001`). `MerchantRequestGuard.requireMatchingMerchant()`
+  validates POST body `merchantId` and GET response `merchantId` against the authenticated
+  merchant context; for global API key requests (no merchant attributes), the guard is a no-op.
+  Merchant-scoped keys are rejected on `/ops/*`, `/crypto/*`, and `/admin/*` endpoints via
+  inline filter check and reusable `MerchantRequestGuard.requireGlobalAccess()`. `OrderResponse`
+  includes `merchantId` for GET ownership checks. `GlobalExceptionHandler` maps UNAUTHORIZED to
+  HTTP 401 and `PermissionDeniedException` to HTTP 403. Domain value objects (`MerchantProfile`,
+  `MerchantCredential`, `MerchantWebhookConfig`, `MerchantUser`, `MerchantUserMembership`)
+  and JPA entities exist. `merchant_users` and `merchant_user_memberships` tables are created
+  in V13 migration. Global `nexusflow.api.key` remains as dev/test fallback.
+- Session-based auth (M5, 2026-07-10): `AuthController` provides `POST /auth/login` (email/password
+  via BCrypt → session cookie), `POST /auth/logout` (invalidate session), and `GET /auth/me`
+  (return user identity + memberships + effective permissions). `AuthService` verifies passwords
+  against `merchant_users.password_hash` using jbcrypt. `ApiKeyAuthFilter` falls back to session
+  when no `X-API-Key` header is present — checks `HttpSession` for `nexusflow.auth.userId`. Spring
+  Session JDBC stores sessions in PostgreSQL (Flyway V14). `/auth/login` and `/auth/logout` are
+  excluded from the API key filter; `/auth/me` goes through the filter for session context.
+- Admin proxy (FR-0, 2026-07-10): `PermissionManagementController` proxies `/admin/*` requests
+  to `flow-permission-server` using the service token. Covers roles CRUD, permissions list,
+  user role grant/revoke/list. All endpoints require `@CheckPermission(scopeType="SYSTEM")`.
+  Merchant API keys are blocked from `/admin/*`.
+- RBAC permission integration: `flow-permission-client` is a dependency of `flow-api`.
+  `@CheckPermission` annotations are applied to all controller methods — merchant-facing
+  endpoints use `scopeType="MERCHANT"` (default), ops/crypto endpoints use `scopeType="SYSTEM"`.
+  `MerchantUserProvisioningService` runs on startup to sync service-account roles into
+  `flow-permission`'s `user_roles` table. Permission checking is disabled by default
+  (`permission.enabled=false`) for development compatibility; set `PERMISSION_ENABLED=true`
+  and configure `PERMISSION_SERVER_URL` / `PERMISSION_SERVICE_TOKEN` for production.
+  **Important:** merchantId must be UUID format for MERCHANT scope permission checks to work.
 
 Before relying on a feature end-to-end, verify the relevant adapter is actually implemented
 rather than a stub.

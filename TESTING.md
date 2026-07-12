@@ -1,6 +1,6 @@
 # NexusFlow Test Summary
 
-Last verified: 2026-06-14 with `mvn -pl flow-api,flow-cashier -am test`.
+Last verified: 2026-07-11 with `mvn -pl flow-api -am test` and `mvn -DskipTests compile`.
 
 Permission module last verified: 2026-06-24 with
 `mvn -pl flow-permission/flow-permission-server,flow-permission/flow-permission-client -am test`.
@@ -45,7 +45,15 @@ mvn test -pl flow-infra -Dtest=LiveCoinbaseCommerceAdapterTest
 
 # Run opt-in outbound webhook smoke test after setting LIVE_* variables
 mvn test -pl flow-infra -Dtest=LiveWebhookDeliveryTest
+
+# Frontend workspace checks
+cd frontend
+npm.cmd run verify:e2e
+cd ..
+mvn -pl frontend-checkout,frontend-merchant,frontend-ops,frontend-admin -am -DskipTests package
 ```
+
+CI runs the same frontend verification before Maven `clean install`, including Chromium E2E for app boot and mocked business flows, so the `frontend-*` jars are built from fresh Vue assets instead of stale local output.
 
 JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `pom.xml`.
 
@@ -189,5 +197,5 @@ Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_B
 - `LiveCoinbaseCommerceAdapterTest` runs only when Coinbase Commerce credentials are set. It never creates a live charge unless `LIVE_COINBASE_COMMERCE_CREATE_CHARGE=true`.
 - `LiveWebhookDeliveryTest` runs only when `LIVE_WEBHOOK_URL` is set. It uses the production `HttpWebhookClient` path with a single fast attempt.
 - Blockchain adapter tests validate request/response parsing and domain conversion. Without the live env vars, they do not prove behavior against real nodes or network-specific edge cases.
-- `flow-cashier` has no Java tests; `mvn -pl flow-cashier test` verifies static resource packaging, including `checkout.html`, `merchant.html`, and `ops.html`.
+- Frontend Vue apps are verified with `npm.cmd run verify:e2e` under `frontend/`, which runs typecheck, build, stale-asset pruning, smoke tests, and Chromium E2E. E2E covers all four apps booting plus mocked flows for checkout address generation, merchant order creation, ops orphan resolution, and admin role-permission assignment. The split Maven modules package the generated app assets from `frontend/apps/*/dist-app` into `static/app/`; verify that handoff with `mvn -pl frontend-checkout,frontend-merchant,frontend-ops,frontend-admin -am -DskipTests package`.
 - Roadmap status and production risks are tracked in `nexusflow-roadmap.md`, especially the "production preflight risk" section.

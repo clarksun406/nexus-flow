@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Roles &amp; Permissions - NexusFlow Admin</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #dce3ea;
+      --text: #17202a;
+      --muted: #617080;
+      --primary: #7c3aed;
+      --primary-light: #ede9fe;
+      --green: #15803d;
+      --red: #b91c1c;
+      --shadow: 0 14px 34px rgba(23, 32, 42, 0.07);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 24px;
+      background: rgba(255,255,255,0.94);
+      border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(10px);
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark { width: 34px; height: 34px; border-radius: 8px; background: linear-gradient(135deg, var(--primary), #c084fc); }
+    .brand strong { font-size: 15px; }
+    .brand span { font-size: 12px; color: var(--muted); }
+    .wrap { max-width: 1400px; margin: 0 auto; padding: 20px 24px 34px; }
+    .btn {
+      min-height: 36px;
+      padding: 8px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+      text-decoration: none;
+    }
+    .btn:hover { border-color: #c8d3dd; background: #fafcff; }
+    .btn.primary { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .btn.primary:hover { opacity: 0.9; }
+    .btn.danger { color: var(--red); border-color: var(--red); }
+    .btn.danger:hover { background: #fef2f2; }
+    .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    @media (max-width: 960px) { .panels { grid-template-columns: 1fr; } }
+    .panel {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .panel h2 { margin: 0 0 12px; font-size: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+    th { font-weight: 700; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: var(--primary-light);
+      color: var(--primary);
+    }
+    .badge.system { background: #fef3c7; color: #92400e; }
+    .badge.merchant { background: #dbeafe; color: #1e40af; }
+    .form-row { display: flex; gap: 8px; margin-bottom: 12px; align-items: end; }
+    .field { display: grid; gap: 4px; flex: 1; }
+    .field label { font-size: 12px; font-weight: 700; color: var(--muted); }
+    input, select {
+      width: 100%;
+      min-height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px 10px;
+      color: var(--text);
+      outline: none;
+      font-size: 13px;
+    }
+    input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124,58,237,0.1); }
+    .status { margin-top: 12px; padding: 10px; border-radius: 8px; font-size: 13px; display: none; }
+    .status.ok { display: block; background: #f0fdf4; color: var(--green); border: 1px solid #bbf7d0; }
+    .status.err { display: block; background: #fef2f2; color: var(--red); border: 1px solid #fecaca; }
+    .loading { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="mark" aria-hidden="true"></div>
+      <div>
+        <strong>NexusFlow Admin</strong>
+        <span>Roles &amp; Permissions</span>
+      </div>
+    </div>
+    <a href="index.html" class="btn">Back</a>
+  </header>
+
+  <main class="wrap">
+    <div class="panels">
+      <div class="panel">
+        <h2>Roles</h2>
+        <div class="form-row">
+          <div class="field">
+            <label>Role Code</label>
+            <input id="roleCode" placeholder="e.g. MERCHANT_OWNER" />
+          </div>
+          <div class="field">
+            <label>Name</label>
+            <input id="roleName" placeholder="Display name" />
+          </div>
+          <button class="btn primary" onclick="createRole()">Create</button>
+        </div>
+        <div id="rolesStatus" class="status"></div>
+        <div id="rolesLoading" class="loading">Loading roles...</div>
+        <table id="rolesTable" style="display:none">
+          <thead><tr><th>Code</th><th>Name</th><th>Scope</th><th>Actions</th></tr></thead>
+          <tbody id="rolesBody"></tbody>
+        </table>
+      </div>
+
+      <div class="panel">
+        <h2>Permissions</h2>
+        <div id="permsLoading" class="loading">Loading permissions...</div>
+        <table id="permsTable" style="display:none">
+          <thead><tr><th>Code</th><th>Name</th><th>Scope</th></tr></thead>
+          <tbody id="permsBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px">
+      <h2>Role Permissions</h2>
+      <div class="form-row">
+        <div class="field">
+          <label>Select Role</label>
+          <select id="roleSelect" onchange="loadRolePerms()">
+            <option value="">-- choose a role --</option>
+          </select>
+        </div>
+      </div>
+      <div id="rolePermsLoading" class="loading" style="display:none">Loading...</div>
+      <div id="rolePermsSection" style="display:none">
+        <table>
+          <thead><tr><th>Permission Code</th><th>Name</th></tr></thead>
+          <tbody id="rolePermsBody"></tbody>
+        </table>
+        <div class="form-row" style="margin-top:12px">
+          <div class="field">
+            <label>Add Permission</label>
+            <select id="permSelect"><option value="">-- choose --</option></select>
+          </div>
+          <button class="btn primary" onclick="addPermToRole()">Add</button>
+        </div>
+      </div>
+      <div id="rolePermsStatus" class="status"></div>
+    </div>
+  </main>
+
+  <script>
+    const CONFIG_KEY = 'nexusflow.admin.config';
+    const API = '/admin';
+    let allRoles = [];
+    let allPerms = [];
+    let apiBase = '';
+
+    (function loadConfig() {
+      try {
+        apiBase = (JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}').apiBase || '').replace(/\/$/, '');
+      } catch (_) {}
+    })();
+
+    async function apiFetch(path, options = {}) {
+      const res = await fetch(apiBase + path, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        ...options
+      });
+      if (res.status === 401) {
+        window.location.href = 'admin-login.html';
+        throw new Error('Session expired');
+      }
+      return res;
+    }
+
+    async function loadRoles() {
+      try {
+        const res = await apiFetch(API + '/roles');
+        if (!res.ok) throw new Error('Failed to load roles');
+        allRoles = await res.json();
+        renderRoles();
+      } catch (error) {
+        document.getElementById('rolesLoading').textContent = 'Error: ' + error.message;
+      }
+    }
+
+    function renderRoles() {
+      document.getElementById('rolesLoading').style.display = 'none';
+      document.getElementById('rolesTable').style.display = '';
+      const body = document.getElementById('rolesBody');
+      const sel = document.getElementById('roleSelect');
+      body.innerHTML = '';
+      sel.innerHTML = '<option value="">-- choose a role --</option>';
+      allRoles.forEach((role) => {
+        const scopeClass = role.scope === 'SYSTEM' ? 'system' : 'merchant';
+        body.innerHTML += `<tr>
+          <td><code>${role.code}</code></td>
+          <td>${role.name || ''}</td>
+          <td><span class="badge ${scopeClass}">${role.scope || '-'}</span></td>
+          <td><button class="btn danger" onclick="deleteRole('${role.id}')">Delete</button></td>
+        </tr>`;
+        sel.innerHTML += `<option value="${role.id}">${role.code} - ${role.name || ''}</option>`;
+      });
+    }
+
+    async function createRole() {
+      const code = document.getElementById('roleCode').value.trim();
+      const name = document.getElementById('roleName').value.trim();
+      const st = document.getElementById('rolesStatus');
+      if (!code) {
+        st.className = 'status err';
+        st.textContent = 'Role code is required';
+        return;
+      }
+      try {
+        const res = await apiFetch(API + '/roles', {
+          method: 'POST',
+          body: JSON.stringify({ code, name, scope: 'SYSTEM' })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        st.className = 'status ok';
+        st.textContent = 'Role created';
+        document.getElementById('roleCode').value = '';
+        document.getElementById('roleName').value = '';
+        loadRoles();
+      } catch (error) {
+        st.className = 'status err';
+        st.textContent = 'Error: ' + error.message;
+      }
+    }
+
+    async function deleteRole(id) {
+      if (!confirm('Delete this role?')) return;
+      const st = document.getElementById('rolesStatus');
+      try {
+        const res = await apiFetch(API + '/roles/' + id, { method: 'DELETE' });
+        if (!res.ok) throw new Error(await res.text());
+        st.className = 'status ok';
+        st.textContent = 'Role deleted';
+        loadRoles();
+      } catch (error) {
+        st.className = 'status err';
+        st.textContent = 'Error: ' + error.message;
+      }
+    }
+
+    async function loadPerms() {
+      try {
+        const res = await apiFetch(API + '/permissions');
+        if (!res.ok) throw new Error('Failed to load permissions');
+        allPerms = await res.json();
+        renderPerms();
+      } catch (error) {
+        document.getElementById('permsLoading').textContent = 'Error: ' + error.message;
+      }
+    }
+
+    function renderPerms() {
+      document.getElementById('permsLoading').style.display = 'none';
+      document.getElementById('permsTable').style.display = '';
+      const body = document.getElementById('permsBody');
+      const sel = document.getElementById('permSelect');
+      body.innerHTML = '';
+      sel.innerHTML = '<option value="">-- choose --</option>';
+      allPerms.forEach((perm) => {
+        const scopeClass = perm.scope === 'SYSTEM' ? 'system' : 'merchant';
+        body.innerHTML += `<tr>
+          <td><code>${perm.code}</code></td>
+          <td>${perm.name || ''}</td>
+          <td><span class="badge ${scopeClass}">${perm.scope || '-'}</span></td>
+        </tr>`;
+        sel.innerHTML += `<option value="${perm.code}">${perm.code}</option>`;
+      });
+    }
+
+    async function loadRolePerms() {
+      const roleId = document.getElementById('roleSelect').value;
+      const section = document.getElementById('rolePermsSection');
+      const loading = document.getElementById('rolePermsLoading');
+      if (!roleId) {
+        section.style.display = 'none';
+        return;
+      }
+      loading.style.display = '';
+      section.style.display = 'none';
+      try {
+        const res = await apiFetch(API + '/roles/' + roleId);
+        if (!res.ok) throw new Error('Failed');
+        const data = await res.json();
+        const perms = data.permissions || [];
+        loading.style.display = 'none';
+        section.style.display = '';
+        const body = document.getElementById('rolePermsBody');
+        body.innerHTML = '';
+        perms.forEach((perm) => {
+          body.innerHTML += `<tr><td><code>${perm.code}</code></td><td>${perm.name || ''}</td></tr>`;
+        });
+        if (perms.length === 0) {
+          body.innerHTML = '<tr><td colspan="2" style="color:var(--muted)">No permissions assigned</td></tr>';
+        }
+      } catch (error) {
+        loading.textContent = 'Error: ' + error.message;
+      }
+    }
+
+    async function addPermToRole() {
+      const roleId = document.getElementById('roleSelect').value;
+      const permCode = document.getElementById('permSelect').value;
+      const st = document.getElementById('rolePermsStatus');
+      if (!roleId || !permCode) {
+        st.className = 'status err';
+        st.textContent = 'Select both role and permission';
+        return;
+      }
+      try {
+        const res = await apiFetch(API + '/roles/' + roleId);
+        const data = await res.json();
+        const current = (data.permissions || []).map((perm) => perm.code);
+        if (current.includes(permCode)) {
+          st.className = 'status ok';
+          st.textContent = 'Already assigned';
+          return;
+        }
+        current.push(permCode);
+        const setRes = await apiFetch(API + '/roles/' + roleId + '/permissions', {
+          method: 'PUT',
+          body: JSON.stringify({ permissionCodes: current })
+        });
+        if (!setRes.ok) throw new Error(await setRes.text());
+        st.className = 'status ok';
+        st.textContent = 'Permission added';
+        loadRolePerms();
+      } catch (error) {
+        st.className = 'status err';
+        st.textContent = 'Error: ' + error.message;
+      }
+    }
+
+    loadRoles();
+    loadPerms();
+  </script>
+</body>
+</html>

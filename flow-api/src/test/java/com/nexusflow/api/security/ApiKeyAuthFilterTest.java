@@ -9,9 +9,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockHttpSession;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -127,5 +129,59 @@ class ApiKeyAuthFilterTest {
 
         verify(chain).doFilter(request, response);
         assertThat(request.getAttribute(MerchantAuthContext.AUTH_SOURCE_ATTRIBUTE)).isEqualTo("global-api-key");
+    }
+
+    @Test
+    void merchantApiKeySetsUserIdAttribute() throws Exception {
+        when(repository.findActiveByKeyHash(eq(new ApiKeyHasher().hash("merchant-key-1")), any(Instant.class)))
+                .thenReturn(Optional.of(MerchantApiKey.builder()
+                        .merchantId("merchant-1")
+                        .merchantCode("m-code-1")
+                        .keyPrefix("mkey")
+                        .build()));
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/pay/order");
+        request.addHeader("X-API-Key", "merchant-key-1");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        String userId = (String) request.getAttribute(MerchantAuthContext.USER_ID_ATTRIBUTE);
+        assertThat(userId).isNotNull();
+        assertThat(userId).isEqualTo(UserIdMapper.toUuid("merchant-1").toString());
+    }
+
+    @Test
+    void globalKeySetsOpsUserIdAttribute() throws Exception {
+        when(repository.findActiveByKeyHash(any(), any(Instant.class))).thenReturn(Optional.empty());
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/pay/order");
+        request.addHeader("X-API-Key", "global-key");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        String userId = (String) request.getAttribute(MerchantAuthContext.USER_ID_ATTRIBUTE);
+        assertThat(userId).isEqualTo(UserIdMapper.OPS_USER_ID.toString());
+    }
+
+    @Test
+    void sessionAuthPopulatesMerchantContextWithoutApiKey() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("POST", "/pay/order");
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("nexusflow.auth.userId", UUID.randomUUID().toString());
+        session.setAttribute("nexusflow.auth.activeMerchantId", "550e8400-e29b-41d4-a716-446655440000");
+        request.setSession(session);
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        FilterChain chain = mock(FilterChain.class);
+
+        filter.doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+        assertThat(request.getAttribute(MerchantAuthContext.AUTH_SOURCE_ATTRIBUTE)).isEqualTo("session");
+        assertThat(request.getAttribute(MerchantAuthContext.MERCHANT_ID_ATTRIBUTE))
+                .isEqualTo("550e8400-e29b-41d4-a716-446655440000");
     }
 }

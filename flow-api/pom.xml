@@ -32,6 +32,10 @@
             <groupId>com.nexusflow</groupId>
             <artifactId>flow-wallet</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.nexusflow</groupId>
+            <artifactId>flow-permission-client</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -75,6 +79,17 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+
+        <!-- Auth -->
+        <dependency>
+            <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-jdbc</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.mindrot</groupId>
+            <artifactId>jbcrypt</artifactId>
+            <version>0.4</version>
         </dependency>
 
         <!-- Observability -->

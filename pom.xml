@@ -20,7 +20,10 @@
         <module>flow-listener</module>
         <module>flow-wallet</module>
         <module>flow-api</module>
-        <module>flow-cashier</module>
+        <module>frontend-checkout</module>
+        <module>frontend-merchant</module>
+        <module>frontend-ops</module>
+        <module>frontend-admin</module>
         <module>flow-permission</module>
     </modules>
 

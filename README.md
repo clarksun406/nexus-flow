@@ -32,8 +32,8 @@ NexusFlow 是 Nexus 生态中的加密支付引擎。它同时承担两层职责
 | `flow-listener` | 区块扫描 / 索引 / 对账 |
 | `flow-wallet` | 钱包服务、地址派生 |
 | `flow-api` | REST API、收银台 / 回调入口、Flyway 迁移 |
-| `flow-cashier` | 收银台、商户、运营静态页面资源；当前不是完整产品级前端应用 |
-| `frontend` | 早期收银台静态页面 / Demo；正式前端 workspace 规划见 `nexusflow-frontend-design.md` |
+| `frontend-checkout` / `frontend-merchant` / `frontend-ops` / `frontend-admin` | 买家收银台、商户门户、运营控制台、平台管理端静态资源；承载各端入口页并打包对应 Vue 构建产物 |
+| `frontend` | Vue 3 + Vite + TypeScript 前端 workspace；`legacy-static/` 保留早期静态页面作为迁移参考 |
 
 ### 架构约束（DDD）
 
@@ -64,6 +64,17 @@ mvn install
 ```
 
 > 测试运行依赖 `maven-surefire-plugin` 3.2.5（已在父 POM 固定），以支持 JUnit 5。
+
+### 前端构建
+
+```bash
+cd frontend
+npm.cmd run verify:e2e
+cd ..
+mvn -pl frontend-checkout,frontend-merchant,frontend-ops,frontend-admin -am -DskipTests package
+```
+
+`frontend-*` Maven 模块会把对应 Vue app 的 `dist-app` 打包到 `static/app/`，模块根入口会优先跳转到 Vue app；旧静态页保留为 legacy fallback 和迁移参考。
 
 ### 本地运行
 
@@ -105,7 +116,7 @@ WAITING_PAYMENT → CONFIRMED → REFUND_PROCESSING → REFUNDED / REFUND_FAILED
 - **编排引擎核心**：✅ 代码已落地（订单/退款/通道领域模型、编排服务、JPA 持久化、商户/收银台 API、收银台/商户/运营静态页面）
 - **执行层核心**：✅ 代码已落地（ETH/BTC/TRON 适配器、HD 钱包、地址池、对账/过期调度、幂等、orphan transaction、Webhook dead letter）
 - **真实通道**：🟡 Coinbase Commerce 有 REST charge/rate 实现但待 live 验证；BitMart/Binance 仍为非 prod stub
-- **生产前缺口**：🟡 产品级前端/控制台体系（Checkout、Merchant Portal、Ops Console、Admin Console）、商户级认证/多租户、RBAC 权限服务接入、Docker-backed 集成测试、真实链节点、Redis/Kafka、生产 Webhook、Coinbase live、MPC provider、GasBank/live fee oracle、MoonPay/Ramp/Banxa 官方适配仍需补齐或验证
+- **生产前缺口**：🟡 前端真实后端联调 E2E、正式部署/灰度/回滚和前端观测、商户级认证/多租户剩余能力、RBAC 权限服务加固、Docker-backed 集成测试、真实链节点、Redis/Kafka、生产 Webhook、Coinbase live、MPC provider、GasBank/live fee oracle、MoonPay/Ramp/Banxa 官方适配仍需补齐或验证
 - 详见 [`nexusflow-roadmap.md`](./nexusflow-roadmap.md) 的“生产就绪度摘要”和“生产前剩余风险 / 未验证项”，[`nexusflow-merchant-design.md`](./nexusflow-merchant-design.md) 的商户体系规划，以及 [`nexusflow-frontend-design.md`](./nexusflow-frontend-design.md) 的前端分端规划
 
 ---

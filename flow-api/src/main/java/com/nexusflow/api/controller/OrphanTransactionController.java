@@ -6,6 +6,8 @@ import com.nexusflow.application.dto.ResolveOrphanTransactionRequest;
 import com.nexusflow.common.ApiResponse;
 import com.nexusflow.domain.blockchain.OrphanTransactionStatus;
 import com.nexusflow.domain.shared.Chain;
+import com.nexusflow.permission.client.CheckPermission;
+import com.nexusflow.permission.client.PermissionCodes;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,12 +28,14 @@ public class OrphanTransactionController {
     private final OrphanTransactionApplicationService orphanTransactionService;
 
     @GetMapping
+    @CheckPermission(value = PermissionCodes.Orphan.READ, scopeType = "SYSTEM")
     public ApiResponse<List<OrphanTransactionResponse>> list(
             @RequestParam(value = "status", defaultValue = "UNMATCHED") OrphanTransactionStatus status) {
         return ApiResponse.ok(orphanTransactionService.list(status));
     }
 
     @PostMapping("/{chain}/{txHash}/resolve")
+    @CheckPermission(value = PermissionCodes.Orphan.RESOLVE, scopeType = "SYSTEM")
     public ApiResponse<OrphanTransactionResponse> resolve(@PathVariable("chain") Chain chain,
                                                           @PathVariable("txHash") String txHash,
                                                           @Valid @RequestBody ResolveOrphanTransactionRequest request) {
@@ -39,12 +43,14 @@ public class OrphanTransactionController {
     }
 
     @PostMapping("/{chain}/{txHash}/ignore")
+    @CheckPermission(value = PermissionCodes.Orphan.IGNORE, scopeType = "SYSTEM")
     public ApiResponse<OrphanTransactionResponse> ignore(@PathVariable("chain") Chain chain,
                                                          @PathVariable("txHash") String txHash) {
         return ApiResponse.ok(orphanTransactionService.ignore(chain, txHash));
     }
 
     @PostMapping("/{chain}/{txHash}/compensate")
+    @CheckPermission(value = PermissionCodes.Orphan.COMPENSATE, scopeType = "SYSTEM")
     public ApiResponse<OrphanTransactionResponse> compensate(@PathVariable("chain") Chain chain,
                                                              @PathVariable("txHash") String txHash) {
         return ApiResponse.ok(orphanTransactionService.compensate(chain, txHash));

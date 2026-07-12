@@ -8,6 +8,7 @@ import com.nexusflow.common.NexusFlowException;
 import com.nexusflow.common.OrphanTransactionNotFoundException;
 import com.nexusflow.common.PaymentNotFoundException;
 import com.nexusflow.common.WebhookDeadLetterNotFoundException;
+import com.nexusflow.permission.client.CheckPermissionAspect;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -52,6 +53,13 @@ public class GlobalExceptionHandler {
     @ResponseStatus(HttpStatus.UNPROCESSABLE_ENTITY)
     public ApiResponse<Void> handleInvalidState(InvalidStateTransitionException e) {
         return ApiResponse.fail(e.getErrorCode(), e.getMessage());
+    }
+
+    @ExceptionHandler(CheckPermissionAspect.PermissionDeniedException.class)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
+    public ApiResponse<Void> handlePermissionDenied(CheckPermissionAspect.PermissionDeniedException e) {
+        log.warn("Permission denied: {}", e.getMessage());
+        return ApiResponse.fail(ErrorCode.FORBIDDEN, e.getMessage());
     }
 
     @ExceptionHandler(NexusFlowException.class)

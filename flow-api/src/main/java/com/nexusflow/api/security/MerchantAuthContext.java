@@ -6,11 +6,20 @@ import java.util.Optional;
 
 public final class MerchantAuthContext {
 
+    public static final String USER_ID_ATTRIBUTE = "nexusflow.userId";
     public static final String MERCHANT_ID_ATTRIBUTE = "nexusflow.merchantId";
     public static final String MERCHANT_CODE_ATTRIBUTE = "nexusflow.merchantCode";
     public static final String AUTH_SOURCE_ATTRIBUTE = "nexusflow.authSource";
 
     private MerchantAuthContext() {
+    }
+
+    public static Optional<String> userId(HttpServletRequest request) {
+        Object value = request.getAttribute(USER_ID_ATTRIBUTE);
+        if (value instanceof String userId && !userId.isBlank()) {
+            return Optional.of(userId);
+        }
+        return Optional.empty();
     }
 
     public static Optional<String> merchantId(HttpServletRequest request) {

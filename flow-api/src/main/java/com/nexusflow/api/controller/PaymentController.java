@@ -4,6 +4,8 @@ import com.nexusflow.application.PaymentApplicationService;
 import com.nexusflow.application.dto.CreatePaymentCommand;
 import com.nexusflow.application.dto.PaymentResponse;
 import com.nexusflow.common.ApiResponse;
+import com.nexusflow.permission.client.CheckPermission;
+import com.nexusflow.permission.client.PermissionCodes;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +25,7 @@ public class PaymentController {
      * Idempotent via Idempotency-Key / X-Idempotency-Key header, or orderId fallback.
      */
     @PostMapping
+    @CheckPermission(value = PermissionCodes.CryptoPayment.CREATE, scopeType = "SYSTEM")
     public ApiResponse<PaymentResponse> createPayment(
             @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
             @RequestHeader(value = "X-Idempotency-Key", required = false) String xIdempotencyKey,
@@ -39,6 +42,7 @@ public class PaymentController {
      * Query payment by ID.
      */
     @GetMapping("/{paymentId}")
+    @CheckPermission(value = PermissionCodes.CryptoPayment.READ, scopeType = "SYSTEM")
     public ApiResponse<PaymentResponse> getPayment(@PathVariable("paymentId") String paymentId) {
         PaymentResponse response = paymentService.getPayment(paymentId);
         return ApiResponse.ok(response);
@@ -48,6 +52,7 @@ public class PaymentController {
      * Webhook: mark payment as confirmed (from NexusPay-Core or manual).
      */
     @PostMapping("/{paymentId}/confirm")
+    @CheckPermission(value = PermissionCodes.CryptoPayment.CONFIRM, scopeType = "SYSTEM")
     public ApiResponse<PaymentResponse> confirmPayment(
             @PathVariable("paymentId") String paymentId,
             @RequestParam(value = "confirmations", defaultValue = "12") int confirmations) {
@@ -60,6 +65,7 @@ public class PaymentController {
      * Webhook: mark payment as failed.
      */
     @PostMapping("/{paymentId}/fail")
+    @CheckPermission(value = PermissionCodes.CryptoPayment.FAIL, scopeType = "SYSTEM")
     public ApiResponse<PaymentResponse> failPayment(
             @PathVariable("paymentId") String paymentId,
             @RequestParam(value = "reason", defaultValue = "Unknown") String reason) {

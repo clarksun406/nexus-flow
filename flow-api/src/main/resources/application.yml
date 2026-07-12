@@ -1,6 +1,11 @@
 spring:
   application:
     name: nexus-flow
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: never   # Flyway V14 manages the tables
+    timeout: 86400               # 24h session timeout
   datasource:
     url: jdbc:postgresql://localhost:5432/nexusflow
     username: nexusflow
@@ -125,6 +130,14 @@ nexusflow:
       interval-ms: 60000    # how often to scan for overdue WAITING_PAYMENT orders
   self-hosted-channel:
     enabled: ${SELF_HOSTED_CHANNEL_ENABLED:false} # enable PaymentOrder -> CryptoPayment channel
+
+  # ── Permission (flow-permission-client) ──
+permission:
+  server-url: ${PERMISSION_SERVER_URL:http://localhost:8090}
+  service-token: ${PERMISSION_SERVICE_TOKEN:}
+  enabled: ${PERMISSION_ENABLED:false}
+  cache-ttl-seconds: 60
+  cache-max-size: 10000
 
   # ── Cache ──
   cache:

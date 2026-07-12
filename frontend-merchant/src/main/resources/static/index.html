@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NexusFlow Merchant Portal</title>
+  <style>
+    :root {
+      --bg: #f5f7fa;
+      --panel: #ffffff;
+      --line: #dfe5ec;
+      --text: #17202a;
+      --muted: #617080;
+      --primary: #0f766e;
+      --shadow: 0 14px 34px rgba(23, 32, 42, 0.07);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      background: var(--bg);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.45;
+    }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 34px 22px; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .mark { width: 36px; height: 36px; border-radius: 8px; background: linear-gradient(135deg, var(--primary), #38bdf8); }
+    h1 { margin: 0; font-size: 22px; }
+    .muted { color: var(--muted); margin: 4px 0 0; font-size: 13px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    .tile {
+      display: block;
+      min-height: 150px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.16s ease, border-color 0.16s ease;
+    }
+    .tile:hover { transform: translateY(-2px); border-color: #c8d3dd; }
+    .tile strong { display: block; font-size: 18px; }
+    .tile span { display: block; margin-top: 8px; color: var(--muted); font-size: 13px; }
+    @media (max-width: 860px) {
+      .grid { grid-template-columns: 1fr; }
+      .topbar { align-items: flex-start; flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <div class="topbar">
+      <div class="brand">
+        <div class="mark" aria-hidden="true"></div>
+        <div>
+          <h1>Merchant Portal</h1>
+          <p class="muted">Manage orders, refunds, callback configuration, and merchant-side operations.</p>
+        </div>
+      </div>
+    </div>
+    <section class="grid">
+      <a class="tile" href="app/index.html">
+        <strong>Open Vue Portal</strong>
+        <span>Engineered Vue/Vite merchant portal with session login, merchant switching, order creation, lookup, refunds, and recent order cache.</span>
+      </a>
+      <a class="tile" href="merchant.html">
+        <strong>Legacy Portal</strong>
+        <span>Static portal retained as a transition fallback and API smoke reference.</span>
+      </a>
+    </section>
+  </main>
+</body>
+</html>

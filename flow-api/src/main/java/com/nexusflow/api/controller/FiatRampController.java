@@ -6,6 +6,8 @@ import com.nexusflow.application.dto.FiatRampOrderResponseDto;
 import com.nexusflow.application.dto.FiatRampQuoteRequestDto;
 import com.nexusflow.application.dto.FiatRampQuoteResponseDto;
 import com.nexusflow.common.ApiResponse;
+import com.nexusflow.permission.client.CheckPermission;
+import com.nexusflow.permission.client.PermissionCodes;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class FiatRampController {
     private final FiatRampApplicationService service;
 
     @PostMapping("/quote")
+    @CheckPermission(PermissionCodes.FiatRamp.QUOTE)
     public ApiResponse<FiatRampQuoteResponseDto> quote(HttpServletRequest httpRequest,
                                                        @Valid @RequestBody FiatRampQuoteRequestDto request) {
         MerchantRequestGuard.requireMatchingMerchant(httpRequest, request.getMerchantId());
@@ -31,6 +34,7 @@ public class FiatRampController {
     }
 
     @PostMapping("/orders")
+    @CheckPermission(PermissionCodes.FiatRamp.CREATE)
     public ApiResponse<FiatRampOrderResponseDto> createOrder(
             HttpServletRequest httpRequest,
             @Valid @RequestBody FiatRampCreateOrderRequestDto request) {
@@ -39,6 +43,7 @@ public class FiatRampController {
     }
 
     @GetMapping("/orders/{rampOrderId}")
+    @CheckPermission(PermissionCodes.FiatRamp.READ)
     public ApiResponse<FiatRampOrderResponseDto> getOrder(HttpServletRequest httpRequest,
                                                           @PathVariable("rampOrderId") String rampOrderId) {
         FiatRampOrderResponseDto order = service.getOrder(rampOrderId);

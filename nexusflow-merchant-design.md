@@ -20,9 +20,9 @@
 | 商户标识 | `payment_orders.merchant_id`、`fiat_ramp_orders.merchant_id`、DTO 中的 `merchantId` | 没有商户表；`merchantId` 没有注册、状态、归属和唯一来源 |
 | API 认证 | `ApiKeyAuthFilter` 校验全局 `nexusflow.api.key` / `X-API-Key` | 不能区分商户；不能绑定 `merchantId`；无法轮换、禁用、审计 |
 | 商户配置 | `merchant.html` 把 API key / callback URL 存在 `localStorage` | Webhook、品牌、回调 secret、IP allowlist 等都未持久化 |
-| 商户用户 | 无 | Merchant Portal 无登录主体、团队成员和角色 |
+| 商户用户 | `merchant_users` / `merchant_user_memberships` 表已创建 (V13)；领域实体和 JPA 仓储已实现 | 登录认证（email/password、session/JWT）和管理 API 待实现 |
 | 数据隔离 | 订单表有 `merchant_id`，查询接口未从认证上下文约束 | 商户可以传任意 `merchantId`；运营/商户查询边界未区分 |
-| RBAC | `flow-permission` 是已纳入根 Maven 的独立权限模块 | 主系统没有 `userId` / `merchantId` request attributes，仍无法安全接入业务接口 |
+| RBAC | `flow-permission` 已接入：`flow-permission-client` 依赖已添加；`@CheckPermission` 已标注所有 controller 方法；`ApiKeyAuthFilter` 设置 `userId` request attribute；`MerchantUserProvisioningService` 启动时自动同步角色；`GlobalExceptionHandler` 处理 403 | Merchant Portal 登录用户的角色同步、key scopes 细粒度控制待实现 |
 
 ## 3. 身份模型
 
@@ -254,12 +254,24 @@ R-18 的 permission client 需要 request attributes 中已有 `userId` 和 `mer
 
 | 请求类型 | `userId` | `merchantId` | `actorType` |
 |----------|----------|--------------|-------------|
-| 商户 API key | 空或 key owner | API key 绑定商户 | `API_KEY` |
-| Merchant Portal | 登录用户 ID | 当前选择商户 | `MERCHANT_USER` |
-| Ops Console | 内部用户 ID | 可为空或目标商户 | `INTERNAL_USER` |
-| Admin Console | 内部管理员 ID | 可为空或目标商户 | `INTERNAL_USER` |
+| 商户 API key | `UserIdMapper.toUuid(merchantId)` 派生确定性 UUID | API key 绑定商户 | `API_KEY` |
+| Merchant Portal | 登录用户 ID（待实现） | 当前选择商户 | `MERCHANT_USER` |
+| Ops Console | 固定 ops UUID (`00000000-0000-0000-0000-000000000001`) | 可为空或目标商户 | `INTERNAL_USER` |
+| Admin Console | 内部管理员 ID（待实现） | 可为空或目标商户 | `INTERNAL_USER` |
 
-权限点建议先内置在主工程枚举中，待商户身份上下文落地后再接入 `flow-permission`。
+**当前已接入：**
+- `flow-permission-client` 已添加为 `flow-api` 依赖
+- `ApiKeyAuthFilter` 在认证成功后设置 `nexusflow.userId` request attribute（商户 key 用派生 UUID，全局 key 用固定 ops UUID）
+- `@CheckPermission` 已标注所有 controller 方法：
+  - 商户端点使用 `scopeType="MERCHANT"`（默认），如 `payment_order:create`、`refund:create`
+  - 运营端点使用 `scopeType="SYSTEM"`，如 `ops_dashboard:read`、`orphan:resolve`
+- `MerchantUserProvisioningService` 在启动时自动将商户和 ops 用户同步到 `flow-permission` 的 `user_roles` 表
+- `GlobalExceptionHandler` 处理 `PermissionDeniedException` 返回 HTTP 403
+- 权限配置通过 `permission.*` 属性控制，默认 `enabled: false` 以兼容无权限服务的开发环境
+
+**注意：** `merchantId` 必须是 UUID 格式才能让 MERCHANT scope 的权限检查正常工作。非 UUID 格式的 merchantId 会导致权限检查时 scopeId 解析失败（降级为无 scope 检查）。
+
+**待实现：** Merchant Portal 登录用户的角色同步、API key scopes 细粒度控制、`merchantId` 统一为 UUID 格式。
 
 ## 10. 迁移阶段
 
@@ -270,7 +282,7 @@ R-18 的 permission client 需要 request attributes 中已有 `userId` 和 `mer
 | M2 | 商户级 API key | 🟡 新增 `merchant_credentials` 表和迁移；`MerchantApiKey` DTO、`MerchantCredentialRepository` 端口、`JpaMerchantCredentialRepository` 适配器、`ApiKeyHasher` (SHA-256) 已实现；`ApiKeyAuthFilter` 改造为商户 key 解析，设置 request attributes；key 轮换/禁用/管理 API 待实现 |
 | M3 | 业务接口隔离 | 🟡 `/pay`、`/refund`、`/fiat/ramp` POST 接口通过 `MerchantRequestGuard.requireMatchingMerchant()` 校验请求 body `merchantId`；GET 查询接口通过 response `merchantId` 校验所有权；`/ops/*` 和 `/crypto/*` 限制商户 key 访问；`OrderResponse` 新增 `merchantId` 字段；`GlobalExceptionHandler` UNAUTHORIZED 返回 401 |
 | M4 | Webhook 持久化 | 新增 `merchant_webhook_configs` 表和迁移已落地，但 webhook dispatch 仍走 per-order `notifyUrl`，尚未接入商户级 webhook 配置 |
-| M5 | Merchant Portal 会话 | 商户用户、登录、membership、API key/Webhook 管理页面（待实现） |
+| M5 | Merchant Portal 会话 | 🟡 `merchant_users` / `merchant_user_memberships` 表和领域层已落地 (V13)；`MerchantUserProvisioningService` 已实现启动时角色同步；`@CheckPermission` 已接入全部 controller；登录认证（email/password、session/JWT）、`/auth/me` 接口和管理 API 待实现 |
 | M6 | Ops/Admin + RBAC | 内部登录、商户管理、权限接入、审计全覆盖（待实现） |
 | M7 | 清理全局 key | 生产禁用全局 `nexusflow.api.key`，仅 dev/test fallback（待实现） |
 
@@ -291,4 +303,4 @@ R-18 的 permission client 需要 request attributes 中已有 `userId` 和 `mer
 - API key hash 方案：建议用不可逆 hash，并加服务端 pepper；不能加密后可逆保存。
 - Merchant Portal 是否自建账号密码：短期可自建，长期最好支持 SSO/OIDC。
 - Webhook secret 是否每个 URL 一个：建议是，方便轮换和多 endpoint 管理。
-- `flow-permission` 接入业务接口的时机：必须等商户上下文明确后再启用 `@CheckPermission`。
+- `flow-permission` 接入业务接口的时机：✅ 已完成。`@CheckPermission` 已接入全部 controller，商户 key 通过 `UserIdMapper` 派生确定性 UUID 作为 userId，全局 key 使用固定 ops UUID。默认 `permission.enabled=false` 以兼容无权限服务的开发环境。

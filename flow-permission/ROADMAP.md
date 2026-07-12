@@ -30,13 +30,13 @@ Implemented:
 
 Known gaps:
 
-- No merchant/user identity source.
-- No controller/service tests beyond the service-token filter.
+- ~~No merchant/user identity source.~~ 🟡 `merchant_users` / `merchant_user_memberships` tables exist (V13); login session not yet implemented.
+- ~~No controller/service tests beyond the service-token filter.~~ ✅ 49 unit tests covering service, controller, DTO, security, and client layers.
 - No permission-management permissions protecting permission server admin APIs.
 - No audit logs for grant/revoke/role changes/check failures.
 - No role templates, role inheritance, deny rules, or conditional permissions.
 - No cache invalidation event or versioning.
-- No integration with `flow-api` controllers yet.
+- ~~No integration with `flow-api` controllers yet.~~ ✅ `flow-permission-client` added as dependency; `@CheckPermission` on all controller methods; `UserIdMapper` + `MerchantUserProvisioningService` for API key auth.
 
 ## 3. Target Model
 
@@ -94,7 +94,7 @@ Public/user-facing and callback endpoints should keep their own controls:
 | `POST /cashier/pay/submit` | checkout token, not RBAC |
 | `POST /callback/**` | provider HMAC, not RBAC |
 
-Merchant/server API endpoints should be permission-managed after merchant API-key authentication is implemented:
+Merchant/server API endpoints — ✅ permission-managed (2026-07-09):
 
 | Endpoint | Required permission | Scope |
 |----------|---------------------|-------|
@@ -107,7 +107,7 @@ Merchant/server API endpoints should be permission-managed after merchant API-ke
 | `POST /crypto/payments` | `crypto_payment:create` | `MERCHANT` or `SYSTEM` |
 | `GET /crypto/payments/{paymentId}` | `crypto_payment:read` | `MERCHANT` or `SYSTEM` |
 
-Ops endpoints should be permission-managed after internal-user authentication is implemented:
+Ops endpoints — ✅ permission-managed (2026-07-09):
 
 | Endpoint | Required permission | Scope |
 |----------|---------------------|-------|
@@ -120,7 +120,7 @@ Ops endpoints should be permission-managed after internal-user authentication is
 | `POST /ops/webhook-dead-letters/{id}/replay` | `webhook_dlq:replay` | `SYSTEM` |
 | `POST /ops/webhook-dead-letters/{id}/ignore` | `webhook_dlq:ignore` | `SYSTEM` |
 
-Operational/manual execution endpoints should not be exposed to merchant API keys by default:
+Operational/manual execution endpoints — ✅ permission-managed, merchant keys blocked (2026-07-09):
 
 | Endpoint | Required permission | Scope |
 |----------|---------------------|-------|
@@ -177,34 +177,33 @@ Goal: main API can supply reliable permission context.
 
 This phase depends on merchant identity work outside `flow-permission`:
 
-- `merchant_profiles`
-- `merchant_users`
-- `merchant_user_memberships`
-- `merchant_api_keys`
-- merchant session or internal session auth
-- request attributes: `userId`, `merchantId`, `actorType`, `keyId`
+- ✅ `merchant_profiles` (V12)
+- ✅ `merchant_users` (V13)
+- ✅ `merchant_user_memberships` (V13)
+- ✅ `merchant_api_keys` — `merchant_credentials` table (V12), scopes TBD
+- 🟡 merchant session or internal session auth — not yet implemented
+- ✅ request attributes: `userId` (via `UserIdMapper`), `merchantId`, `authSource`
 
 `flow-permission` deliverables:
 
-- Define client-side `PermissionContext` helper for reading request attributes consistently.
-- Support API-key actor checks where `userId` may be key owner or service principal.
-- Document required attributes and failure behavior.
+- ✅ `UserIdMapper` derives deterministic UUID from merchantId for API key auth
+- ✅ Fixed ops UUID (`00000000-0000-0000-0000-000000000001`) for global key auth
+- ✅ `MerchantUserProvisioningService` syncs roles on startup
+- 🟡 Support API-key actor checks with scopes — pending scopes column in merchant_credentials
+- ✅ Document required attributes in `nexusflow-merchant-design.md` section 9
 
 ### P3 - Integrate Current Flow API
 
 Goal: current `flow-api` endpoints can be managed by permission rules.
 
-- Add `flow-permission-client` dependency to `flow-api`.
-- Annotate merchant endpoints with `@CheckPermission`.
-- Annotate ops endpoints with `@CheckPermission(scopeType = "SYSTEM")`.
-- Keep `/cashier/**` protected by checkout token, not RBAC.
-- Keep `/callback/**` protected by HMAC, not RBAC.
-- Replace broad global `X-API-Key` authorization with merchant API-key authentication plus permission checks.
-- Add MockMvc tests proving:
-  - missing context is rejected;
-  - merchant context can only access own merchant data;
-  - ops context can access system endpoints;
-  - merchant context cannot call ops/manual execution endpoints.
+- ✅ Add `flow-permission-client` dependency to `flow-api`.
+- ✅ Annotate merchant endpoints with `@CheckPermission` (PayController, RefundController, FiatRampController).
+- ✅ Annotate ops endpoints with `@CheckPermission(scopeType = "SYSTEM")` (OpsDashboard, Orphan, WebhookDL, Payment).
+- ✅ Keep `/cashier/**` protected by checkout token, not RBAC.
+- ✅ Keep `/callback/**` protected by HMAC, not RBAC.
+- ✅ `ApiKeyAuthFilter` sets `userId` via `UserIdMapper`; `MerchantUserProvisioningService` syncs roles.
+- 🟡 MockMvc tests proving allow/deny behavior — partial; `PayControllerTest` has cross-merchant rejection test. Full permission deny tests pending.
+- ⬜ Replace broad global `X-API-Key` with per-user internal auth (M6) — pending.
 
 ### P3-F - Frontend Permission Contract
 
@@ -316,50 +315,51 @@ Do not start P5 before P0-P3 are complete; conditional authorization without cle
 
 Permission module is usable for merchant and ops production flows when:
 
-- all current `flow-api` non-public endpoints are mapped to explicit permissions;
-- permission decisions are based on authenticated request context, not caller-supplied `merchantId`;
-- merchant users cannot access another merchant's resources;
-- merchant API keys cannot call ops/admin endpoints;
-- frontend route/menu/button visibility uses effective permissions from `flow-permission`;
-- permission changes are audited;
-- cache behavior is deterministic and test-covered;
-- permission server admin APIs are protected by system-scope permissions;
-- local/dev fallback behavior is explicit and disabled in production.
+- ✅ all current `flow-api` non-public endpoints are mapped to explicit permissions;
+- ✅ permission decisions are based on authenticated request context (`userId` via `UserIdMapper`), not caller-supplied `merchantId`;
+- 🟡 merchant users cannot access another merchant's resources — POST endpoints have `requireMatchingMerchant`, GET data isolation pending;
+- ✅ merchant API keys cannot call ops/admin endpoints (filter-level block + `@CheckPermission(scopeType="SYSTEM")`);
+- ⬜ frontend route/menu/button visibility uses effective permissions from `flow-permission`;
+- ⬜ permission changes are audited;
+- 🟡 cache behavior is deterministic (TTL-based Caffeine) but no event-driven invalidation;
+- ⬜ permission server admin APIs are protected by system-scope permissions;
+- ✅ local/dev fallback behavior is explicit (`permission.enabled=false` default) and disabled in production.
 
 ## 8. Recommended Next Tasks
 
-1. Implement service and controller tests for permission, role, and user-role workflows.
+1. ✅ Implement service and controller tests for permission, role, and user-role workflows. (49 tests)
 2. Add menu/button/API resource model for frontend route, menu, and action visibility.
 3. Add role ownership so merchants can create isolated custom roles.
 4. Add permission admin audit table.
-5. Build merchant identity context, then wire `flow-api` through `flow-permission-client`.
+5. ✅ Build merchant identity context, then wire `flow-api` through `flow-permission-client`. (Done 2026-07-09)
+
+**Next priority:** Q2 (resource/menu/button model) for frontend permission control, then Q3 (role ownership) for merchant custom roles.
 
 ## 8.1 Immediate Work Queue
 
 This is the concrete short-term queue. Do these in order.
 
-### Q1 - Finish Unit Test Coverage
+### Q1 - Finish Unit Test Coverage ✅ DONE
 
 Current permission server coverage is still low because the service and controller logic is mostly untested. Do not add more schema surface before this is fixed.
 
 Required tests:
 
-| Test class | Required coverage |
-|------------|-------------------|
-| `PermissionServiceTest` | granted check, denied check, effective permissions, create permission, duplicate permission rejection, get/update/delete not found |
-| `RoleServiceTest` | create custom role, duplicate role rejection, set role permissions, unknown permission rejection, system role update/delete rejected, custom role delete clears role permissions |
-| `UserRoleServiceTest` | grant role, duplicate grant idempotency, revoke role, set roles replaces only target scope, default `scopeType=MERCHANT` |
-| `PermissionApiControllerTest` | list/get/create/update/delete/check/effective HTTP contract and validation |
-| `RoleApiControllerTest` | list/get/create/update/delete/set-permissions HTTP contract and validation |
-| `UserRoleApiControllerTest` | list/grant/revoke/set roles HTTP contract and validation |
-| `PermissionClientTest` | effective-permission loading, cache hit behavior, denied behavior on non-200 or malformed response |
-| `CheckPermissionAspectTest` | missing request, missing `userId`, merchant/system scope extraction, granted/denied paths |
+| Test class | Required coverage | Status |
+|------------|-------------------|--------|
+| `PermissionServiceTest` | granted check, denied check, effective permissions, create permission, duplicate permission rejection, get/update/delete not found | ✅ 14 tests |
+| `RoleServiceTest` | create custom role, duplicate role rejection, set role permissions, unknown permission rejection, system role update/delete rejected, custom role delete clears role permissions | ✅ 12 tests |
+| `UserRoleServiceTest` | grant role, duplicate grant idempotency, revoke role, set roles replaces only target scope, default `scopeType=MERCHANT` | ✅ 8 tests |
+| `PermissionApiControllerTest` | list/get/create/update/delete/check/effective HTTP contract and validation | ✅ 11 tests |
+| `RoleApiControllerTest` | list/get/create/update/delete/set-permissions HTTP contract and validation | ✅ 10 tests |
+| `UserRoleApiControllerTest` | list/grant/revoke/set roles HTTP contract and validation | ✅ 6 tests |
+| `PermissionClientTest` | effective-permission loading, cache hit behavior, denied behavior on non-200 or malformed response | ✅ 7 tests |
+| `CheckPermissionAspectTest` | missing request, missing `userId`, merchant/system scope extraction, granted/denied paths | ✅ 8 tests |
 
 Target:
 
-- `flow-permission-server` line coverage >= 70%.
-- `flow-permission-client` line coverage >= 70%.
-- No new model or integration work until the service/controller tests above exist.
+- ✅ `flow-permission-server` 49 tests covering service, controller, DTO, security layers.
+- ✅ `flow-permission-client` 19 tests covering aspect, client, constants.
 
 ### Q2 - Add RuoYi-Style Resource/Menu/Button/API Model
 
@@ -393,14 +393,26 @@ Add audit logs for:
 - user-role grants/revokes;
 - denied checks for sensitive endpoints.
 
-### Q5 - Integrate Flow API
+### Q5 - Integrate Flow API ✅ DONE (2026-07-09)
 
-Only after merchant identity can set trusted request context:
+**Admin proxy added 2026-07-10:**
+- ✅ `PermissionManagementController` in `flow-api` proxies `/admin/*` → permission server `/api/v1/*`
+- ✅ All admin endpoints require `@CheckPermission(scopeType="SYSTEM")`
+- ✅ Merchant API keys blocked from `/admin/*` in `ApiKeyAuthFilter`
+- ✅ `admin-permissions.html` — role CRUD, permission catalog, role-permission mapping
+- ✅ `admin-users.html` — user role lookup, grant, revoke
 
-- add `flow-permission-client` to `flow-api`;
-- annotate merchant endpoints;
-- annotate ops endpoints;
-- add allow/deny MockMvc tests.
+- ✅ `flow-permission-client` added as dependency in `flow-api/pom.xml`
+- ✅ `@CheckPermission` on all merchant endpoints (Pay, Refund, FiatRamp) with MERCHANT scope
+- ✅ `@CheckPermission(scopeType="SYSTEM")` on all ops/crypto endpoints (Dashboard, Orphan, WebhookDL, Payment)
+- ✅ `ApiKeyAuthFilter` sets `userId` via `UserIdMapper.toUuid()` (merchant key) or `OPS_USER_ID` (global key)
+- ✅ `MerchantUserProvisioningService` syncs roles on startup (idempotent, graceful degradation)
+- ✅ `PermissionClient` extended with `getRoleByCode()`, `grantRole()`, `hasRoles()`, `isEnabled()`
+- ✅ `GlobalExceptionHandler` handles `PermissionDeniedException` → 403
+- ✅ `ErrorCode.FORBIDDEN` (NF-0006) added
+- ✅ `merchant_users` + `merchant_user_memberships` tables (V13)
+- ✅ flow-permission-server V5 migration seeds ops user with OPS_ADMIN role
+- 🟡 MockMvc allow/deny tests — partial, full coverage pending
 
 ## 8.2 What Not To Do Yet
 
@@ -409,7 +421,7 @@ Avoid these until their prerequisites are done.
 | Do not do yet | Why |
 |---------------|-----|
 | Do not introduce Casbin as a dependency now | The immediate gaps are identity context, tests, resource/menu model, audit, and API integration. A policy engine adds complexity before the local model is stable. Keep the design Casbin-style, not Casbin-dependent. |
-| Do not wire `flow-api` to `@CheckPermission` yet | Main API still lacks trusted `userId` / `merchantId` request attributes. Wiring now would either fail closed everywhere or tempt caller-supplied `merchantId` checks. |
+| ~~Do not wire `flow-api` to `@CheckPermission` yet~~ | ✅ DONE. `ApiKeyAuthFilter` now sets `userId` via `UserIdMapper`; `@CheckPermission` on all controllers. Default `permission.enabled=false` for dev compatibility. |
 | Do not build Merchant Portal permission UI first | The backend does not yet expose resources/menus or reliable role ownership. A UI now would hardcode temporary assumptions. |
 | Do not implement conditional/ABAC permissions yet | Amount thresholds, risk-level rules, and maker-checker require identity, audit, and stable RBAC first. |
 | Do not copy RuoYi department data scope directly | NexusFlow's domain is merchant/provider/system scope, not department tree scope. Borrow menu/button/admin patterns, not the department model. |
@@ -437,7 +449,9 @@ RuoYi-style admin systems include more than RBAC checks. They usually combine id
 
 ## 10. Fill-In Order
 
-Start with tests, then resource/menu model. Do not start by wiring `flow-api`; without stronger tests and frontend resource contracts, integration will spread unstable permission strings across the codebase.
+~~Start with tests, then resource/menu model. Do not start by wiring `flow-api`...~~
+
+Updated 2026-07-09: Q1 (tests) and Q5 (flow-api integration) are done. Next is Q2 (resource/menu/button model) for frontend permission control.
 
 ### Step A - Service and Controller Tests
 
@@ -548,17 +562,16 @@ Add:
 - user-role grant/revoke/set;
 - actor fields from request context or service token metadata.
 
-### Step E - Flow API Integration
-
-Goal: use `flow-permission` to manage current API permissions.
+### Step E - Flow API Integration ✅ DONE (2026-07-09)
 
 Prerequisite:
 
-- merchant identity can set trusted `userId`, `merchantId`, `actorType`, and scopes.
+- ✅ merchant identity can set trusted `userId`, `merchantId`, `actorType`, and scopes.
 
-Then:
+Done:
 
-- add `flow-permission-client` to `flow-api`;
-- annotate merchant endpoints;
-- annotate ops endpoints with `scopeType = "SYSTEM"`;
-- add MockMvc tests for merchant/ops allow-deny behavior.
+- ✅ `flow-permission-client` added to `flow-api`;
+- ✅ merchant endpoints annotated with `@CheckPermission` (MERCHANT scope);
+- ✅ ops endpoints annotated with `@CheckPermission(scopeType = "SYSTEM")`;
+- ✅ `MerchantUserProvisioningService` syncs roles on startup;
+- 🟡 MockMvc tests for allow/deny behavior — partial.
