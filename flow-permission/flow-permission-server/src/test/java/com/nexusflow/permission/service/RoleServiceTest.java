@@ -22,6 +22,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -156,7 +157,7 @@ class RoleServiceTest {
 
         assertThat(result.getCode()).isEqualTo("CUSTOM_ROLE");
         assertThat(result.isSystem()).isFalse();
-        verify(rolePermissionRepository).save(any(RolePermission.class));
+        verify(rolePermissionRepository, times(2)).save(any(RolePermission.class));
     }
 
     @Test

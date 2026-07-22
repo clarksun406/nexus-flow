@@ -12,6 +12,7 @@ nexusflow now contains two layers:
 
 * **Execution layer:** `CryptoPayment`, wallet/address management, blockchain scanning, confirmations, reconciliation, webhooks.
 * **Orchestration layer:** `PaymentOrder`, channel routing, channel callbacks, refunds, cashier/merchant/ops static consoles, and fiat-ramp tracking.
+* **Settlement layer:** `MerchantBalance`, double-entry `LedgerEntry`, `SettlementRequest`, fee deduction, withdrawal processing.
 
 It is responsible for:
 
@@ -21,11 +22,12 @@ It is responsible for:
 * Creating and routing merchant payment orders
 * Exposing buyer checkout, merchant console, and ops dashboard surfaces
 * Tracking provider callbacks, refunds, webhooks, and fiat-ramp conversion states
+* Maintaining merchant balances (per token/network), double-entry bookkeeping, and settlement/withdrawal
 
 ```text
-Merchant / NexusPay-Core
+Merchant API / Merchant Portal
         ↓
-   nexusflow (Execution + Orchestration)
+   nexusflow (Execution + Orchestration + Settlement)
 ```
 
 Production readiness is tracked separately from code completion. Some capabilities are implemented only as ports, generic HTTP adapters, stubs, or opt-in live smoke tests. See `nexusflow-roadmap.md` and `TESTING.md` before treating a feature as production-ready.
@@ -82,7 +84,7 @@ nexusflow emits domain events:
 * `crypto.payment.confirmed`
 * `crypto.payment.failed`
 
-These events are consumed by **NexusPay-Core**, merchant webhook endpoints, Kafka consumers, or internal operations workflows depending on deployment.
+These events are consumed by merchant webhook endpoints, Kafka consumers, internal settlement listeners, or operations workflows depending on deployment.
 
 ---
 
@@ -91,8 +93,8 @@ These events are consumed by **NexusPay-Core**, merchant webhook endpoints, Kafk
 ```text
 nexusflow/
 ├── flow-common/          # shared utils (crypto, encryption, errors)
-├── flow-domain/          # core domain models
-├── flow-application/     # use cases (create payment, confirm)
+├── flow-domain/          # core domain models (payment, order, settlement)
+├── flow-application/     # use cases (create payment, confirm, settle)
 ├── flow-infra/           # blockchain adapters
 │   ├── ethereum/
 │   ├── tron/
@@ -101,13 +103,14 @@ nexusflow/
 ├── flow-listener/        # blockchain listeners / indexers
 ├── flow-wallet/          # wallet service
 ├── flow-api/             # REST / gRPC API
+├── flow-permission/      # RBAC permission service
 ```
 
 ---
 
-## 🔌 Integration with NexusPay-Core
+## 🔌 Integration with External Systems
 
-### Inbound (from Core)
+### Inbound (from Merchants / API Clients)
 
 ```http
 POST /crypto/payments
@@ -157,7 +160,7 @@ uses `/crypto/orphan-transactions` for orphan resolve, ignore, and compensate ac
 
 ---
 
-### Outbound (to Core)
+### Outbound (to Merchants / External Systems)
 
 Event-driven (Kafka / Webhook):
 
@@ -204,7 +207,7 @@ docker-compose up flow-api flow-listener flow-wallet
 * [ ] Single wallet (hot wallet)
 * [ ] Basic listener (polling or node subscription)
 * [ ] Payment detection + confirmation
-* [ ] Event push to NexusPay-Core
+* [ ] Event push to merchant webhook endpoints
 
 ---
 
@@ -222,26 +225,35 @@ docker-compose up flow-api flow-listener flow-wallet
 * Gas abstraction
 * On/Off ramp integration
 
+### Phase 4 — Settlement & Accounting
+
+* Double-entry bookkeeping (`ledger_entries`) with journal-based debit/credit pairs
+* Merchant balance management per token/network (`merchant_balances`)
+* Fee calculation and deduction on payment confirmation
+* Event-driven settlement listeners (`@TransactionalEventListener` on `OrderEvent`/`PaymentStateChangedEvent`)
+* Withdrawal/settlement requests with on-chain transfer (`settlement_requests`)
+* FiatRamp event integration for accounting parity
+* Settlement REST API (balances, ledger, withdrawal CRUD)
+* Unit and integration tests for settlement flows
+
 ---
 
 ## ⚠️ Non-Goals
 
 nexusflow does NOT currently aim to:
 
-* Replace the full NexusPay-Core control plane, merchant lifecycle, pricing, risk, compliance, or settlement operations.
 * Provide official provider-specific implementations unless an adapter is explicitly implemented and live-verified.
 * Provide KYC/AML decisioning for fiat-ramp providers.
-* Custody or account for merchant balances beyond the payment/refund/ramp tracking records represented in this repository.
 * Guarantee production readiness for stubbed or opt-in integrations without live environment validation.
 
 ---
 
 ## 🧠 Philosophy
 
-nexusflow is built as a **modular, chain-agnostic execution engine**.
+nexusflow is built as a **self-contained, modular payment platform**.
 
-* Core handles "what to do"
-* nexusflow handles "how it happens on-chain"
+* NexusFlow handles "what to do" — order orchestration, settlement, merchant management
+* NexusFlow handles "how it happens on-chain" — payment execution, wallet, blockchain scanning
 
 ---
 
@@ -481,7 +493,7 @@ All external APIs MUST be idempotent.
 - BTC node (future)
 
 ### External Systems:
-- NexusPay-Core / merchant systems
+- Merchant systems and integrators
 - Channel providers and payment processors
 - Monitoring system
 - KMS (optional)
@@ -525,12 +537,14 @@ nexusflow is:
 - embedded payment order orchestration
 - cashier, merchant, and ops static consoles
 - provider callback ingestion and webhook delivery records
+- merchant balances (per token/network), double-entry ledger, and settlement/withdrawal
+- fee calculation and deduction
+- merchant identity and API key authentication
 
-### NexusPay-Core or external merchant systems may own:
-- broader merchant lifecycle and account management
-- product/order systems
-- pricing, risk, compliance, and settlement policy
-- cross-product orchestration outside this repository
+### External merchant systems may own:
+- product/order systems outside this repository
+- KYC/AML compliance workflows
+- cross-product orchestration
 
 ### Shared only via:
 - events
@@ -549,6 +563,129 @@ Ensure blockchain truth matches system state
 
 ### Rule:
 > Blockchain is source of truth, system is derived state
+
+---
+
+## 💰 Settlement & Accounting
+
+NexusFlow includes a built-in settlement layer that provides double-entry bookkeeping, per-merchant balance management, fee deduction, and withdrawal processing. This eliminates the need for an external control-plane system for basic accounting.
+
+### Domain Model
+
+```text
+flow-domain/settlement/
+├── MerchantBalance.java          # aggregate root: balance per merchant/token/network
+├── LedgerEntry.java              # value object: double-entry journal line
+├── LedgerEntryType.java          # enum: PAYMENT_IN / REFUND_OUT / FEE / SETTLEMENT_OUT / ...
+├── LedgerDirection.java          # enum: DEBIT / CREDIT
+├── SettlementRequest.java        # aggregate root: withdrawal request with state machine
+├── SettlementStatus.java         # enum: PENDING / PROCESSING / COMPLETED / FAILED / CANCELLED
+├── FeeRule.java                  # value object: feeRate, minFee, feeToken
+├── BalanceRepository.java        # port
+├── LedgerRepository.java         # port
+└── SettlementRepository.java     # port
+```
+
+### Data Model
+
+**merchant_balances** — one row per (merchant_id, token, network):
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `balance_id` | VARCHAR(36) PK | UUID |
+| `merchant_id` | VARCHAR(36) | merchant identifier |
+| `token` | VARCHAR(32) | USDT, BTC, ETH ... |
+| `network` | VARCHAR(32) | TRC20, ERC20, BTC ... |
+| `available` | DECIMAL(20,8) | spendable balance |
+| `frozen` | DECIMAL(20,8) | locked (pending withdrawal / refund reserve) |
+| `total_credited` | DECIMAL(20,8) | lifetime credits |
+| `total_debited` | DECIMAL(20,8) | lifetime debits |
+| `version` | BIGINT | optimistic lock |
+
+**ledger_entries** — every balance mutation produces a journal of two entries (debit + credit):
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `entry_id` | VARCHAR(36) PK | UUID |
+| `journal_id` | VARCHAR(36) | shared ID linking debit/credit pair |
+| `merchant_id` | VARCHAR(36) | affected merchant |
+| `token` / `network` | VARCHAR | currency context |
+| `entry_type` | VARCHAR(32) | PAYMENT_IN / REFUND_OUT / FEE / SETTLEMENT_OUT |
+| `direction` | VARCHAR(8) | DEBIT / CREDIT |
+| `amount` | DECIMAL(20,8) | absolute amount |
+| `balance_after` | DECIMAL(20,8) | balance snapshot after this entry |
+| `ref_type` / `ref_id` | VARCHAR | linked business entity |
+
+**settlement_requests** — withdrawal lifecycle:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `settlement_id` | VARCHAR(36) PK | UUID |
+| `merchant_id` | VARCHAR(36) | requester |
+| `token` / `network` | VARCHAR | withdrawal currency |
+| `amount` | DECIMAL(20,8) | withdrawal amount |
+| `fee_amount` | DECIMAL(20,8) | withdrawal fee |
+| `to_address` | VARCHAR(128) | destination address |
+| `status` | VARCHAR(32) | PENDING / PROCESSING / COMPLETED / FAILED / CANCELLED |
+| `tx_hash` | VARCHAR(128) | on-chain transaction hash |
+
+### Double-Entry Rules
+
+Each transaction creates a `journal_id` with two `ledger_entries`:
+
+| Scenario | DEBIT side | CREDIT side | Balance effect |
+|----------|-----------|-------------|----------------|
+| **Payment confirmed** | platform_revenue | merchant_balance | available += amount − fee |
+| **Refund initiated** | merchant_balance (available) | refund_reserve (frozen) | available unchanged, frozen += amount |
+| **Refund completed** | refund_reserve (frozen) | — | frozen -= amount |
+| **Refund failed** | refund_reserve (frozen) | merchant_balance (available) | frozen -= amount, available += amount |
+| **Withdrawal requested** | merchant_balance (available) | settlement_pending (frozen) | available -= amount, frozen += amount |
+| **Withdrawal completed** | settlement_pending (frozen) | — | frozen -= amount |
+| **Withdrawal failed** | settlement_pending (frozen) | merchant_balance (available) | frozen -= amount, available += amount |
+
+### Event-Driven Integration
+
+Settlement is triggered via `@TransactionalEventListener` on existing domain events:
+
+| Event | Condition | Action |
+|-------|-----------|--------|
+| `OrderEvent` | `newStatus == CONFIRMED` | Credit merchant: available += paidAmount − fee |
+| `PaymentStateChangedEvent` | `newStatus == CONFIRMED` | Credit merchant (self-hosted node path) |
+| `OrderEvent` | `newStatus == REFUND_PROCESSING` | Freeze refund amount: available → frozen |
+| `OrderEvent` | `newStatus == REFUNDED` | Release frozen reserve |
+| `OrderEvent` | `newStatus == REFUND_FAILED` | Unfreeze back to available |
+| `FiatRampStatusChangedEvent` (new) | `newStatus == COMPLETED` | Credit (ON_RAMP) or debit (OFF_RAMP) |
+
+### Fee Model
+
+```text
+FeeRule:
+  feeRate: BigDecimal     // e.g. 0.003 = 0.3%
+  minFee: BigDecimal      // minimum fee floor
+  feeToken: String        // fee currency (same as payment token by default)
+```
+
+On payment confirmation: `available += paidAmount × (1 − feeRate)`, with a separate `FEE` ledger entry for the deducted amount.
+
+### Settlement REST API
+
+| Method | Path | Description | Auth |
+|--------|------|-------------|------|
+| GET | `/merchant/balances` | List all token/network balances | Session / API Key |
+| GET | `/merchant/balances/{token}/{network}` | Single balance detail | Session / API Key |
+| GET | `/merchant/ledger-entries` | Ledger journal list (paginated) | Session / API Key |
+| POST | `/merchant/settlements` | Create withdrawal request | Session |
+| GET | `/merchant/settlements` | Withdrawal history | Session / API Key |
+| GET | `/merchant/settlements/{settlementId}` | Withdrawal detail | Session / API Key |
+| POST | `/merchant/settlements/{id}/cancel` | Cancel (PENDING only) | Session |
+
+### Settlement State Machine
+
+```text
+PENDING → PROCESSING → COMPLETED
+                     → FAILED
+        → CANCELLED
+```
 
 ---
 
@@ -610,7 +747,7 @@ Remaining: verify all TRON calls against a live TronGrid or full-node environmen
 
 ---
 
-#### P0-4: Webhook Callback to NexusPay-Core — ✅ DONE
+#### P0-4: Webhook Callback to Merchant Systems — ✅ DONE
 
 **File:** `flow-application/.../application/PaymentApplicationService.java`
 
@@ -878,7 +1015,8 @@ smoke tests remain pending.
 | P1 (Phase 2) | 6 | EthereumAdapter, BitcoinAdapter, HDWallet, JPA Persistence, AddressPool, Retry/Reorg | ✅ all |
 | P2 (Phase 3) | 4 | Kafka, MPC, GasAbstraction, OnOffRamp | ✅ Kafka · 🟡 MPC core/GasEstimator+GasBank core/OnOffRamp core |
 | P3 (Testing) | 2 | Unit tests, Integration tests | 🟡 Unit tests (256 passing locally) · 🟡 Integration/live tests present, 14 skipped locally without Docker/live env |
-| **Total** | **19** | | |
+| P4 (Settlement) | 12 | MerchantBalance, LedgerEntry, SettlementRequest, JPA repos, SettlementService, Event listeners, FiatRamp event, Fee engine, Settlement API, Balance/Ledger API, Unit tests, Integration tests | ⬜ Not started |
+| **Total** | **31** | | |
 
 > 进度更新 2026-06-07：
 > - 修复编排层两处问题——`PaymentOrchestrator.submitPayment` 改为真正调用

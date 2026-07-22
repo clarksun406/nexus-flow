@@ -49,7 +49,7 @@ public class PaymentController {
     }
 
     /**
-     * Webhook: mark payment as confirmed (from NexusPay-Core or manual).
+     * Webhook: mark payment as confirmed (from external system or manual).
      */
     @PostMapping("/{paymentId}/confirm")
     @CheckPermission(value = PermissionCodes.CryptoPayment.CONFIRM, scopeType = "SYSTEM")

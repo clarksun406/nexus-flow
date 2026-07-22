@@ -8,13 +8,18 @@
 
 ## 一、定位升级
 
-nexusflow 从纯执行层（Data Plane）升级为**执行+编排一体化引擎**：
+nexusflow 从纯执行层（Data Plane）升级为**执行+编排+结算一体化引擎**：
 
 ```
                           ┌──────────────────────────────┐
                           │         nexusflow             │
   商户 ──法币/数币订单──→  │                              │
                           │  ┌──────────────────────────┐ │
+                          │  │  结算层 (Settlement)       │ │
+                          │  │  MerchantBalance / Ledger │ │
+                          │  │  SettlementRequest        │ │
+                          │  └──────────┬───────────────┘ │
+                          │  ┌──────────▼───────────────┐ │
                           │  │  编排层 (Orchestration)    │ │
                           │  │  PaymentOrder / Router    │ │      ┌──────────┐
                           │  │  ChannelAdapter 端口       │─┼─────→│ BitMart  │
@@ -83,6 +88,15 @@ nexusflow/                              # 已存在
 │   │   ├── OrderEvent.java              #     编排层事件(新增)
 │   │   └── DomainEventPublisher.java
 │   ├── wallet/                          #   已存在
+│   ├── settlement/                      #   新增：结算层
+│   │   ├── MerchantBalance.java         #     商户余额聚合根
+│   │   ├── LedgerEntry.java             #     复式记账流水 VO
+│   │   ├── SettlementRequest.java       #     提现请求聚合根
+│   │   ├── SettlementStatus.java        #     提现状态机
+│   │   ├── FeeRule.java                 #     手续费规则 VO
+│   │   ├── BalanceRepository.java       #     余额仓储端口
+│   │   ├── LedgerRepository.java        #     记账仓储端口
+│   │   └── SettlementRepository.java    #     提现仓储端口
 │   └── shared/                          #   已存在
 │
 ├── flow-application/                    # 扩展
@@ -91,6 +105,8 @@ nexusflow/                              # 已存在
 │   ├── OrderService.java                #   新增：订单查询
 │   ├── RefundService.java               #   新增：退款服务
 │   ├── WebhookService.java              #   新增：商户回调
+│   ├── SettlementService.java           #   新增：结算记账服务
+│   ├── SettlementEventListener.java     #   新增：事件驱动记账监听器
 │   ├── PaymentApplicationService.java   #   已存在：执行层支付
 │   ├── WalletApplicationService.java    #   已存在
 │   └── dto/                             #   扩展
@@ -279,6 +295,25 @@ public interface ChannelRouter {
 | P3-2 | 商户端（Merchant Portal）— 订单查询、退款申请、API Key / 回调配置 | ✅ `frontend/apps/merchant` Vue app 已落地，覆盖 session 登录、商户切换、创建订单、查询订单、退款和最近订单缓存；API key/Webhook 管理后续补 |
 | P3-3 | 运营端（Ops Dashboard）— 通道监控、订单看板、对账报表、风控告警 | ✅ `frontend/apps/ops` Vue app 已落地，覆盖 dashboard、orphan resolve/compensate/ignore、webhook dead letter replay/ignore；分页筛选/审计字段后续补 |
 
+### ═══════════════════════════════════════════
+### 🟣 P4 — 记账结算体系 ⬜ 未开始 (12 任务)
+### ═══════════════════════════════════════════
+
+| # | 任务 | 状态 | 说明 |
+|---|------|------|------|
+| P4-1 | Flyway V13 迁移：merchant_balances / ledger_entries / settlement_requests | ⬜ | 3 张结算表建表 + 索引 |
+| P4-2 | 领域模型：MerchantBalance 聚合根 + LedgerEntry/LedgerDirection 值对象 | ⬜ | 余额操作（credit/debit/freeze/unfreeze）+ 状态校验 |
+| P4-3 | 领域模型：SettlementRequest 聚合根 + 状态机 | ⬜ | PENDING → PROCESSING → COMPLETED/FAILED + CANCELLED |
+| P4-4 | JPA 持久化：三张表的 Entity + Repository 实现 | ⬜ | 乐观锁 + 并发余额操作保护 |
+| P4-5 | SettlementService：入账/冻结/释放/出账核心逻辑 | ⬜ | 复式记账 journal 生成 + 余额校验 |
+| P4-6 | 事件监听器：@TransactionalEventListener 接入 OrderEvent / PaymentStateChangedEvent | ⬜ | 支付确认入账、退款冻结/释放 |
+| P4-7 | FiatRamp 事件补全：FiatRampStatusChangedEvent + 记账接入 | ⬜ | ON_RAMP 入账 / OFF_RAMP 出账 |
+| P4-8 | 手续费引擎：FeeRule 配置 + 入账时自动扣费 | ⬜ | feeRate/minFee + FEE 类型 ledger_entry |
+| P4-9 | 提现 REST API：SettlementController | ⬜ | POST/GET/cancel 提现请求 |
+| P4-10 | 余额/流水查询 API：BalanceController / LedgerController | ⬜ | 商户余额 + 记账流水分页查询 |
+| P4-11 | 单元测试：记账规则 + 状态机 + 并发余额操作 | ⬜ | 覆盖所有记账场景和边界 |
+| P4-12 | 集成测试：支付确认 → 入账 → 提现 → 出账全链路 | ⬜ | Spring 上下文 + JPA 完整流程验证 |
+
 ### 📊 代码完成度汇总
 
 | 阶段 | 任务数 | 代码已落地 | 状态口径 |
@@ -290,13 +325,15 @@ public interface ChannelRouter {
 | P1-R | 6 | 6 | 剩余 P1 代码已落地；Testcontainers 需 Docker 实跑 |
 | P2 | 4 | 4 | 代码入口已落地；部分能力仍依赖外部 worker/provider/live 验证 |
 | P3 | 3 | 3 | 四端 Vue app、共享包、Node smoke、Playwright Chromium mock E2E、CI 前端验证和 `frontend-*` Maven 打包链路已落地；真实后端联调 E2E 待补 |
-| **合计** | **45** | **45** | **代码范围完成，不等于生产闭环完成** |
+| P4 | 12 | 0 | 记账结算体系全部待实现 |
+| **合计** | **57** | **45** | **代码范围完成，不等于生产闭环完成** |
 
 ### 📊 生产就绪度摘要
 
 | 能力 | 当前生产口径 |
 |------|--------------|
 | 编排核心 / JPA / 商户 API / 收银台 | ✅ 代码已落地，仍需部署环境回归 |
+| 记账结算体系 / 复式记账 / 商户余额 / 提现 | ⬜ 全新模块（P4），12 个任务全部待实现；设计见 `nexusflow.md` Settlement & Accounting 章节 |
 | 产品级前端 / 控制台体系 | 🟡 四端 Vue app、共享 API/UI、Playwright mock E2E、CI 前端验证和 Maven 打包链路已落地；缺真实后端联调 E2E、正式部署/灰度/回滚、前端观测，以及 API key/Webhook/商户生命周期等产品页 |
 | 商户体系 / 多租户认证 | 🟡 M1-M3 已落地（merchant_profiles/credentials/webhook_configs 表、ApiKeyAuthFilter 商户 key 解析、MerchantRequestGuard 请求校验）；M5 登录/session 基础已落地；缺 API key scopes、key 轮换/禁用/审计、商户管理 API、数据隔离查询和生产禁用全局 key；设计见 `nexusflow-merchant-design.md` |
 | RBAC 权限服务 | ✅ `flow-permission-client` 已接入 `flow-api`；`@CheckPermission` 已标注全部 controller（MERCHANT scope + SYSTEM scope）；`ApiKeyAuthFilter` 设置 `userId`；`MerchantUserProvisioningService` 启动自动同步角色；默认 `permission.enabled=false` 兼容开发环境；仍需 PermissionClient fail-closed 策略、缓存失效机制、merchantId 统一 UUID 和真实联调覆盖 |
