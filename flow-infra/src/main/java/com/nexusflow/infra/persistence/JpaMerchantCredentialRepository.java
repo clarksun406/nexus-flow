@@ -2,6 +2,8 @@ package com.nexusflow.infra.persistence;
 
 import com.nexusflow.domain.merchant.MerchantApiKey;
 import com.nexusflow.domain.merchant.MerchantCredentialRepository;
+import com.nexusflow.domain.merchant.MerchantProfileRepository;
+import com.nexusflow.domain.merchant.MerchantStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 
@@ -13,18 +15,17 @@ import java.util.Optional;
 public class JpaMerchantCredentialRepository implements MerchantCredentialRepository {
 
     private final SpringDataMerchantCredentialRepository repository;
+    private final MerchantProfileRepository merchantProfileRepository;
 
     @Override
     public Optional<MerchantApiKey> findActiveByKeyHash(String keyHash, Instant now) {
-        return repository.findActiveCredentialWithMerchant(keyHash, now)
-                .map(row -> {
-                    MerchantCredentialEntity credential = (MerchantCredentialEntity) row[0];
-                    MerchantProfileEntity profile = (MerchantProfileEntity) row[1];
-                    return MerchantApiKey.builder()
-                            .merchantId(profile.getMerchantId())
-                            .merchantCode(profile.getMerchantCode())
-                            .keyPrefix(credential.getKeyPrefix())
-                            .build();
-                });
+        return repository.findActiveByKeyHash(keyHash, now)
+                .flatMap(credential -> merchantProfileRepository.findById(credential.getMerchantId())
+                        .filter(profile -> profile.getStatus() == MerchantStatus.ACTIVE)
+                        .map(profile -> MerchantApiKey.builder()
+                                .merchantId(profile.getMerchantId())
+                                .merchantCode(profile.getMerchantCode())
+                                .keyPrefix(credential.getKeyPrefix())
+                                .build()));
     }
 }

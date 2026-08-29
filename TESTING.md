@@ -57,6 +57,22 @@ CI runs the same frontend verification before Maven `clean install`, including C
 
 JUnit 5 support depends on `maven-surefire-plugin` 3.2.5, pinned in the root `pom.xml`.
 
+## Local H2 Profile (zero-dependency startup)
+
+`mvn -pl flow-api spring-boot:run -Dspring-boot.run.profiles=h2` boots the full app on
+embedded H2 (PostgreSQL compatibility mode) with no PostgreSQL/Redis/Kafka required:
+
+- `H2MigrationCompatibilityTest` (flow-api) guards that all `db/migration` scripts
+  (V1+) also apply on H2; add new migrations with portable syntax or update this test.
+- `LocalSeedDataRunnerTest` (flow-api) covers the idempotent demo-data seeder
+  (demo merchant, merchant API key `nexusflow-local-api-key`, portal user
+  `demo@nexusflow.local` / `demo1234`).
+- `LocalProfileH2BootTest` (flow-api) boots the full Spring context on an in-memory
+  H2 database with the `h2` profile and verifies Flyway schema creation, seeded
+  credentials (API key lookup) and portal login.
+- H2 console is served at `/h2-console` when the profile is active; data files live
+  in `./data/` (git-ignored).
+
 `LiveBlockchainAdapterTest` uses `LIVE_ETH_RPC_URL`, `LIVE_BTC_RPC_URL`, and `LIVE_TRON_NODE_URL`.
 Optional variables: `LIVE_ETH_USDT_CONTRACT`, `LIVE_TRON_USDT_CONTRACT`, `LIVE_BTC_RPC_USERNAME`,
 `LIVE_BTC_RPC_PASSWORD`, `LIVE_ETH_TX_HASH`, `LIVE_BTC_TX_HASH`, and `LIVE_TRON_TX_HASH`.

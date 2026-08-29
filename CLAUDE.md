@@ -13,8 +13,11 @@ mvn install                    # full build + install to local repo
 mvn test -pl flow-application -Dtest=PaymentOrchestratorTest
 mvn test -pl flow-domain -Dtest=CryptoPaymentTest#fullHappyPathTransitionsToConfirmed
 
-# Run the API (needs local PostgreSQL `nexusflow` DB + Redis)
+# Run the API (default: PostgreSQL profile; needs local `nexusflow` DB)
 mvn -pl flow-api spring-boot:run
+# Zero-dependency local run on embedded H2 (no PostgreSQL/Redis/Kafka needed;
+# seeds demo merchant + API key + portal login; see application-h2.yml)
+mvn -pl flow-api spring-boot:run "-Dspring-boot.run.profiles=h2"
 ```
 
 `-pl <module>` targets one Maven module; add `-am` to also build its dependencies.

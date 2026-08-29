@@ -31,8 +31,11 @@ CREATE TABLE IF NOT EXISTS fiat_ramp_orders (
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fiat_ramp_merchant_order
     ON fiat_ramp_orders(merchant_id, merchant_order_no);
+-- Note: plain unique index without a partial-index WHERE clause so the script also
+-- applies on H2 (PostgreSQL compatibility mode) of the local 'h2' profile; PostgreSQL
+-- treats NULLs as distinct in unique indexes, so constraint behavior is unchanged
+-- (rows with NULL provider_order_id are not restricted in either database).
 CREATE UNIQUE INDEX IF NOT EXISTS idx_fiat_ramp_provider_order
-    ON fiat_ramp_orders(provider_id, provider_order_id)
-    WHERE provider_order_id IS NOT NULL;
+    ON fiat_ramp_orders(provider_id, provider_order_id);
 CREATE INDEX IF NOT EXISTS idx_fiat_ramp_payment ON fiat_ramp_orders(payment_id);
 CREATE INDEX IF NOT EXISTS idx_fiat_ramp_status ON fiat_ramp_orders(status);

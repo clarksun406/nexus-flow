@@ -19,6 +19,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class CheckPermissionAspect {
 
+    /**
+     * Request attribute names set by the auth filters (e.g. flow-api's ApiKeyAuthFilter
+     * and its MerchantAuthContext constants). These must stay in sync: the aspect lives
+     * in the shared client module and cannot depend on the API module.
+     */
+    public static final String USER_ID_ATTRIBUTE = "nexusflow.userId";
+    public static final String MERCHANT_ID_ATTRIBUTE = "nexusflow.merchantId";
+    public static final String ORG_ID_ATTRIBUTE = "nexusflow.orgId";
+
     private final PermissionClient permissionClient;
 
     @Before("@annotation(checkPermission)")
@@ -28,7 +37,7 @@ public class CheckPermissionAspect {
             throw new PermissionDeniedException("No request context");
         }
 
-        UUID userId = getAttributeUUID(request, "userId");
+        UUID userId = getAttributeUUID(request, USER_ID_ATTRIBUTE);
         if (userId == null) {
             throw new PermissionDeniedException("Not authenticated");
         }
@@ -37,9 +46,9 @@ public class CheckPermissionAspect {
         UUID scopeId = null;
         if (!"SYSTEM".equals(scopeType)) {
             if ("MERCHANT".equals(scopeType)) {
-                scopeId = getAttributeUUID(request, "merchantId");
+                scopeId = getAttributeUUID(request, MERCHANT_ID_ATTRIBUTE);
             } else if ("ORGANIZATION".equals(scopeType)) {
-                scopeId = getAttributeUUID(request, "orgId");
+                scopeId = getAttributeUUID(request, ORG_ID_ATTRIBUTE);
             }
         }
 

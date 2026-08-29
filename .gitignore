@@ -35,3 +35,6 @@ Thumbs.db
 .env
 *.local.yml
 application-local.yml
+
+# Local H2 database files (h2 profile)
+data/

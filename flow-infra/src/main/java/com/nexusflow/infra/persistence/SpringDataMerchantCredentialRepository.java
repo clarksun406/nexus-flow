@@ -9,14 +9,18 @@ import java.util.Optional;
 
 public interface SpringDataMerchantCredentialRepository extends JpaRepository<MerchantCredentialEntity, String> {
 
+    /**
+     * Loads the active credential for a key hash. Merchant profile lookup is done
+     * separately via {@code MerchantProfileRepository}: Hibernate 6 tuple
+     * (multi-entity select) results have driver-dependent array shapes, so a
+     * plain single-entity query keeps behavior identical on PostgreSQL and H2.
+     */
     @Query("""
-            select credential, profile
+            select credential
             from MerchantCredentialEntity credential
-            join MerchantProfileEntity profile on profile.merchantId = credential.merchantId
             where credential.keyHash = :keyHash
               and credential.active = true
               and (credential.expiresAt is null or credential.expiresAt > :now)
-              and profile.status = 'ACTIVE'
             """)
-    Optional<Object[]> findActiveCredentialWithMerchant(@Param("keyHash") String keyHash, @Param("now") Instant now);
+    Optional<MerchantCredentialEntity> findActiveByKeyHash(@Param("keyHash") String keyHash, @Param("now") Instant now);
 }

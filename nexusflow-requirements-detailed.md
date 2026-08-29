@@ -2085,8 +2085,11 @@ mvn -DskipTests compile
 # 运行测试
 mvn test
 
-# 启动服务
+# 启动服务（PostgreSQL，需本地 nexusflow 库）
 mvn -pl flow-api spring-boot:run
+
+# 零依赖本地启动（内嵌 H2，PostgreSQL 兼容模式；自动建表 + 种子演示数据）
+mvn -pl flow-api spring-boot:run -Dspring-boot.run.profiles=h2
 
 # Docker 启动
 docker-compose up -d

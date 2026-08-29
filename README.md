@@ -87,6 +87,24 @@ export TRON_NODE_URL=https://api.trongrid.io
 mvn -pl flow-api spring-boot:run
 ```
 
+#### 零依赖本地启动（H2 profile）
+
+不想装 PostgreSQL 时，用 `h2` profile 在内嵌 H2（PostgreSQL 兼容模式）上一键启动：
+
+```bash
+mvn -pl flow-api spring-boot:run -Dspring-boot.run.profiles=h2
+# Windows PowerShell: mvn -pl flow-api spring-boot:run "-Dspring-boot.run.profiles=h2"
+```
+
+- 无需 PostgreSQL / Redis / Kafka，数据落在 `./data/nexusflow-h2*`（已 git-ignore），删文件即重置
+- Flyway 在 H2 上自动执行同一套 `db/migration` 脚本建表（`H2MigrationCompatibilityTest` 守护兼容性）
+- `LocalSeedDataRunner` 幂等种子演示数据并在启动日志中打印凭据：
+  - 商户 API Key：`nexusflow-local-api-key`（请求头 `X-API-Key`）
+  - 门户登录：`demo@nexusflow.local` / `demo1234`（`POST /auth/login`）
+- H2 控制台：http://localhost:8080/h2-console（JDBC URL 已由 profile 预填）
+- 免设 `ENCRYPTION_KEY`（profile 内 `allow-generated-key: true`，仅限本地开发）
+- 注意：H2 仅用于本地开发；地址池并发分配的 `FOR UPDATE SKIP LOCKED` 等 PostgreSQL 专有优化未在 H2 上验证，生产仍以 PostgreSQL 为准
+
 ---
 
 ## 状态机

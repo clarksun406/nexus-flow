@@ -68,8 +68,8 @@ class CheckPermissionAspectTest {
         UUID userId = UUID.randomUUID();
         UUID merchantId = UUID.randomUUID();
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setAttribute("userId", userId.toString());
-        request.setAttribute("merchantId", merchantId.toString());
+        request.setAttribute(CheckPermissionAspect.USER_ID_ATTRIBUTE, userId.toString());
+        request.setAttribute(CheckPermissionAspect.MERCHANT_ID_ATTRIBUTE, merchantId.toString());
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         when(permissionClient.check(userId, "payment_order:read", "MERCHANT", merchantId))
@@ -83,8 +83,8 @@ class CheckPermissionAspectTest {
         UUID userId = UUID.randomUUID();
         UUID merchantId = UUID.randomUUID();
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setAttribute("userId", userId.toString());
-        request.setAttribute("merchantId", merchantId.toString());
+        request.setAttribute(CheckPermissionAspect.USER_ID_ATTRIBUTE, userId.toString());
+        request.setAttribute(CheckPermissionAspect.MERCHANT_ID_ATTRIBUTE, merchantId.toString());
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         when(permissionClient.check(userId, "payment_order:read", "MERCHANT", merchantId))
@@ -99,7 +99,7 @@ class CheckPermissionAspectTest {
     void systemScopeDoesNotLookupScopeId() {
         UUID userId = UUID.randomUUID();
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setAttribute("userId", userId.toString());
+        request.setAttribute(CheckPermissionAspect.USER_ID_ATTRIBUTE, userId.toString());
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         when(permissionClient.check(userId, "ops_dashboard:read", "SYSTEM", null))
@@ -113,8 +113,8 @@ class CheckPermissionAspectTest {
         UUID userId = UUID.randomUUID();
         UUID merchantId = UUID.randomUUID();
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setAttribute("userId", userId.toString());
-        request.setAttribute("merchantId", merchantId.toString());
+        request.setAttribute(CheckPermissionAspect.USER_ID_ATTRIBUTE, userId.toString());
+        request.setAttribute(CheckPermissionAspect.MERCHANT_ID_ATTRIBUTE, merchantId.toString());
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         when(permissionClient.check(userId, "payment_order:create", "MERCHANT", merchantId))
@@ -128,8 +128,8 @@ class CheckPermissionAspectTest {
         UUID userId = UUID.randomUUID();
         UUID orgId = UUID.randomUUID();
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setAttribute("userId", userId.toString());
-        request.setAttribute("orgId", orgId.toString());
+        request.setAttribute(CheckPermissionAspect.USER_ID_ATTRIBUTE, userId.toString());
+        request.setAttribute(CheckPermissionAspect.ORG_ID_ATTRIBUTE, orgId.toString());
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         when(permissionClient.check(userId, "org:perm", "ORGANIZATION", orgId))
@@ -143,8 +143,8 @@ class CheckPermissionAspectTest {
         UUID userId = UUID.randomUUID();
         UUID merchantId = UUID.randomUUID();
         MockHttpServletRequest request = new MockHttpServletRequest();
-        request.setAttribute("userId", userId);
-        request.setAttribute("merchantId", merchantId.toString());
+        request.setAttribute(CheckPermissionAspect.USER_ID_ATTRIBUTE, userId);
+        request.setAttribute(CheckPermissionAspect.MERCHANT_ID_ATTRIBUTE, merchantId.toString());
         RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
         when(permissionClient.check(userId, "payment_order:read", "MERCHANT", merchantId))

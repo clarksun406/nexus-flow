@@ -1,0 +1,42 @@
+# ---------------------------------------------------------------------------
+# Local development profile: zero-dependency startup on embedded H2
+# ---------------------------------------------------------------------------
+# Usage:
+#   mvn -pl flow-api spring-boot:run -Dspring-boot.run.profiles=h2
+#
+# What this profile gives you:
+#   - No PostgreSQL / Redis / Kafka required; data lives in ./data/nexusflow-h2* (git-ignored)
+#   - Flyway applies the standard db/migration scripts (V1+) on H2 in PostgreSQL
+#     compatibility mode (guarded by H2MigrationCompatibilityTest)
+#   - Demo data is seeded idempotently by LocalSeedDataRunner and printed in the
+#     startup log: a demo merchant, a merchant API key (X-API-Key header) and a
+#     portal login user (POST /auth/login)
+#   - H2 web console at http://localhost:8080/h2-console
+spring:
+  datasource:
+    url: jdbc:h2:file:./data/nexusflow-h2;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;NON_KEYWORDS=KEY,VALUE;AUTO_SERVER=TRUE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      # Flyway owns the schema. Spring Boot would otherwise switch ddl-auto to
+      # create-drop for embedded databases, bypassing the Flyway scripts.
+      ddl-auto: none
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# No Redis/Kafka is required in this profile; the Redis health indicator on the
+# classpath would otherwise drag /actuator/health to 503 without a Redis server.
+management:
+  health:
+    redis:
+      enabled: false
+
+nexusflow:
+  encryption:
+    # Local dev only: allow a throwaway AES-256 key to be generated at startup
+    # so no ENCRYPTION_KEY environment variable is needed.
+    allow-generated-key: true
