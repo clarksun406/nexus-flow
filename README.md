@@ -33,7 +33,7 @@ NexusFlow 是 Nexus 生态中的加密支付引擎。它同时承担两层职责
 | `flow-wallet` | 钱包服务、地址派生 |
 | `flow-api` | REST API、收银台 / 回调入口、Flyway 迁移 |
 | `frontend-checkout` / `frontend-merchant` / `frontend-ops` / `frontend-admin` | 买家收银台、商户门户、运营控制台、平台管理端静态资源；承载各端入口页并打包对应 Vue 构建产物 |
-| `frontend` | Vue 3 + Vite + TypeScript 前端 workspace；`legacy-static/` 保留早期静态页面作为迁移参考 |
+| `frontend` | Vue 3 + Vite + TypeScript 前端 workspace：`apps/` 下五个端（checkout / merchant / ops / admin / checkout-proto）+ `packages/` 共享包（api-client / ui / config）；`legacy-static/` 保留早期静态页面作为迁移参考 |
 
 ### 架构约束（DDD）
 
@@ -67,14 +67,32 @@ mvn install
 
 ### 前端构建
 
+`frontend/` 是 npm workspaces 单仓，五个端各自独立构建、独立打包：
+
+| App | 端口 (dev) | 说明 |
+|-----|-----------|------|
+| `apps/checkout` | 5173 | 生产收银台（对接 `/cashier/*` 真实接口） |
+| `apps/merchant` | 5174 | 商户门户 SPA |
+| `apps/ops` | 5175 | 运营控制台 SPA |
+| `apps/admin` | 5176 | 平台管理端 SPA |
+| `apps/checkout-proto` | 5177 | 收银台设计原型（mock 数据，不进生产构建） |
+
 ```bash
 cd frontend
-npm.cmd run verify:e2e
+npm install
+
+# 各端独立开发 / 独立打包（互不影响）
+npm run dev:checkout        # 或 dev:merchant / dev:ops / dev:admin / dev:proto
+npm run build:checkout      # 或 build:merchant / build:ops / build:admin / build:proto
+npm run typecheck:checkout  # 单端类型检查
+
+# 全量校验（四个生产端 typecheck + build + smoke；不含 proto）
+npm run verify:e2e
 cd ..
 mvn -pl frontend-checkout,frontend-merchant,frontend-ops,frontend-admin -am -DskipTests package
 ```
 
-`frontend-*` Maven 模块会把对应 Vue app 的 `dist-app` 打包到 `static/app/`，模块根入口会优先跳转到 Vue app；旧静态页保留为 legacy fallback 和迁移参考。
+`frontend-*` Maven 模块会把对应 Vue app 的 `dist-app` 打包到 `static/app/`，模块根入口会优先跳转到 Vue app；旧静态页保留为 legacy fallback 和迁移参考。`apps/checkout-proto` 仅用于设计迭代，没有对应的 Maven 模块，不参与部署。dev 模式下 `/api` 自动代理到 `localhost:8080`。
 
 ### 本地运行
 

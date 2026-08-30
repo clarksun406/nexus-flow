@@ -9,7 +9,7 @@ This is a Java 17 / Spring Boot 3.3 multi-module Maven project. The root `pom.xm
 - `flow-infra/`: adapters for blockchain, channels, persistence, cache, Kafka, webhooks, MPC, and fiat ramp HTTP integrations.
 - `flow-api/`: Spring Boot application, controllers, security filters, configuration, and Flyway migrations under `src/main/resources/db/migration`.
 - `flow-listener/`, `flow-wallet/`, `flow-common/`: scanner, wallet derivation, and shared utilities.
-- `flow-cashier/` and `frontend/`: static cashier, merchant, and ops UI assets.
+- `frontend/`: npm workspaces monorepo with the Vue apps in `apps/` (checkout, merchant, ops, admin, checkout-proto) and shared packages in `packages/` (api-client, ui, config); `frontend-checkout/` etc. Maven modules package each app's `dist-app` plus legacy static entry pages.
 
 Tests live beside each module under `src/test/java`.
 

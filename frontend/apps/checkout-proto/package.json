@@ -1,0 +1,14 @@
+{
+  "name": "@nexusflow/checkout-proto",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "vue-router": "^4.6.4"
+  }
+}

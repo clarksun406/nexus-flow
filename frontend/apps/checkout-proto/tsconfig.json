@@ -1,0 +1,19 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"],
+      "@nexusflow/api-client": ["../../packages/api-client/src/index.ts"],
+      "@nexusflow/config": ["../../packages/config/src/index.ts"],
+      "@nexusflow/ui": ["../../packages/ui/src/index.ts"]
+    }
+  },
+  "include": [
+    "../../env.d.ts",
+    "../../packages/**/*.ts",
+    "../../packages/**/*.vue",
+    "src/**/*.ts",
+    "src/**/*.vue"
+  ]
+}
