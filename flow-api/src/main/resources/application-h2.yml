@@ -13,6 +13,18 @@
 #     portal login user (POST /auth/login)
 #   - H2 web console at http://localhost:8080/h2-console
 spring:
+  web:
+    resources:
+      # Local dev convenience: serve the frontend-* modules' static pages directly
+      # from source dirs so the cashier/merchant/ops/admin UIs work on :8080 without
+      # building them. Paths are relative to the flow-api module dir (the working
+      # directory of `mvn -pl flow-api spring-boot:run`).
+      static-locations:
+        - classpath:/static/
+        - file:../frontend-checkout/src/main/resources/static/
+        - file:../frontend-merchant/src/main/resources/static/
+        - file:../frontend-ops/src/main/resources/static/
+        - file:../frontend-admin/src/main/resources/static/
   datasource:
     url: jdbc:h2:file:./data/nexusflow-h2;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;NON_KEYWORDS=KEY,VALUE;AUTO_SERVER=TRUE
     username: sa
