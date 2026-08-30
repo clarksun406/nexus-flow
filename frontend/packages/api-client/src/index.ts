@@ -13,10 +13,12 @@ export type ApiClientConfig = {
 let runtimeConfig: ApiClientConfig = {};
 
 export function configureApiClient(config: ApiClientConfig) {
+  const nextBase = normalizeApiBase(config.apiBase ?? "");
   runtimeConfig = {
     ...runtimeConfig,
     ...config,
-    apiBase: normalizeApiBase(config.apiBase ?? runtimeConfig.apiBase)
+    // Empty input means "use the default"; don't let "" wipe the configured base.
+    apiBase: nextBase || runtimeConfig.apiBase
   };
 }
 
