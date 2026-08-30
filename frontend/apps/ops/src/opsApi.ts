@@ -1,8 +1,11 @@
 import { apiGet, apiPost } from "@nexusflow/api-client";
 import type {
   DeadLetterStatus,
+  FiatRampPage,
   OpsDashboard,
+  OrderPage,
   OrphanTransaction,
+  PaymentPage,
   UserInfo,
   WebhookDeadLetter
 } from "./types";
@@ -58,4 +61,23 @@ export function replayDeadLetter(id: string) {
 
 export function ignoreDeadLetter(id: string) {
   return apiPost<WebhookDeadLetter>(`/ops/webhook-dead-letters/${encodeURIComponent(id)}/ignore`);
+}
+
+function pageQuery(page: number, size: number, status: string, merchantId?: string) {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  if (status) params.set("status", status);
+  if (merchantId) params.set("merchantId", merchantId);
+  return params.toString();
+}
+
+export function listOrders(status: string, merchantId: string, page: number, size: number) {
+  return apiGet<OrderPage>(`/ops/orders?${pageQuery(page, size, status, merchantId)}`);
+}
+
+export function listPayments(status: string, page: number, size: number) {
+  return apiGet<PaymentPage>(`/ops/payments?${pageQuery(page, size, status)}`);
+}
+
+export function listFiatRampOrders(status: string, merchantId: string, page: number, size: number) {
+  return apiGet<FiatRampPage>(`/ops/fiat-ramp-orders?${pageQuery(page, size, status, merchantId)}`);
 }

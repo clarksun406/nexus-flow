@@ -1,5 +1,7 @@
 package com.nexusflow.infra.persistence;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
@@ -8,4 +10,10 @@ public interface SpringDataFiatRampOrderRepository extends JpaRepository<FiatRam
     Optional<FiatRampOrderEntity> findByMerchantIdAndMerchantOrderNo(String merchantId, String merchantOrderNo);
     Optional<FiatRampOrderEntity> findByProviderIdAndProviderOrderId(String providerId, String providerOrderId);
     Optional<FiatRampOrderEntity> findByPaymentId(String paymentId);
+
+    Page<FiatRampOrderEntity> findByStatus(String status, Pageable pageable);
+
+    Page<FiatRampOrderEntity> findByMerchantId(String merchantId, Pageable pageable);
+
+    Page<FiatRampOrderEntity> findByMerchantIdAndStatus(String merchantId, String status, Pageable pageable);
 }

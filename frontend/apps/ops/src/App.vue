@@ -24,6 +24,15 @@
         <button :class="{ active: activeView === 'dashboard' }" type="button" @click="activeView = 'dashboard'">
           Dashboard
         </button>
+        <button :class="{ active: activeView === 'orders' }" type="button" @click="activeView = 'orders'">
+          Orders
+        </button>
+        <button :class="{ active: activeView === 'payments' }" type="button" @click="activeView = 'payments'">
+          Payments
+        </button>
+        <button :class="{ active: activeView === 'fiat' }" type="button" @click="activeView = 'fiat'">
+          Fiat Ramp
+        </button>
         <button :class="{ active: activeView === 'interventions' }" type="button" @click="activeView = 'interventions'">
           Interventions
         </button>
@@ -55,7 +64,7 @@
       <header class="workspace__header">
         <div>
           <p class="eyebrow">Operations</p>
-          <h1>{{ activeView === "dashboard" ? "Channel and order monitor" : "Risk interventions" }}</h1>
+          <h1>{{ viewTitle }}</h1>
         </div>
         <div class="header-actions">
           <button class="btn" type="button" @click="refreshSession" :disabled="busy">Refresh Session</button>
@@ -191,7 +200,7 @@
         </section>
       </div>
 
-      <div v-else class="content-grid content-grid--interventions">
+      <div v-else-if="activeView === 'interventions'" class="content-grid content-grid--interventions">
         <section class="panel">
           <div class="panel__head">
             <h2>Orphan transactions</h2>
@@ -285,6 +294,174 @@
         </section>
       </div>
 
+      <div v-else-if="activeView === 'orders'" class="content-grid content-grid--interventions">
+        <section class="panel">
+          <div class="panel__head">
+            <h2>Orders</h2>
+            <div class="header-actions">
+              <select v-model="orderStatusFilter">
+                <option value="">All statuses</option>
+                <option>WAITING_PAYMENT</option>
+                <option>CONFIRMED</option>
+                <option>PARTIALLY_PAID</option>
+                <option>EXPIRED</option>
+                <option>REFUND_PROCESSING</option>
+                <option>REFUNDED</option>
+                <option>REFUND_FAILED</option>
+              </select>
+              <input v-model="orderMerchantFilter" placeholder="merchantId" />
+              <button class="btn btn--primary" type="button" @click="ordersPageNo = 0; loadOrders()" :disabled="busy">Search</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Payment ID</th>
+                  <th>Merchant Order</th>
+                  <th>Status</th>
+                  <th>Fiat</th>
+                  <th>Crypto</th>
+                  <th>Channel</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="order in orderItems" :key="order.paymentId">
+                  <td class="mono">{{ order.paymentId }}</td>
+                  <td class="mono">{{ order.merchantOrderNo }}</td>
+                  <td><span class="pill" :class="statusClass(order.status)">{{ order.status }}</span></td>
+                  <td>{{ money(order.amountFiat, order.currencyFiat) }}</td>
+                  <td>{{ money(order.amountCrypto, order.currencyCrypto) }} {{ order.network || "" }}</td>
+                  <td>{{ order.channelId || "-" }}</td>
+                  <td>{{ formatTime(order.createTime) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="orderItems.length === 0" class="empty">No orders match the filters</div>
+          </div>
+          <div class="panel__head">
+            <div class="header-actions">
+              <button class="btn" type="button" :disabled="ordersPageNo === 0 || busy" @click="ordersPageNo--; loadOrders()">Prev</button>
+              <span class="muted">Page {{ ordersPageNo + 1 }} · {{ ordersTotal }} total</span>
+              <button class="btn" type="button" :disabled="(ordersPageNo + 1) * 20 >= ordersTotal || busy" @click="ordersPageNo++; loadOrders()">Next</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div v-else-if="activeView === 'payments'" class="content-grid content-grid--interventions">
+        <section class="panel">
+          <div class="panel__head">
+            <h2>Execution payments</h2>
+            <div class="header-actions">
+              <select v-model="paymentStatusFilter">
+                <option value="">All statuses</option>
+                <option>PENDING</option>
+                <option>DETECTED</option>
+                <option>CONFIRMING</option>
+                <option>CONFIRMED</option>
+                <option>FAILED</option>
+                <option>EXPIRED</option>
+              </select>
+              <button class="btn btn--primary" type="button" @click="paymentsPageNo = 0; loadPayments()" :disabled="busy">Search</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Payment ID</th>
+                  <th>Order</th>
+                  <th>Status</th>
+                  <th>Expected</th>
+                  <th>Received</th>
+                  <th>Conf.</th>
+                  <th>Address</th>
+                  <th>Tx Hash</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="payment in paymentItems" :key="payment.id">
+                  <td class="mono">{{ payment.id }}</td>
+                  <td class="mono">{{ payment.orderId }}</td>
+                  <td><span class="pill" :class="statusClass(payment.status)">{{ payment.status }}</span></td>
+                  <td>{{ money(payment.expectedAmount, payment.currency) }}</td>
+                  <td>{{ money(payment.receivedAmount, payment.currency) }}</td>
+                  <td>{{ payment.confirmations ?? 0 }}/{{ payment.requiredConfirmations ?? "-" }}</td>
+                  <td class="mono">{{ shorten(payment.receivingAddress, 18) }}</td>
+                  <td class="mono">{{ shorten(payment.txHash, 18) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="paymentItems.length === 0" class="empty">No payments match the filters</div>
+          </div>
+          <div class="panel__head">
+            <div class="header-actions">
+              <button class="btn" type="button" :disabled="paymentsPageNo === 0 || busy" @click="paymentsPageNo--; loadPayments()">Prev</button>
+              <span class="muted">Page {{ paymentsPageNo + 1 }} · {{ paymentsTotal }} total</span>
+              <button class="btn" type="button" :disabled="(paymentsPageNo + 1) * 20 >= paymentsTotal || busy" @click="paymentsPageNo++; loadPayments()">Next</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div v-else-if="activeView === 'fiat'" class="content-grid content-grid--interventions">
+        <section class="panel">
+          <div class="panel__head">
+            <h2>Fiat ramp orders</h2>
+            <div class="header-actions">
+              <select v-model="fiatStatusFilter">
+                <option value="">All statuses</option>
+                <option>CREATED</option>
+                <option>PENDING_PAYMENT</option>
+                <option>PROCESSING</option>
+                <option>COMPLETED</option>
+                <option>FAILED</option>
+                <option>EXPIRED</option>
+                <option>CANCELLED</option>
+              </select>
+              <input v-model="fiatMerchantFilter" placeholder="merchantId" />
+              <button class="btn btn--primary" type="button" @click="fiatPageNo = 0; loadFiatRampOrders()" :disabled="busy">Search</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ramp Order</th>
+                  <th>Direction</th>
+                  <th>Status</th>
+                  <th>Fiat</th>
+                  <th>Crypto</th>
+                  <th>Provider</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="order in fiatItems" :key="order.rampOrderId">
+                  <td class="mono">{{ order.rampOrderId }}</td>
+                  <td>{{ order.direction || "-" }}</td>
+                  <td><span class="pill" :class="statusClass(order.status)">{{ order.status }}</span></td>
+                  <td>{{ money(order.fiatAmount, order.fiatCurrency) }}</td>
+                  <td>{{ money(order.cryptoAmount, order.token) }} {{ order.network || "" }}</td>
+                  <td>{{ order.providerId || "-" }}</td>
+                  <td>{{ formatTime(order.createTime) }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-if="fiatItems.length === 0" class="empty">No fiat ramp orders match the filters</div>
+          </div>
+          <div class="panel__head">
+            <div class="header-actions">
+              <button class="btn" type="button" :disabled="fiatPageNo === 0 || busy" @click="fiatPageNo--; loadFiatRampOrders()">Prev</button>
+              <span class="muted">Page {{ fiatPageNo + 1 }} · {{ fiatTotal }} total</span>
+              <button class="btn" type="button" :disabled="(fiatPageNo + 1) * 20 >= fiatTotal || busy" @click="fiatPageNo++; loadFiatRampOrders()">Next</button>
+            </div>
+          </div>
+        </section>
+      </div>
+
       <p v-if="errorMessage" class="toast toast--error">{{ errorMessage }}</p>
       <p v-if="noticeMessage" class="toast">{{ noticeMessage }}</p>
     </section>
@@ -292,14 +469,17 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { configureApiClient } from "@nexusflow/api-client";
 import {
   compensateOrphan,
   ignoreDeadLetter,
   ignoreOrphan,
   listDeadLetters,
+  listFiatRampOrders,
+  listOrders,
   listOrphans,
+  listPayments,
   loadCurrentUser,
   loadDashboard,
   login,
@@ -307,9 +487,18 @@ import {
   replayDeadLetter,
   resolveOrphan
 } from "./opsApi";
-import type { DeadLetterStatus, OpsDashboard, OrphanTransaction, UserInfo, WebhookDeadLetter } from "./types";
+import type {
+  DeadLetterStatus,
+  FiatRampListItem,
+  OpsDashboard,
+  OrderListItem,
+  OrphanTransaction,
+  PaymentListItem,
+  UserInfo,
+  WebhookDeadLetter
+} from "./types";
 
-type OpsView = "dashboard" | "interventions";
+type OpsView = "dashboard" | "interventions" | "orders" | "payments" | "fiat";
 
 const settingsKey = "nexusflow.ops.config";
 
@@ -326,10 +515,36 @@ const orphanStatus = ref("UNMATCHED");
 const deadLetterStatus = ref<DeadLetterStatus>("PENDING");
 const resolvePaymentIds = ref<Record<string, string>>({});
 
+const orderItems = ref<OrderListItem[]>([]);
+const ordersPageNo = ref(0);
+const ordersTotal = ref(0);
+const orderStatusFilter = ref("");
+const orderMerchantFilter = ref("");
+
+const paymentItems = ref<PaymentListItem[]>([]);
+const paymentsPageNo = ref(0);
+const paymentsTotal = ref(0);
+const paymentStatusFilter = ref("");
+
+const fiatItems = ref<FiatRampListItem[]>([]);
+const fiatPageNo = ref(0);
+const fiatTotal = ref(0);
+const fiatStatusFilter = ref("");
+const fiatMerchantFilter = ref("");
+
 const loginForm = ref({
   email: "",
   password: ""
 });
+
+const viewTitles: Record<OpsView, string> = {
+  dashboard: "Channel and order monitor",
+  interventions: "Risk interventions",
+  orders: "Order search",
+  payments: "Execution payments",
+  fiat: "Fiat ramp orders"
+};
+const viewTitle = computed(() => viewTitles[activeView.value]);
 
 const channels = computed(() => dashboard.value?.channels ?? []);
 const channelsUp = computed(() => channels.value.filter((channel) => channel.status === "UP").length);
@@ -393,6 +608,46 @@ async function loadDeadLetters() {
     notice("Dead letters loaded");
   });
 }
+
+async function loadOrders() {
+  await run(async () => {
+    const result = await listOrders(orderStatusFilter.value, orderMerchantFilter.value.trim(), ordersPageNo.value, 20);
+    orderItems.value = result.items;
+    ordersTotal.value = result.total;
+    notice("Orders loaded");
+  });
+}
+
+async function loadPayments() {
+  await run(async () => {
+    const result = await listPayments(paymentStatusFilter.value, paymentsPageNo.value, 20);
+    paymentItems.value = result.items;
+    paymentsTotal.value = result.total;
+    notice("Payments loaded");
+  });
+}
+
+async function loadFiatRampOrders() {
+  await run(async () => {
+    const result = await listFiatRampOrders(fiatStatusFilter.value, fiatMerchantFilter.value.trim(), fiatPageNo.value, 20);
+    fiatItems.value = result.items;
+    fiatTotal.value = result.total;
+    notice("Fiat ramp orders loaded");
+  });
+}
+
+watch(activeView, (view) => {
+  if (view === "orders") {
+    ordersPageNo.value = 0;
+    void loadOrders();
+  } else if (view === "payments") {
+    paymentsPageNo.value = 0;
+    void loadPayments();
+  } else if (view === "fiat") {
+    fiatPageNo.value = 0;
+    void loadFiatRampOrders();
+  }
+});
 
 async function submitResolve(orphan: OrphanTransaction) {
   const paymentId = resolvePaymentIds.value[orphanKey(orphan)]?.trim();
@@ -550,9 +805,13 @@ function readJson<T>(key: string, fallback: T): T {
 
 :global(body) {
   margin: 0;
-  background: #f4f6f8;
-  color: #18212b;
-  font-family: "Aptos", "Segoe UI", sans-serif;
+  background:
+    radial-gradient(900px 500px at 88% -12%, rgba(79, 70, 229, 0.12), transparent 62%),
+    radial-gradient(760px 460px at -8% 24%, rgba(14, 165, 164, 0.1), transparent 60%),
+    #eef1f7;
+  color: #0b1526;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -570,8 +829,9 @@ select {
 .sidebar {
   min-height: 100vh;
   padding: 22px;
-  border-right: 1px solid #dde5ed;
-  background: #ffffff;
+  border-right: 1px solid rgba(11, 21, 38, 0.07);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(14px);
 }
 
 .brand {
@@ -582,10 +842,11 @@ select {
 }
 
 .brand__mark {
-  width: 34px;
-  height: 34px;
-  border-radius: 8px;
-  background: linear-gradient(135deg, #155e75, #15803d);
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #4f46e5 10%, #7c6cf2 45%, #0ea5a4 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 8px 18px -8px rgba(79, 70, 229, 0.55);
 }
 
 .brand strong,
@@ -598,6 +859,7 @@ select {
 
 .brand strong {
   font-size: 15px;
+  letter-spacing: -0.01em;
 }
 
 .brand span,
@@ -605,9 +867,11 @@ select {
 label,
 .muted,
 .sub {
-  color: #5f6f80;
-  font-size: 12px;
-  font-weight: 700;
+  color: #8b99ab;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .side-section {
@@ -624,37 +888,47 @@ label,
 .nav button {
   min-height: 38px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 10px;
   background: transparent;
-  color: #475569;
-  padding: 8px 10px;
+  color: #5b6b7e;
+  padding: 8px 12px;
   text-align: left;
-  font-weight: 800;
+  font-weight: 650;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.nav button:hover {
+  background: #f6f8fb;
 }
 
 .nav button.active {
-  border-color: #cbd5df;
-  background: #f7fafc;
-  color: #18212b;
+  border-color: rgba(79, 70, 229, 0.35);
+  background: #eef2ff;
+  color: #4f46e5;
 }
 
 input,
 select {
   width: 100%;
   min-height: 40px;
-  border: 1px solid #d9e1e8;
-  border-radius: 8px;
+  border: 1px solid #e3e8f0;
+  border-radius: 10px;
   background: #ffffff;
-  color: #18212b;
-  padding: 9px 10px;
+  color: #0b1526;
+  padding: 9px 12px;
   outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input::placeholder {
+  color: #8b99ab;
 }
 
 input:focus,
 select:focus {
-  border-color: #155e75;
-  box-shadow: 0 0 0 3px rgba(21, 94, 117, 0.12);
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.15);
 }
 
 .user-line {
@@ -669,19 +943,29 @@ select:focus {
 }
 
 .login-panel {
+  position: relative;
   width: min(420px, 100%);
   display: grid;
   gap: 16px;
-  padding: 28px;
-  border: 1px solid #d9e1e8;
-  border-radius: 8px;
+  padding: 32px 30px 28px;
+  border: 1px solid rgba(11, 21, 38, 0.08);
+  border-radius: 22px;
   background: #ffffff;
-  box-shadow: 0 14px 34px rgba(24, 33, 43, 0.07);
+  box-shadow: 0 30px 60px -25px rgba(11, 21, 38, 0.25);
+  overflow: hidden;
+}
+
+.login-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, #4f46e5, #7c6cf2 45%, #0ea5a4);
 }
 
 .workspace {
   min-width: 0;
-  padding: 24px;
+  padding: 24px clamp(16px, 3vw, 32px) 40px;
 }
 
 .workspace__header {
@@ -694,24 +978,29 @@ select:focus {
 
 .eyebrow {
   margin: 0 0 6px;
-  color: #5f6f80;
-  font-size: 12px;
-  font-weight: 800;
+  color: #8b99ab;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
 }
 
 h1,
 h2 {
   margin: 0;
-  letter-spacing: 0;
+  letter-spacing: -0.01em;
 }
 
 h1 {
-  font-size: 28px;
+  font-size: 26px;
 }
 
 h2 {
-  font-size: 15px;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #5b6b7e;
 }
 
 .header-actions,
@@ -723,67 +1012,102 @@ h2 {
 }
 
 .btn {
-  min-height: 38px;
-  border: 1px solid #d9e1e8;
-  border-radius: 8px;
+  min-height: 40px;
+  border: 1px solid #e3e8f0;
+  border-radius: 10px;
   background: #ffffff;
-  color: #18212b;
-  padding: 8px 12px;
-  font-weight: 800;
+  color: #0b1526;
+  padding: 8px 14px;
+  font-weight: 650;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.05s;
+}
+
+.btn:hover {
+  background: #f7f9fd;
+  border-color: #cdd7e4;
+}
+
+.btn:active {
+  transform: translateY(1px);
 }
 
 .btn:disabled {
   cursor: not-allowed;
-  opacity: 0.58;
+  opacity: 0.5;
 }
 
 .btn--primary {
-  border-color: #155e75;
-  background: #155e75;
+  border-color: transparent;
+  background: linear-gradient(135deg, #6366f1, #4338ca);
   color: #ffffff;
+  box-shadow: 0 10px 20px -10px rgba(79, 70, 229, 0.65);
+}
+
+.btn--primary:hover {
+  background: linear-gradient(135deg, #5558e8, #3730a3);
+  border-color: transparent;
 }
 
 .btn--danger {
-  border-color: #efcaca;
-  color: #b91c1c;
+  border-color: #f3c6c6;
+  color: #dc2626;
+}
+
+.btn--danger:hover {
+  background: #fef2f2;
 }
 
 .btn--ghost {
-  background: #f7fafc;
+  background: #f6f8fb;
 }
 
 .metrics {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
-  margin-bottom: 16px;
+  gap: 12px;
+  margin-bottom: 18px;
 }
 
 .metric,
 .panel {
-  border: 1px solid #d9e1e8;
-  border-radius: 8px;
+  border: 1px solid rgba(11, 21, 38, 0.07);
+  border-radius: 18px;
   background: #ffffff;
-  box-shadow: 0 10px 26px rgba(24, 33, 43, 0.05);
+  box-shadow: 0 24px 48px -20px rgba(11, 21, 38, 0.16);
 }
 
 .metric {
-  min-height: 82px;
-  padding: 14px;
+  min-height: 88px;
+  padding: 16px;
+  transition: transform 0.15s;
+}
+
+.metric:hover {
+  transform: translateY(-2px);
+}
+
+.metric span {
+  color: #8b99ab;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .metric strong {
   display: block;
   margin-top: 8px;
   overflow-wrap: anywhere;
-  font-size: 20px;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(360px, 0.8fr);
-  gap: 16px;
+  gap: 18px;
   align-items: start;
 }
 
@@ -801,8 +1125,8 @@ h2 {
 
 .panel__head {
   justify-content: space-between;
-  padding: 14px 16px;
-  border-bottom: 1px solid #edf1f5;
+  padding: 16px 20px;
+  border-bottom: 1px solid #edf1f7;
 }
 
 .table-wrap {
@@ -817,66 +1141,89 @@ table {
 
 th,
 td {
-  padding: 11px 14px;
-  border-bottom: 1px solid #edf1f5;
+  padding: 12px 16px;
+  border-bottom: 1px solid #edf1f7;
   text-align: left;
   font-size: 13px;
 }
 
 th {
-  color: #5f6f80;
-  font-size: 12px;
+  color: #8b99ab;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: #fbfcfe;
+}
+
+tbody tr:hover {
+  background: #f8fafd;
 }
 
 .mono {
-  font-family: "Cascadia Mono", Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 .pill {
   display: inline-flex;
   align-items: center;
-  min-height: 26px;
+  gap: 7px;
+  min-height: 28px;
   border-radius: 999px;
-  padding: 4px 9px;
-  background: #edf2f7;
-  color: #5f6f80;
+  padding: 4px 12px;
+  background: #f6f8fb;
+  color: #5b6b7e;
+  border: 1px solid #e3e8f0;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 750;
+}
+
+.pill::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: currentColor;
 }
 
 .pill--ok {
-  background: #e8f7ee;
-  color: #15803d;
+  background: #ecfdf5;
+  color: #059669;
+  border-color: #b5e3cd;
 }
 
 .pill--bad {
   background: #fef2f2;
-  color: #b91c1c;
+  color: #dc2626;
+  border-color: #f3c6c6;
 }
 
 .pill--warn {
-  background: #fff7ed;
-  color: #b45309;
+  background: #fff8ee;
+  color: #d97706;
+  border-color: #f3d9ad;
 }
 
 .pill--info {
-  background: #eef5ff;
+  background: #eff6ff;
   color: #2563eb;
+  border-color: #c9dcf8;
 }
 
 .status-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px;
-  padding: 16px;
+  padding: 20px;
 }
 
 .status-card {
   min-height: 70px;
-  border: 1px solid #edf1f5;
-  border-radius: 8px;
+  border: 1px solid #edf1f7;
+  border-radius: 14px;
   background: #fbfcfe;
-  padding: 11px;
+  padding: 12px 14px;
 }
 
 .status-card span,
@@ -885,20 +1232,24 @@ th {
 }
 
 .status-card span {
-  color: #5f6f80;
-  font-size: 12px;
-  font-weight: 800;
+  color: #8b99ab;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .status-card strong {
   margin-top: 7px;
   font-size: 20px;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
 }
 
 .alert-list {
   display: grid;
   gap: 8px;
-  padding: 16px;
+  padding: 20px;
 }
 
 .alert {
@@ -906,10 +1257,10 @@ th {
   grid-template-columns: auto 1fr auto;
   gap: 10px;
   align-items: start;
-  border: 1px solid #edf1f5;
-  border-radius: 8px;
+  border: 1px solid #edf1f7;
+  border-radius: 14px;
   background: #fbfcfe;
-  padding: 10px;
+  padding: 12px;
 }
 
 .alert strong,
@@ -918,7 +1269,7 @@ th {
 }
 
 .alert span {
-  color: #5f6f80;
+  color: #5b6b7e;
   font-size: 12px;
 }
 
@@ -933,17 +1284,17 @@ th {
 
 .empty {
   padding: 34px 16px;
-  color: #5f6f80;
+  color: #5b6b7e;
   text-align: center;
 }
 
 .error {
   margin: 0;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
+  border: 1px solid #f3c6c6;
+  border-radius: 12px;
   background: #fef2f2;
-  color: #b91c1c;
-  padding: 10px;
+  color: #991b1b;
+  padding: 11px 13px;
   font-size: 13px;
 }
 
@@ -953,18 +1304,19 @@ th {
   bottom: 18px;
   max-width: min(420px, calc(100vw - 36px));
   margin: 0;
-  border: 1px solid #d9e1e8;
-  border-radius: 8px;
-  background: #ffffff;
-  box-shadow: 0 14px 34px rgba(24, 33, 43, 0.12);
-  padding: 12px 14px;
+  border: none;
+  border-radius: 12px;
+  background: #101a2e;
+  color: #f2f6ff;
+  box-shadow: 0 22px 44px -14px rgba(11, 21, 38, 0.5);
+  padding: 12px 16px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .toast--error {
-  border-color: #fecaca;
-  color: #b91c1c;
+  background: #7f1d1d;
+  color: #fef2f2;
 }
 
 @media (max-width: 1180px) {
@@ -975,7 +1327,7 @@ th {
   .sidebar {
     min-height: auto;
     border-right: 0;
-    border-bottom: 1px solid #dde5ed;
+    border-bottom: 1px solid rgba(11, 21, 38, 0.07);
   }
 
   .content-grid {

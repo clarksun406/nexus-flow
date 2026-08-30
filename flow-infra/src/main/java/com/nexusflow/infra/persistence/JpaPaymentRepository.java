@@ -67,6 +67,19 @@ public class JpaPaymentRepository implements PaymentRepository {
         return repository.existsByOrderId(orderId);
     }
 
+    @Override
+    public com.nexusflow.common.PageResult<CryptoPayment> search(PaymentStatus status, int page, int size) {
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 200),
+                        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC,
+                                "createdAt"));
+        org.springframework.data.domain.Page<CryptoPaymentEntity> result = status != null
+                ? repository.findByStatus(status.name(), pageable)
+                : repository.findAll(pageable);
+        List<CryptoPayment> items = result.getContent().stream().map(this::toDomain).toList();
+        return com.nexusflow.common.PageResult.of(items, page, size, result.getTotalElements());
+    }
+
     CryptoPaymentEntity toEntity(CryptoPayment payment) {
         CryptoPaymentEntity entity = new CryptoPaymentEntity();
         entity.setId(payment.getId());

@@ -1,8 +1,13 @@
 package com.nexusflow.infra.persistence;
 
+import com.nexusflow.common.PageResult;
 import com.nexusflow.domain.order.OrderRepository;
 import com.nexusflow.domain.order.OrderStatus;
 import com.nexusflow.domain.order.PaymentOrder;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -49,6 +54,30 @@ public interface JpaOrderRepository extends OrderRepository, JpaRepository<Payme
         List<String> names = statuses.stream().map(OrderStatus::name).toList();
         return findEntitiesByStatusIn(names).stream().map(this::toDomain).toList();
     }
+
+    @Override
+    default PageResult<PaymentOrder> search(OrderStatus status, String merchantId, int page, int size) {
+        Pageable pageable = PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 200),
+                Sort.by(Sort.Direction.DESC, "createTime"));
+        Page<PaymentOrderEntity> result;
+        if (status != null && merchantId != null) {
+            result = findByMerchantIdAndStatus(merchantId, status.name(), pageable);
+        } else if (status != null) {
+            result = findByStatus(status.name(), pageable);
+        } else if (merchantId != null) {
+            result = findByMerchantId(merchantId, pageable);
+        } else {
+            result = findAll(pageable);
+        }
+        List<PaymentOrder> items = result.getContent().stream().map(this::toDomain).toList();
+        return PageResult.of(items, page, size, result.getTotalElements());
+    }
+
+    Page<PaymentOrderEntity> findByStatus(String status, Pageable pageable);
+
+    Page<PaymentOrderEntity> findByMerchantId(String merchantId, Pageable pageable);
+
+    Page<PaymentOrderEntity> findByMerchantIdAndStatus(String merchantId, String status, Pageable pageable);
 
     @Query("SELECT o FROM PaymentOrderEntity o WHERE o.status IN :statuses")
     List<PaymentOrderEntity> findEntitiesByStatusIn(@Param("statuses") Collection<String> statuses);

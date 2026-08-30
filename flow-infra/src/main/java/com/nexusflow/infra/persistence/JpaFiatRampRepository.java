@@ -46,6 +46,27 @@ public class JpaFiatRampRepository implements FiatRampRepository {
         return repository.findByPaymentId(paymentId).map(this::toDomain);
     }
 
+    @Override
+    public com.nexusflow.common.PageResult<FiatRampOrder> search(FiatRampStatus status, String merchantId,
+                                                                 int page, int size) {
+        org.springframework.data.domain.Pageable pageable =
+                org.springframework.data.domain.PageRequest.of(Math.max(page, 0), Math.min(Math.max(size, 1), 200),
+                        org.springframework.data.domain.Sort.by(org.springframework.data.domain.Sort.Direction.DESC,
+                                "createTime"));
+        org.springframework.data.domain.Page<FiatRampOrderEntity> result;
+        if (status != null && merchantId != null) {
+            result = repository.findByMerchantIdAndStatus(merchantId, status.name(), pageable);
+        } else if (status != null) {
+            result = repository.findByStatus(status.name(), pageable);
+        } else if (merchantId != null) {
+            result = repository.findByMerchantId(merchantId, pageable);
+        } else {
+            result = repository.findAll(pageable);
+        }
+        java.util.List<FiatRampOrder> items = result.getContent().stream().map(this::toDomain).toList();
+        return com.nexusflow.common.PageResult.of(items, page, size, result.getTotalElements());
+    }
+
     FiatRampOrderEntity toEntity(FiatRampOrder order) {
         FiatRampOrderEntity entity = new FiatRampOrderEntity();
         entity.setRampOrderId(order.getRampOrderId());

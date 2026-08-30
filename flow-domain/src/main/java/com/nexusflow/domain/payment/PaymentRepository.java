@@ -1,5 +1,7 @@
 package com.nexusflow.domain.payment;
 
+import com.nexusflow.common.PageResult;
+
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -30,4 +32,10 @@ public interface PaymentRepository {
     List<CryptoPayment> findByStatusIn(Collection<PaymentStatus> statuses);
 
     boolean existsByOrderId(String orderId);
+
+    /**
+     * Paged search for ops views. Null status means "no status filter".
+     * Results are ordered by createdAt descending.
+     */
+    PageResult<CryptoPayment> search(PaymentStatus status, int page, int size);
 }

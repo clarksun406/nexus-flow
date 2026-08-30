@@ -74,4 +74,19 @@ public class InMemoryPaymentRepository implements PaymentRepository {
     public boolean existsByOrderId(String orderId) {
         return byOrderId.containsKey(orderId);
     }
+
+    @Override
+    public com.nexusflow.common.PageResult<CryptoPayment> search(PaymentStatus status, int page, int size) {
+        List<CryptoPayment> matched = byId.values().stream()
+                .filter(p -> status == null || p.getStatus() == status)
+                .sorted(java.util.Comparator.comparing(
+                        CryptoPayment::getCreatedAt,
+                        java.util.Comparator.nullsLast(java.util.Comparator.naturalOrder())).reversed())
+                .toList();
+        int safeSize = Math.min(Math.max(size, 1), 200);
+        int safePage = Math.max(page, 0);
+        int from = Math.min(safePage * safeSize, matched.size());
+        int to = Math.min(from + safeSize, matched.size());
+        return com.nexusflow.common.PageResult.of(matched.subList(from, to), page, size, matched.size());
+    }
 }

@@ -182,6 +182,14 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
   - `frontend-ops` — ops console (`ops.html`, `ops-login.html`)
   - `frontend-admin` — platform admin (`admin-permissions.html`, `admin-users.html`, `admin-login.html`)
   The old `flow-cashier` module has been deleted.
+- `frontend/` is an npm workspaces monorepo holding the engineered Vue apps: `apps/checkout`
+  (5173), `apps/merchant` (5174), `apps/ops` (5175), `apps/admin` (5176), plus
+  `apps/checkout-proto` (5177, a mock-data design prototype that is NOT wired into the Maven
+  build or deployment), and shared `packages/` (api-client / ui / config). Each app builds
+  independently (`npm run build:<app>`); the Maven modules package each app's `dist-app` into
+  `static/app/`. In dev mode `/api` proxies to `localhost:8080`. The legacy static pages remain
+  as fallback entries; the h2 profile also serves the `frontend-*/src/main/resources/static`
+  dirs directly on :8080 for zero-build local demos.
 - `checkout.html` accepts `payment_id`/`paymentId` from the URL, calls `/cashier/order/status`
   and `/cashier/pay/submit`, renders the deposit address and Canvas QR code, and polls status
   until terminal states. `nexusflow.cashier.base-url` controls the returned `payUrl`.
@@ -191,6 +199,12 @@ Tracked in `nexusflow-roadmap.md` and the implementation roadmap section of `nex
 - `ops.html` calls `/ops/dashboard` for channel/order/reconciliation/risk data and
   `/crypto/orphan-transactions` for orphan resolve/ignore/compensate actions; `/ops/*` is
   protected by the same `X-API-Key` filter. Session-based auth is available via `ops-login.html`.
+- The ops SPA (`frontend/apps/ops`) also consumes the paged ops query endpoints:
+  `GET /ops/orders?status=&merchantId=&page=&size=`, `GET /ops/payments?status=&page=&size=`,
+  and `GET /ops/fiat-ramp-orders?status=&merchantId=&page=&size=` (all SYSTEM scope, reuse
+  `OpsDashboard.READ` permission). Paged searches return `PageResult` (flow-common) and are
+  implemented via derived Spring Data `Page` queries with `createTime`/`createdAt` desc sort;
+  page sizes are clamped to 200.
 - When a scanned transaction hits a managed address but no PENDING payment matches, the application
   records an `orphan_transactions` row through `OrphanTransactionRepository` and publishes
   `crypto.orphan.detected`. Operators can list, resolve, ignore, or compensate these via
